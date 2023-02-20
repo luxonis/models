@@ -1,0 +1,66 @@
+logger:
+  project_name: ml-ops-train
+  save_directory: output
+  is_tensorboard: True
+  is_wandb: False
+  is_mlflow: False
+
+model:
+  name: test_model
+  type:
+  pretrained:
+
+  backbone:
+    name: MicroNet #"ResNet18"
+    pretrained: 
+    params:
+
+  neck:
+
+  heads: 
+    - name: ClassificationHead
+      params:
+        n_labels: 79
+      loss: 
+        name: CrossEntropyLoss
+        params:
+
+dataset:
+  local_path: demo
+
+train:
+  image_size: [128, 128]
+  batch_size: 4
+  accumulate_grad_batches: 2 
+  epochs: 20
+  n_workers: 2
+  n_metrics: 1
+  eval_interval: 1  
+  
+  freeze_modules:
+    backbone: False
+    #neck: True
+    heads: [False]
+  
+  early_stopping:
+    monitor: val_loss
+    mode: min
+    patience: 3
+
+augmentations:
+  - name: Rotate
+    params:
+      limit: 90
+  - name: Defocus
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+    weight_decay: 0.01
+
+scheduler:
+  name: LinearLR
+  params:
+    start_factor: 0.33
+  

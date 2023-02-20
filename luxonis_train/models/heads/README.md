@@ -1,0 +1,19 @@
+## List of supported heads
+- ClassificationHead
+  - Params:
+    - n_classes: int # number of classes if multi-class problem
+    - n_labels: int # number of labels if multi-label problem
+    - fc_dropout: float # dropout before Linear() layer
+- SegmentationHead
+  - Params:
+    - n_classes: int # number of classes for semantic segmentation
+- EffiDeHead (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
+  - Params:
+    - n_classes: int # number of classes for object detection
+    - reg_max: int # should stay default
+    - anchors: int # should stay default
+- YoloV6Head (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
+  - Params:
+    - n_classes: int # number of classes for object detection
+    - num_layers: int # number of EffiDeHeads, should stay default
+    - reg_max: int # should stay default

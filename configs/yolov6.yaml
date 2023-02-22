@@ -51,6 +51,7 @@ model:
 
 dataset:
   local_path: demo
+  s3_path: s3://luxonis/datasets/demo
 
 train:
   image_size: [128, 128]

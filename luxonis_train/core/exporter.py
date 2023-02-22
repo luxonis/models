@@ -2,13 +2,18 @@ import torch
 import os
 from pathlib import Path
 import blobconverter
+import torch.nn as nn
+import pytorch_lightning as pl
+import subprocess
 
 from luxonis_train.utils.config import *
 from luxonis_train.models import Model
 
 
-class Exporter:
+class Exporter(pl.LightningModule):
     def __init__(self, cfg: dict):
+        super().__init__()
+
         self.cfg = cfg
         
         # check if model is predefined
@@ -23,37 +28,54 @@ class Exporter:
         self.model = Model()
         self.model.build_model(self.cfg["model"], self.cfg["export"]["image_size"])
 
-        state_dict = torch.load(self.cfg["export"]["weights"], map_location="cpu")
-        self.model.load_stete_dict(state_dict)
+        self.load_checkpoint(self.cfg["export"]["weights"])
 
         # TODO: also need to switch to deploy parts of the model
         self.model.eval()
 
-    
+
+    def load_checkpoint(self, path):
+        print(f"Loading weights from: {path}")
+        state_dict = torch.load(path)["state_dict"]
+        # remove weights from loss or other modules
+        removed = []
+        for key in state_dict.keys():
+            if not key.startswith("model"):
+                removed.append(key)
+                state_dict.pop(key)
+        if len(removed):
+            print(f"Following weights weren't loaded: {removed}")
+
+        self.load_state_dict(state_dict)
+
+    def forward(self, inputs):
+        outputs = self.model(inputs)
+        return outputs
+
     def export(self):
         dummy_input = torch.rand(1,3,*self.cfg["export"]["image_size"])
         base_path = self.cfg["export"]["save_directory"]
 
         print("Converting PyTorch model to ONNX")
-        torch.onnx.export(
-            model=self.model,
-            args=dummy_input,
-            f=os.path.join(base_path, f"{self.cfg['train']['name']}.onnx"),
+        self.to_onnx(
+            os.path.join(base_path, f"{self.cfg['model']['name']}.onnx"),
+            dummy_input,
             opset_version=12,
             input_names=["input"],
-            # output_names=[] #TODO
+            # output_names=[] TODO:
         )
 
         print("Converting ONNX to openVINO")
-        cmd = f"mo --input_model {os.path.join(base_path, self.cfg['train']['name'])}.onnx " \
+        cmd = f"mo --input_model {os.path.join(base_path, self.cfg['model']['name'])}.onnx " \
         f"--output_dir {base_path} " \
-        f"--model_name {self.cfg['train']['name']} " \
+        f"--model_name {self.cfg['model']['name']} " \
         '--data_type FP16 ' \
         '--reverse_input_channel ' 
+        subprocess.check_output(cmd, shell=True)
     
         print("Converting IR to blob")
-        xmlfile = f"{os.path.join(base_path, self.cfg['train']['name'])}.xml"
-        binfile = f"{os.path.join(base_path, self.cfg['train']['name'])}.bin"
+        xmlfile = f"{os.path.join(base_path, self.cfg['model']['name'])}.xml"
+        binfile = f"{os.path.join(base_path, self.cfg['model']['name'])}.bin"
         blob_path = blobconverter.from_openvino(
             xml=xmlfile,
             bin=binfile,
@@ -61,4 +83,5 @@ class Exporter:
             shaves=6,
             output_dir=base_path
         )
+        print(f"Finished exporting. Files saved in: {base_path}")
 

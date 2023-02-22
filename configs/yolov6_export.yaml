@@ -1,7 +1,7 @@
 export:
-  weights:
-  save_directory:
-  image_size:
+  weights: /home/klemen/luxonis/models/output/blue-vole-3/best_val_metric/val_map=0.0010_val_loss=3.4348_epoch=00_YoloV6-n.ckpt
+  save_directory: output_export
+  image_size: [128, 128]
 
 model:
   name: YoloV6-n

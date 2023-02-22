@@ -4,10 +4,7 @@ Luxonis training library (luxonis-train) is intended for training deep learning 
 The work on this project is in an MVP state, so it may be missing some critical features or have some issues - please report any feedback!
 
 ## Installation:
-Since this package relys on `luxonis-ml` library you should first install this as specified [here](https://github.com/luxonis/luxonis-ml/tree/main#installation-and-setup). After that you can install `luxonis-train` like this: 
-```
-python3 -m pip install -e .
-```
+Since this package relys on `luxonis-ml` library you should first install this as specified [here](https://github.com/luxonis/luxonis-ml/tree/main#installation-and-setup).
 
 ## Configuration:
 Most of the work is done through a `config.yaml` file, which you can then supply to the Trainer. Config file consists of a few major blocks that are described below. You can create your own config or use/edit one of the already made ones.
@@ -150,6 +147,12 @@ Once you've configured your `custom.yaml` file you can train the model using thi
 python3 tools/train.py -cfg configs/custom.yaml
 ```
 You can also specify accelerator with `--acclerator` flag (cpu or gpu) and device with `--devices` that you want to use for training (e.g. `--devices 1`)
+
+## Install as a package
+If you want to initialize `Trainer` class from anywhere you can install `luxonis-train` as a package like this: 
+```
+python3 -m pip install -e .
+```
 
 ## Customize Trainer through API
 Before trainig the model you can also additionaly configure it with the use of our [Trainer](./luxonis_train/core/trainer.py) API. Look at [train.py](./tools/train.py) to see how Trainer is initialized. 

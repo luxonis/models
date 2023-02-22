@@ -39,7 +39,7 @@ def check_cfg(cfg):
 
     # check if image size specified
     if not("image_size" in cfg["train"] and cfg["train"]["image_size"]):
-        warnings.ward("Image size not specified (under 'train'). Using default size [256, 256].")
+        warnings.warn("Image size not specified (under 'train'). Using default size [256, 256].")
         cfg["train"]["image_size"] = [256,256]
     
 

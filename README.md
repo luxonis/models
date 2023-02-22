@@ -148,7 +148,7 @@ python3 tools/train.py -cfg configs/custom.yaml
 ```
 You can also specify accelerator with `--acclerator` flag (cpu or gpu) and device with `--devices` that you want to use for training (e.g. `--devices 1`)
 
-## Install as package
+## Install as a package
 If you want to initialize `Trainer` class from anywhere you can install `luxonis-train` as a package like this: 
 ```
 python3 -m pip install -e .

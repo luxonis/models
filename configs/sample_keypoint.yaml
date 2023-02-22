@@ -1,0 +1,80 @@
+logger:
+  project_name: ml-ops-train
+  save_directory: output
+  is_tensorboard: True
+  is_wandb: False
+  is_mlflow: False
+
+model:
+  name: test_keypoint
+  type: #YoloV6-n # uncomment this to use predefined model
+  pretrained:
+  params: # only take into account if using predefined model
+    n_classes: 1
+
+  backbone:
+    name: EfficientRep
+    pretrained:
+    params:
+      channels_list: [64, 128, 256, 512, 1024]
+      num_repeats: [1, 6, 12, 18, 6]
+      depth_mul: 0.33
+      width_mul: 0.25
+
+  neck:
+    name: RepPANNeck
+    params:
+      channels_list: [256, 128, 128, 256, 256, 512]
+      num_repeats: [12, 12, 12, 12]
+      depth_mul: 0.33
+      width_mul: 0.25
+
+  heads:
+    - name: YoloV7PoseHead
+      params:
+        n_classes: 1
+        n_keypoints: 17
+        n_layers: 3
+      loss:
+        name: YoloV6Loss
+        params:
+          n_classes: 1
+          iou_type: siou
+
+  # additional_heads:
+    # - name: SegmentationHead
+      # params:
+        # n_classes: 2
+      # loss:
+        # name: CrossEntropyLoss
+        # params:
+
+dataset:
+  local_path: demo
+
+train:
+  image_size: [224, 224]
+  batch_size: 4
+  accumulate_grad_batches: 2 # number of batches we do before doing backward pass
+  epochs: 20
+  n_workers: 2
+  n_metrics: 2 # compute metrics on train set every n_metric epochs
+  eval_interval: 1
+
+  early_stopping:
+    monitor: val_loss
+    mode: min
+    patience: 3
+
+augmentations:
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+    weight_decay: 0.01
+
+scheduler:
+  name: LinearLR
+  params:
+    start_factor: 0.33

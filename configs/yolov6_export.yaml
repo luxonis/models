@@ -1,9 +1,7 @@
-logger:
-  project_name: ml-ops-train
-  save_directory: output
-  is_tensorboard: True
-  is_wandb: False
-  is_mlflow: False
+export:
+  weights: /home/klemen/luxonis/models/output/blue-vole-3/best_val_metric/val_map=0.0010_val_loss=3.4348_epoch=00_YoloV6-n.ckpt
+  save_directory: output_export
+  image_size: [128, 128]
 
 model:
   name: YoloV6-n
@@ -48,35 +46,3 @@ model:
       # loss: 
         # name: CrossEntropyLoss
         # params:
-
-dataset:
-  local_path: demo
-  s3_path: s3://luxonis/datasets/demo
-
-train:
-  image_size: [128, 128]
-  batch_size: 4
-  accumulate_grad_batches: 2 # number of batches we do before doing backward pass
-  epochs: 20
-  n_workers: 2
-  n_metrics: 2 # compute metrics on train set every n_metric epochs
-  eval_interval: 1
-  
-  early_stopping:
-    monitor: val_loss
-    mode: min
-    patience: 3
-
-augmentations:
-
-optimizer:
-  name: Adam
-  params:
-    lr: 0.001
-    weight_decay: 0.01
-
-scheduler:
-  name: LinearLR
-  params:
-    start_factor: 0.33
-  

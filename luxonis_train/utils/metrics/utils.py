@@ -18,7 +18,7 @@ def init_metrics(head):
             "accuracy": torchmetrics.Accuracy(task="multilabel", num_labels=head.n_labels),
             "precision": torchmetrics.Precision(task="multilabel", num_labels=head.n_labels),
             "recall": torchmetrics.Recall(task="multilabel", num_labels=head.n_labels),
-            "f1": torchmetrics.F1Score(task="multilabel", num_labels=head.n_labels)   
+            "f1": torchmetrics.F1Score(task="multilabel", num_labels=head.n_labels)
         })
     elif isinstance(head.type, SemanticSegmentation):
         collection = torchmetrics.MetricCollection({
@@ -29,6 +29,10 @@ def init_metrics(head):
     elif isinstance(head.type, ObjectDetection):
         collection = torchmetrics.MetricCollection({
             "mAP": MeanAveragePrecision(box_format="xyxy")
+        })
+    elif isinstance(head.type, KeyPointDetection):
+        collection = torchmetrics.MetricCollection({
+            "mse": torchmetrics.MeanSquaredError()
         })
 
     return nn.ModuleDict({
@@ -57,21 +61,21 @@ def postprocess_for_metrics(output, labels, head):
 def postprocess_yolov6(output, labels, head):
     from luxonis_train.utils.assigners.anchor_generator import generate_anchors
     from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression, xywh2xyxy
-    
+
     x, cls_score_list, reg_dist_list = output
-    anchor_points, stride_tensor = generate_anchors(x, head.stride, 
+    anchor_points, stride_tensor = generate_anchors(x, head.stride,
         head.grid_cell_size, head.grid_cell_offset, is_eval=True)
     pred_bboxes = dist2bbox(reg_dist_list, anchor_points, box_format="xywh")
 
     pred_bboxes *= stride_tensor
     output_merged = torch.cat([
-        pred_bboxes, 
-        torch.ones((x[-1].shape[0], pred_bboxes.shape[1], 1), dtype=pred_bboxes.dtype, device=pred_bboxes.device), 
-        cls_score_list 
+        pred_bboxes,
+        torch.ones((x[-1].shape[0], pred_bboxes.shape[1], 1), dtype=pred_bboxes.dtype, device=pred_bboxes.device),
+        cls_score_list
     ], axis=-1)
 
     output_nms = non_max_suppression(output_merged)
-    
+
     output_list = []
     labels_list = []
     for i in range(len(output_nms)):

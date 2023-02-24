@@ -3,23 +3,23 @@
 class Classification():
     def __init__(self):
         self._main_metric = "f1"
-    
+
     @property
     def main_metric(self):
-        return self._main_metric 
-        
+        return self._main_metric
+
 class MultiLabelClassification():
     def __init__(self):
         self._main_metric = "f1"
-    
+
     @property
     def main_metric(self):
-        return self._main_metric 
+        return self._main_metric
 
 class ObjectDetection():
     def __init__(self):
         self._main_metric = "map"
-    
+
     @property
     def main_metric(self):
         return self._main_metric
@@ -27,7 +27,7 @@ class ObjectDetection():
 class SemanticSegmentation():
     def __init__(self):
         self._main_metric = "mIoU"
-    
+
     @property
     def main_metric(self):
         return self._main_metric
@@ -35,15 +35,15 @@ class SemanticSegmentation():
 class InstanceSegmentation():
     def __init__(self):
         self._main_metric = "mIoU"
-    
+
     @property
     def main_metric(self):
-        return self._main_metric    
-        
+        return self._main_metric
+
 class KeyPointDetection():
     def __init__(self):
-        self._main_metric = None
-    
+        self._main_metric = "mse"
+
     @property
     def main_metric(self):
         return self._main_metric

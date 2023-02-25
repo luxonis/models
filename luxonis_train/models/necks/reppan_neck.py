@@ -156,9 +156,6 @@ if __name__ == "__main__":
 
     backbone = EfficientRep(in_channels=3, channels_list=channels_list_backbone, 
         num_repeats=num_repeats_backbone, depth_mul=depth_mul, width_mul=width_mul)
-    for module in backbone.modules():
-        if hasattr(module, 'switch_to_deploy'):
-            module.switch_to_deploy()
     backbone_out_shapes = dummy_input_run(backbone, [1,3,224,224])
     backbone.eval()
 

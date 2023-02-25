@@ -3,6 +3,13 @@ Luxonis training library (luxonis-train) is intended for training deep learning 
 
 The work on this project is in an MVP state, so it may be missing some critical features or have some issues - please report any feedback!
 
+**Table of contents:**
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Training](#training)
+- [Exporting](#exporting)
+
+
 ## Installation:
 Since this package relys on `luxonis-ml` library you should first install this as specified [here](https://github.com/luxonis/luxonis-ml/tree/main#installation-and-setup). After that you can install `luxonis-train` like this: 
 ```
@@ -151,7 +158,7 @@ python3 tools/train.py -cfg configs/custom.yaml
 ```
 You can also specify accelerator with `--acclerator` flag (cpu or gpu) and device with `--devices` that you want to use for training (e.g. `--devices 1`)
 
-## Customize Trainer through API
+### Trainer API
 Before trainig the model you can also additionaly configure it with the use of our [Trainer](./luxonis_train/core/trainer.py) API. Look at [train.py](./tools/train.py) to see how Trainer is initialized. 
 
 From there you can override the loss function for specific head by calling: 
@@ -172,4 +179,17 @@ To run training in another thread use this:
 ```python
 trainer = Trainer(args_dict, cfg)
 trainer.run(new_thread=True)
+```
+
+## Exporting
+We support export to ONNX, openVINO and .blob format which is used for OAK cameras. For export, you must provide configuration file. This file must include [model](#model) part and `export` part which you can define like this:
+```yaml
+export:
+  weights: # path to pretrained weights of the model
+  save_directory: # location where exported files will be saved
+  iamge_size: # list of [width, height] for image size used for export (default: [256, 256])
+```
+Once you have the `custom_export.yaml` config file ready you can export the model like this:
+```python
+python3 tools/export.py -cfg configs/custom_export.yaml 
 ```

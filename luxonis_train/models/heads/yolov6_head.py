@@ -61,6 +61,20 @@ class YoloV6Head(nn.Module):
 
         return [x, cls_score_list, reg_distri_list]
 
+    def to_deploy(self):
+        # change definition of forward()
+        def deploy_forward(x):
+            outputs = []
+            for i, module in enumerate(self.head):
+                out_x, out_cls, out_reg = module([x[i]])
+                out_cls = torch.sigmoid(out_cls)
+                conf, _ = out_cls.max(1, keepdim=True)
+                output = torch.cat([out_reg, conf, out_cls], axis=1)
+                outputs.append(output)
+            return outputs
+
+        self.forward = deploy_forward
+
 
 if __name__ == "__main__":
     # test yolov6-n config

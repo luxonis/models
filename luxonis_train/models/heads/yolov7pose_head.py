@@ -11,6 +11,14 @@ from luxonis_train.models.heads.ikeypoint_head import IKeypoint
 
 class YoloV7PoseHead(nn.Module):
     strides = [8., 16., 32., 64.] # possible strides. TODO: compute this in a smart way
+    # anchors_list = [[19,27, 44,40, 38,94], \
+    #                 [96,68, 86,152, 180,137], \
+    #                 [140,301, 303,264, 238,542], \
+    #                 [436,615, 739,380, 925,792]] # TODO: set or compute this
+
+    anchors_list = [[96,68, 86,152, 180,137], \
+                    [140,301, 303,264, 238,542], \
+                    [436,615, 739,380, 925,792]] # TODO: set or compute this
 
     def __init__(self, prev_out_shape, n_classes, n_keypoints, n_layers=3, n_anchors=3, **kwargs):
         super(YoloV7PoseHead, self).__init__()
@@ -27,8 +35,7 @@ class YoloV7PoseHead(nn.Module):
         ch = 3 # number of input channels
         s = 256 # 2x min stride
 
-        anchors = [[19, 27, 44, 40, 38, 94], [96, 68, 86, 152, 180, 137], [140, 301, 303, 264, 238, 542]] # TODO: set or compute this
-        a = torch.tensor(anchors).float().view(self.nl, -1, 2)
+        a = torch.tensor(self.anchors_list).float().view(self.nl, -1, 2)
         self.register_buffer('anchors', a)  # shape(nl,na,2)
         self.register_buffer('anchor_grid', a.clone().view(self.nl, 1, -1, 1, 1, 2))  # shape(nl,1,na,1,1,2)
 

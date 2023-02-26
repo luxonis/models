@@ -27,14 +27,13 @@ class TrainAugmentations:
 
         return A.Compose(
             augmentations,
-            bbox_params=A.BboxParams(format="coco", label_fields=["bbox_classes"], check_each_transform=False),
+            bbox_params=A.BboxParams(format="coco", label_fields=["bbox_classes"]),
             keypoint_params=A.KeypointParams(format="xy", label_fields=["keypoints_classes"], remove_invisible=False),
         )
 
     def __call__(self, data):
         img, classify, bboxes, seg, keypoints = data
 
-        id = np.random.choice(range(200))
         img_in = img.numpy()
         # albumentations expects with RGB image with HWC format
         img_in = np.transpose(img_in, (1,2,0))
@@ -160,13 +159,11 @@ class ValAugmentations:
         transformed_image, out_bboxes, transformed_mask, final_keypoints = post_augment_process(transformed, keypoints, keypoints_classes)
 
         # if final_keypoints.shape[0]:
-        #     # print(f'final_keypoints {id}', final_keypoints)
         #     _, ih, iw  = transformed_image.shape
         #     show = transformed_image.numpy().transpose((1,2,0))
         #     for kp in final_keypoints:
         #         kp = kp[1:].numpy().reshape((-1,3))
         #         for i in range(len(kp)):
-                    # print(i, round(kp[i,0]*iw),round(kp[i,1]*ih))
         #             cv2.circle(show, (round(kp[i,0]*iw),round(kp[i,1]*ih)), 2, (255,0,0), 2)
         #     for box in out_bboxes:
         #         _, x, y, w, h = box.numpy()

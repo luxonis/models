@@ -5,6 +5,7 @@
 
 import torch
 import torch.nn as nn
+import math
 
 def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7):
     # Returns the IoU of box1 to box2. box1 is 4, box2 is nx4
@@ -134,7 +135,8 @@ class QFocalLoss(nn.Module):
 class YoloV7PoseLoss(nn.Module):
     # Compute losses
 
-    anchors = [[19, 27, 44, 40, 38, 94], [96, 68, 86, 152, 180, 137], [140, 301, 303, 264, 238, 542]] # TODO: set or compute this
+    anchors = [[19., 27., 44., 40, 38, 94], [96., 68, 86, 152, 180, 137], [140., 301, 303, 264, 238, 542]] # TODO: set or compute this
+    anchors = [torch.tensor(anch).reshape(3,2) for anch in anchors]
 
     def __init__(self, n_classes, n_keypoints, n_layers=3, n_anchors=3, \
         autobalance=False, kpt_label=True, anchor_t=4.0, cls_pw=1.0, obj_pw=1.0, label_smoothing=0.0, fl_gamma=0.0, gr=1.0):
@@ -173,8 +175,16 @@ class YoloV7PoseLoss(nn.Module):
     def forward(self, p, targets, **kwargs):  # predictions, targets, model
         p, _ = p # ignore the inference outputs
 
-        print('\n\n\n')
-        print(targets.shape)
+        bboxes, keypoints = targets
+
+        # print('\n\n\n')
+        # print(bboxes.shape)
+        # print(keypoints.shape)
+
+        targets = torch.zeros((bboxes.size(0), 6+self.nkpt*2), device=bboxes.device)
+        targets[:,:6] = bboxes # insert bounding boxes
+        targets[:,6::2] = keypoints[:,2::3] # insert kp x coordinates
+        targets[:,7::2] = keypoints[:,3::3] # insert kp y coordinates
 
         device = targets.device
         lcls, lbox, lobj, lkpt, lkptv = torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device)
@@ -231,15 +241,16 @@ class YoloV7PoseLoss(nn.Module):
 
         if self.autobalance:
             self.balance = [x / self.balance[self.ssi] for x in self.balance]
-        lbox *= self.hyp['box']
-        lobj *= self.hyp['obj']
-        lcls *= self.hyp['cls']
-        lkptv *= self.hyp['cls']
-        lkpt *= self.hyp['kpt']
+        # lbox *= self.hyp['box']
+        # lobj *= self.hyp['obj']
+        # lcls *= self.hyp['cls']
+        # lkptv *= self.hyp['cls']
+        # lkpt *= self.hyp['kpt']
         bs = tobj.shape[0]  # batch size
 
         loss = lbox + lobj + lcls + lkpt + lkptv
-        return loss * bs, torch.cat((lbox, lobj, lcls, lkpt, lkptv, loss)).detach()
+        # return loss * bs, torch.cat((lbox, lobj, lcls, lkpt, lkptv, loss)).detach()
+        return loss * bs
 
     def build_targets(self, p, targets):
         # Build targets for compute_loss(), input targets(image,class,x,y,w,h)
@@ -295,7 +306,7 @@ class YoloV7PoseLoss(nn.Module):
 
             # Append
             a = t[:, -1].long()  # anchor indices
-            indices.append((b, a, gj.clamp_(0, gain[3] - 1), gi.clamp_(0, gain[2] - 1)))  # image, anchor, grid indices
+            indices.append((b, a, gj.clamp_(0, gain[3].long() - 1), gi.clamp_(0, gain[2].long() - 1)))  # image, anchor, grid indices
             tbox.append(torch.cat((gxy - gij, gwh), 1))  # box
             if self.kpt_label:
                 for kpt in range(self.nkpt):

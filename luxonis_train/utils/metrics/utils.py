@@ -32,7 +32,8 @@ def init_metrics(head):
         })
     elif isinstance(head.type, KeyPointDetection):
         collection = torchmetrics.MetricCollection({
-            "mse": torchmetrics.MeanSquaredError()
+            # "mse": torchmetrics.MeanSquaredError()
+            "mAP": MeanAveragePrecision(box_format="xywh")
         })
 
     return nn.ModuleDict({
@@ -55,6 +56,10 @@ def postprocess_for_metrics(output, labels, head):
     elif isinstance(head.type, ObjectDetection):
         if head_name == "YoloV6Head":
             output, labels = postprocess_yolov6(output, labels, head)
+            return output, labels
+    elif isinstance(head.type, KeyPointDetection):
+        if head_name == "YoloV7PoseHead":
+            output, labels = postprocess_yolov7pose(output, labels, head)
             return output, labels
 
 
@@ -88,6 +93,32 @@ def postprocess_yolov6(output, labels, head):
         curr_bboxs = xywh2xyxy(curr_labels[:, 2:])
         labels_list.append({
             "boxes": curr_bboxs,
+            "labels": curr_labels[:,1]
+        })
+
+    return output_list, labels_list
+
+
+def postprocess_yolov7pose(output, labels, head):
+    from luxonis_train.utils.boxutils import non_max_suppression_pose
+
+    labels, _ = labels # grab only bboxes for now
+    _, output = output
+    # output = non_max_suppression_pose(output, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls, kpt_label=kpt_label, nc=model.yaml['nc'], nkpt=model.yaml['nkpt'])
+    output_nms = non_max_suppression_pose(output, kpt_label=True)
+    # output_nms[:,0::2] *= # TODO: scaling to non-normalized coordinates
+
+    output_list = []
+    labels_list = []
+    for i in range(len(output_nms)):
+        output_list.append({
+            "boxes": output_nms[i][:, :4],
+            "scores": output_nms[i][:, 4],
+            "labels": output_nms[i][:, 5]
+        })
+        curr_labels = labels[labels[:,0]==i]
+        labels_list.append({
+            "boxes": curr_labels[:, 2:],
             "labels": curr_labels[:,1]
         })
 

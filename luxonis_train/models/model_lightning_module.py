@@ -71,11 +71,11 @@ class ModelLightningModule(pl.LightningModule):
             for param in module.parameters():
                 param.requires_grad = False
 
-    def configure_callbacks(self):    
+    def configure_callbacks(self):
         self.min_val_loss_checkpoints_path = f"{self.save_dir}/min_val_loss"
         self.best_val_metric_checkpoints_path = f"{self.save_dir}/best_val_metric"
         self.main_metric = self.model.heads[0].type.main_metric
-        
+
         loss_checkpoint = ModelCheckpoint(
             monitor = "val_loss",
             dirpath = self.min_val_loss_checkpoints_path,
@@ -91,7 +91,7 @@ class ModelLightningModule(pl.LightningModule):
             save_top_k = 3,
             mode = "max"
         )
-        
+
         lr_monitor = LearningRateMonitor(logging_interval="step")
 
         callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor]
@@ -127,11 +127,11 @@ class ModelLightningModule(pl.LightningModule):
     def configure_optimizers(self):
         optimizer_name = self.cfg["optimizer"]["name"]
         optimizer = get_optimizer(
-            model_params=self.model.parameters(), 
-            name=optimizer_name, 
+            model_params=self.model.parameters(),
+            name=optimizer_name,
             **self.cfg["optimizer"]["params"] if self.cfg["optimizer"]["params"] else {}
         )
-        
+
         scheduler_name = self.cfg["scheduler"]["name"]
         scheduler = get_scheduler(
             optimizer=optimizer,
@@ -152,7 +152,7 @@ class ModelLightningModule(pl.LightningModule):
             curr_label = self._get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch, step=self.global_step)
             loss += curr_loss
-                        
+
             if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0:
                 output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"]
@@ -176,16 +176,16 @@ class ModelLightningModule(pl.LightningModule):
             curr_label = self._get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch, step=self.global_step)
             loss += curr_loss
-            
+
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
-        
+
         step_output = {
             "loss": loss,
         }
         return step_output
-    
+
     def test_step(self, test_batch, batch_idx):
         inputs = test_batch[0].float()
         labels = test_batch[1:]
@@ -198,11 +198,11 @@ class ModelLightningModule(pl.LightningModule):
             curr_label = self._get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch, step=self.global_step)
             loss += curr_loss
-            
+
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["test_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
-        
+
         step_output = {
             "loss": loss,
         }
@@ -217,12 +217,12 @@ class ModelLightningModule(pl.LightningModule):
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
                 for metric_name in curr_metrics:
                     self.log(f"{curr_head_name}_{metric_name}/train", curr_metrics[metric_name], sync_dist=True)
-                self.metrics[curr_head_name]["train_metrics"].reset() 
+                self.metrics[curr_head_name]["train_metrics"].reset()
 
     def validation_epoch_end(self, outputs):
         epoch_val_loss = self._avg([step_output["loss"] for step_output in outputs])
         self.log("val_loss", epoch_val_loss, sync_dist=True)
-        
+
         results = {} # used for printing to console
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"].compute()
@@ -239,7 +239,7 @@ class ModelLightningModule(pl.LightningModule):
     def test_epoch_end(self, outputs):
         # TODO: what do we want to log/show on test epoch end? same as validation epoch end?
         pass
-    
+
     def get_status(self):
         # return current epoch and number of all epochs
         return self.current_epoch, self.cfg["train"]["epochs"]
@@ -258,7 +258,7 @@ class ModelLightningModule(pl.LightningModule):
         elif isinstance(head_type, ObjectDetection):
             return bboxes
         elif isinstance(head_type, KeyPointDetection):
-            return keypoints
+            return (bboxes, keypoints)
         else:
             raise RuntimeError(f"No labels for head type {head_type}.")
 

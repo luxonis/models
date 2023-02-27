@@ -5,12 +5,14 @@
 
 import torch
 import torch.nn as nn
+import math
 
 from luxonis_train.utils.head_type import KeyPointDetection
 from luxonis_train.models.heads.ikeypoint_head import IKeypoint
 
 class YoloV7PoseHead(nn.Module):
     strides = [8., 16., 32., 64.] # possible strides. TODO: compute this in a smart way
+    # strides = [16., 32., 64.] # possible strides. TODO: compute this in a smart way
     # anchors_list = [[19,27, 44,40, 38,94], \
     #                 [96,68, 86,152, 180,137], \
     #                 [140,301, 303,264, 238,542], \
@@ -48,6 +50,7 @@ class YoloV7PoseHead(nn.Module):
             )
             curr_head.stride = self.strides[i]
             curr_head.anchor_grid = self.anchor_grid[i]
+            self.initialize_weights(curr_head)
             self.head.append(curr_head)
 
     def forward(self, x):
@@ -60,6 +63,25 @@ class YoloV7PoseHead(nn.Module):
 
         z = torch.cat(z, axis=1)
         return [x, z]
+
+    def initialize_weights(self, model, cf=None):
+        for m in model.modules():
+            t = type(m)
+            if t is nn.Conv2d:
+                pass  # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif t is nn.BatchNorm2d:
+                m.eps = 1e-3
+                m.momentum = 0.03
+            elif t in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6]:
+                m.inplace = True
+
+        # biases
+        s = model.stride
+        for mi in model.m:  # from
+            b = mi.bias.view(model.na, -1)  # conv.bias(255) to (3,85)
+            b.data[:, 4] += math.log(8 / (640 / s) ** 2)  # obj (8 objects per 640 image)
+            b.data[:, 5:] += math.log(0.6 / (model.n_classes - 0.99)) if cf is None else torch.log(cf / cf.sum())  # cls
+            mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
 if __name__ == "__main__":
     # test yolov6-n config

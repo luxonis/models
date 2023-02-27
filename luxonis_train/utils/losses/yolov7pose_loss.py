@@ -186,8 +186,6 @@ class YoloV7PoseLoss(nn.Module):
         p, _ = p # ignore the inference outputs
 
         bboxes, keypoints = targets
-        print(bboxes.shape)
-        print(keypoints.shape)
         targets = torch.zeros((bboxes.size(0), 6+self.nkpt*2), device=bboxes.device)
         targets[:,:6] = bboxes # insert bounding boxes
         targets[:,6::2] = keypoints[:,2::3] # insert kp x coordinates
@@ -210,7 +208,7 @@ class YoloV7PoseLoss(nn.Module):
 
                 # Regression
                 pxy = ps[:, :2].sigmoid() * 2. - 0.5
-                pwh = (ps[:, 2:4].sigmoid() * 2) ** 2 * anchors[i]
+                pwh = (ps[:, 2:4].sigmoid() * 2) ** 2 * anchors[i].to(device)
                 pbox = torch.cat((pxy, pwh), 1)  # predicted box
                 iou = bbox_iou(pbox.T, tbox[i], x1y1x2y2=False, CIoU=True)  # iou(prediction, target)
                 lbox += (1.0 - iou).mean()  # iou loss
@@ -227,7 +225,7 @@ class YoloV7PoseLoss(nn.Module):
                     #oks based loss
                     d = (pkpt_x-tkpt[i][:,0::2])**2 + (pkpt_y-tkpt[i][:,1::2])**2
                     s = torch.prod(tbox[i][:,-2:], dim=1, keepdim=True)
-                    kpt_loss_factor = (torch.sum(kpt_mask != 0) + torch.sum(kpt_mask == 0))/torch.sum(kpt_mask != 0)
+                    kpt_loss_factor = (torch.sum(kpt_mask != 0) + torch.sum(kpt_mask == 0))/ (torch.sum(kpt_mask != 0) + 1e-9) # added epsilon term here
                     lkpt += kpt_loss_factor*((1 - torch.exp(-d/(s*(4*sigmas**2)+1e-9)))*kpt_mask).mean()
                 # Objectness
                 tobj[b, a, gj, gi] = (1.0 - self.gr) + self.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio
@@ -245,11 +243,6 @@ class YoloV7PoseLoss(nn.Module):
 
         if self.autobalance:
             self.balance = [x / self.balance[self.ssi] for x in self.balance]
-        # lbox *= self.hyp['box']
-        # lobj *= self.hyp['obj']
-        # lcls *= self.hyp['cls']
-        # lkptv *= self.hyp['cls']
-        # lkpt *= self.hyp['kpt']
         lbox *= self.wbox
         lobj *= self.wobj
         lcls *= self.wcls
@@ -258,7 +251,6 @@ class YoloV7PoseLoss(nn.Module):
         bs = tobj.shape[0]  # batch size
 
         loss = lbox + lobj + lcls + lkpt + lkptv
-        # return loss * bs, torch.cat((lbox, lobj, lcls, lkpt, lkptv, loss)).detach()
         return loss * bs
 
     def build_targets(self, p, targets):
@@ -289,7 +281,7 @@ class YoloV7PoseLoss(nn.Module):
             t = targets * gain
             if nt:
                 # Matches
-                r = t[:, :, 4:6] / anchors[:, None]  # wh ratio
+                r = t[:, :, 4:6] / anchors[:, None].to(targets.device)  # wh ratio
                 j = torch.max(r, 1. / r).max(2)[0] < self.anchor_t  # compare
                 # j = wh_iou(anchors, t[:, 4:6]) > model.hyp['iou_t']  # iou(3,n)=wh_iou(anchors(3,2), gwh(n,2))
                 t = t[j]  # filter

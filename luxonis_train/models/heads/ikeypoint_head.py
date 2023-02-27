@@ -72,7 +72,7 @@ class IKeypoint(nn.Module):
 
         if self.inplace:
             xy = (y[..., 0:2] * 2. - 0.5 + self.grid[-1]) * self.stride  # xy
-            wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid.view(1, self.na, 1, 1, 2) # wh
+            wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid.view(1, self.na, 1, 1, 2).to(x[-1].device) # wh
             if self.n_keypoints != 0:
                 x_kpt[..., 0::3] = (x_kpt[..., ::3] * 2. - 0.5 + kpt_grid_x.repeat(1,1,1,1,17)) * self.stride # xy
                 x_kpt[..., 1::3] = (x_kpt[..., 1::3] * 2. - 0.5 + kpt_grid_y.repeat(1,1,1,1,17)) * self.stride  # xy

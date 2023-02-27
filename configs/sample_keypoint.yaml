@@ -36,25 +36,18 @@ model:
         n_keypoints: 17
         n_layers: 3
       loss:
-        name: YoloV6Loss
+        name: YoloV7PoseLoss
         params:
           n_classes: 1
-          iou_type: siou
-
-  # additional_heads:
-    # - name: SegmentationHead
-      # params:
-        # n_classes: 2
-      # loss:
-        # name: CrossEntropyLoss
-        # params:
+          n_keypoints: 17
+          image_size: [320, 512]
 
 dataset:
-  local_path: demo
+  local_path: coco-people
 
 train:
-  image_size: [224, 224]
-  batch_size: 4
+  image_size: [320, 512]
+  batch_size: 2
   accumulate_grad_batches: 2 # number of batches we do before doing backward pass
   epochs: 20
   n_workers: 2
@@ -67,14 +60,25 @@ train:
     patience: 3
 
 augmentations:
+  # - name: Rotate # bug with albumentations dropping cropped bbox instances but not entire keypoint instances; https://github.com/albumentations-team/albumentations/blob/cb372736a0b7da362e5c2e23f3cce4304ddac402/albumentations/core/bbox_utils.py#L32
+  #   params:
+  #     limit: 90
+  #     p: 1
+  - name: Defocus
+    params:
 
 optimizer:
   name: Adam
   params:
-    lr: 0.001
+    lr: 0.01
     weight_decay: 0.01
 
 scheduler:
   name: LinearLR
   params:
     start_factor: 0.33
+
+export:
+  weights:
+  save_directory: output_export
+  image_size: [224, 224]

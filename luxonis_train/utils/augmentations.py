@@ -128,6 +128,9 @@ class ValAugmentations:
         bboxes_points[:,1::2] *= ih
         bbox_classes = bboxes[:,0]
 
+        bboxes_points[:,2][bboxes_points[:,2] <= 0.] = 1.
+        bboxes_points[:,3][bboxes_points[:,3] <= 0.] = 1.
+
         # if keypoints.shape[0]:
         #     show = img.numpy().transpose((1,2,0))
         #     for kp in keypoints:

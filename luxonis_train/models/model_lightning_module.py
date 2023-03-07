@@ -26,16 +26,16 @@ class ModelLightningModule(pl.LightningModule):
         self.model_name = cfg["model"]["name"]
 
         # check if model is predefined
-        if cfg["model"]["type"]:
-            self.load_predefined(cfg["model"]["type"])
+        if self.cfg["model"]["type"]:
+            load_predefined_cfg(self.cfg)
 
-        check_cfg(cfg)
+        check_cfg(self.cfg)
         self.model = Model()
-        self.model.build_model(cfg["model"], cfg["train"]["image_size"])
+        self.model.build_model(self.cfg["model"], self.cfg["train"]["image_size"])
 
         # for each head get its loss
         self.losses = nn.ModuleList()
-        for head in cfg["model"]["heads"]:
+        for head in self.cfg["model"]["heads"]:
             self.losses.append(get_loss(head["loss"]["name"], **head["loss"]["params"] if head["loss"]["params"] else {}))
 
         # for each head initialize its metrics
@@ -44,18 +44,13 @@ class ModelLightningModule(pl.LightningModule):
             self.metrics[self.get_head_name(curr_head, i)] = init_metrics(curr_head)
 
         # load pretrained weights if defined
-        if cfg["model"]["pretrained"]:
-            self.load_checkpoint(cfg["model"]["pretrained"])
+        if self.cfg["model"]["pretrained"]:
+            self.load_checkpoint(self.cfg["model"]["pretrained"])
 
         # freeze modules if defined
-        if "freeze_modules" in cfg["train"] and cfg["train"]["freeze_modules"]:
-            self.freeze_modules(cfg["train"]["freeze_modules"])
+        if "freeze_modules" in self.cfg["train"] and self.cfg["train"]["freeze_modules"]:
+            self.freeze_modules(self.cfg["train"]["freeze_modules"])
 
-    def load_predefined(self, model_type):
-        if model_type.startswith("YoloV6"):
-            load_yolov6_cfg(self.cfg)
-        else:
-            raise RuntimeError(f"{model_type} not supported")
 
     def freeze_modules(self, freeze_info):
         modules_to_freeze = []
@@ -155,7 +150,8 @@ class ModelLightningModule(pl.LightningModule):
             curr_head = self.model.heads[i]
             curr_head_name = self.get_head_name(curr_head, i)
             curr_label = self._get_current_label(curr_head.type, labels)
-            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch, step=self.global_step)
+            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
+                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
                         
             if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0:
@@ -179,7 +175,8 @@ class ModelLightningModule(pl.LightningModule):
             curr_head = self.model.heads[i]
             curr_head_name = self.get_head_name(curr_head, i)
             curr_label = self._get_current_label(curr_head.type, labels)
-            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch, step=self.global_step)
+            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
+                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
             
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
@@ -201,7 +198,8 @@ class ModelLightningModule(pl.LightningModule):
             curr_head = self.model.heads[i]
             curr_head_name = self.get_head_name(curr_head, i)
             curr_label = self._get_current_label(curr_head.type, labels)
-            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch, step=self.global_step)
+            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
+                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
             
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
@@ -274,4 +272,4 @@ class ModelLightningModule(pl.LightningModule):
     def _print_results(self, loss, metrics):
         print("Validation metrics:")
         print(f"Val_loss: {loss}")
-        pprint(metrics)
+        pprint(metrics)  

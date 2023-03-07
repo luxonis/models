@@ -2,10 +2,10 @@ import os
 import yaml
 import warnings
 
-DB_PATH = "./configs/db"
+DB_PATH = "./configs/db" # probably a nicer way to do this
 
 def check_cfg(cfg):
-    # TODO: more cheaks, now only basic ones related to model creation
+    # TODO: more checks, now only basic ones related to model creation
 
     model_cfg = cfg["model"]
     model_predefined = model_cfg["type"] != None
@@ -42,6 +42,27 @@ def check_cfg(cfg):
         warnings.warn("Image size not specified (under 'train'). Using default size [256, 256].")
         cfg["train"]["image_size"] = [256,256]
     
+def check_cfg_export(cfg):
+    if "export" not in cfg:
+        raise RuntimeError("No 'export' section found in config file.")
+
+    if not("weights" in cfg["export"] and cfg["export"]["weights"]):
+        raise RuntimeError("No 'weights' speficied in config file.")
+    
+    if not("save_directory" in cfg["export"] and cfg["export"]["save_directory"]):
+        warnings.warn("No save directory specified. Using default location 'output'")
+        cfg["export"]["save_directory"] = cfg["export"]["source_directory"]
+
+    if not("image_size" in cfg["export"] and cfg["export"]["image_size"]):
+        warnings.warn("Image size not specified (under 'export'). Using default size [256, 256].")
+        cfg["export"]["image_size"] = [256,256]
+
+def load_predefined_cfg(cfg):
+    model_type = cfg["model"]["type"]
+    if model_type.startswith("YoloV6"):
+        load_yolov6_cfg(cfg)
+    else:
+        raise RuntimeError(f"{model_type} not supported")
 
 def load_yolov6_cfg(cfg):
     predefined_cfg_path = cfg["model"]["type"].lower() +".yaml"

@@ -11,7 +11,7 @@ import numpy as np
 import torch.nn.functional as F
 
 from luxonis_train.utils.assigners import ATSSAssigner, TaskAlignedAssigner, generate_anchors
-from luxonis_train.utils.boxutils import dist2bbox, bbox2dist, xywh2xyxy
+from luxonis_train.utils.boxutils import dist2bbox, bbox2dist, xywh2xyxy_coco
 
 class YoloV6Loss(nn.Module):
     '''Loss computation func.'''
@@ -59,18 +59,20 @@ class YoloV6Loss(nn.Module):
 
         epoch_num = kwargs["epoch"]
         step_num = kwargs["step"]
+        original_in_shape = kwargs["original_in_shape"]
 
         feats, pred_scores, pred_distri = outputs
         anchors, anchor_points, n_anchors_list, stride_tensor = \
                generate_anchors(feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset)
         assert pred_scores.type() == pred_distri.type()
+        
         # gt_bboxes_scale = torch.full((1,4), img_size).type_as(pred_scores)
         # supports rectangular original images
-        # gt_bboxes_scale = torch.FloatTensor([self.ori_img_shape[1], self.ori_img_shape[0], self.ori_img_shape[1], self.ori_img_shape[0]]) # use if bboxes normalized
-
+        gt_bboxes_scale = torch.FloatTensor([original_in_shape[1], original_in_shape[0], original_in_shape[1], original_in_shape[0]]) # use if bboxes normalized
         batch_size = pred_scores.shape[0]
+
         # targets
-        targets = self.preprocess(targets, batch_size)
+        targets = self.preprocess(targets, batch_size, gt_bboxes_scale)
         gt_labels = targets[:, :, :1]
         gt_bboxes = targets[:, :, 1:] #xyxy
         mask_gt = (gt_bboxes.sum(-1, keepdim=True) > 0).float()
@@ -181,14 +183,14 @@ class YoloV6Loss(nn.Module):
         return loss
             
 
-    def preprocess(self, targets, batch_size):
+    def preprocess(self, targets, batch_size, scale_tensor):
         targets_list = np.zeros((batch_size, 1, 5)).tolist()
         for i, item in enumerate(targets.cpu().numpy().tolist()):
             targets_list[int(item[0])].append(item[1:])
         max_len = max((len(l) for l in targets_list))
         targets = torch.from_numpy(np.array(list(map(lambda l:l + [[-1,0,0,0,0]]*(max_len - len(l)), targets_list)))[:,1:,:])
-        batch_target = targets[:, :, 1:5]
-        targets[..., 1:] = xywh2xyxy(batch_target)
+        batch_target = targets[:, :, 1:5].mul_(scale_tensor)
+        targets[..., 1:] = xywh2xyxy_coco(batch_target)
         return targets
 
     def bbox_decode(self, anchor_points, pred_dist):

@@ -27,7 +27,7 @@ class ModelLightningModule(pl.LightningModule):
 
         # check if model is predefined
         if self.cfg["model"]["type"]:
-            self.load_predefined_cfg(self.cfg)
+            load_predefined_cfg(self.cfg)
 
         check_cfg(self.cfg)
         self.model = Model()
@@ -150,7 +150,8 @@ class ModelLightningModule(pl.LightningModule):
             curr_head = self.model.heads[i]
             curr_head_name = self.get_head_name(curr_head, i)
             curr_label = self._get_current_label(curr_head.type, labels)
-            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch, step=self.global_step)
+            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
+                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
                         
             if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0:
@@ -174,7 +175,8 @@ class ModelLightningModule(pl.LightningModule):
             curr_head = self.model.heads[i]
             curr_head_name = self.get_head_name(curr_head, i)
             curr_label = self._get_current_label(curr_head.type, labels)
-            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch, step=self.global_step)
+            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
+                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
             
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
@@ -196,7 +198,8 @@ class ModelLightningModule(pl.LightningModule):
             curr_head = self.model.heads[i]
             curr_head_name = self.get_head_name(curr_head, i)
             curr_label = self._get_current_label(curr_head.type, labels)
-            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch, step=self.global_step)
+            curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
+                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
             
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
@@ -269,4 +272,4 @@ class ModelLightningModule(pl.LightningModule):
     def _print_results(self, loss, metrics):
         print("Validation metrics:")
         print(f"Val_loss: {loss}")
-        pprint(metrics)
+        pprint(metrics)  

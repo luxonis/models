@@ -17,13 +17,14 @@ class EffiDeHead(nn.Module):
         
         self.n_classes = n_classes
         self.type = ObjectDetection()
+        self.original_in_shape = kwargs["original_in_shape"]
         self.prev_out_shape = prev_out_shape
 
         self.reg_max = reg_max
         self.n_anchors = n_anchors
         self.prior_prob = 1e-2
 
-        in_channels = prev_out_shape[-1][1]
+        in_channels = self.prev_out_shape[-1][1]
 
         self.head = nn.Sequential(*[
             # stem

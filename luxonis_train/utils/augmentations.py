@@ -35,6 +35,7 @@ class TrainAugmentations:
         img, classify, bboxes, seg, keypoints = data
 
         img_in = img.numpy()
+
         # albumentations expects with RGB image with HWC format
         img_in = np.transpose(img_in, (1,2,0))
         img_in = cv2.cvtColor(img_in, cv2.COLOR_BGR2RGB)
@@ -116,6 +117,7 @@ class ValAugmentations:
     def __call__(self, data):
         img, classify, bboxes, seg, keypoints = data
         img_in = img.numpy()
+
         # albumentations expects with RGB image with HWC format
         img_in = np.transpose(img_in, (1,2,0))
         img_in = cv2.cvtColor(img_in, cv2.COLOR_BGR2RGB)

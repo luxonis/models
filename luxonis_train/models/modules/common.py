@@ -10,6 +10,7 @@ class ConvModule(nn.Sequential):
     # Conv2d+BN+ReLU
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0,
         dilation=1, groups=1, bias=False, activation=nn.ReLU()):
+        """Conv2d + BN + ReLu"""
         super().__init__(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias),
             nn.BatchNorm2d(out_channels),
@@ -17,20 +18,21 @@ class ConvModule(nn.Sequential):
         )
 
 class Up(nn.Sequential):
-    # Upsampling with ConvTranspose2d (idea from U-net Up block)
     def __init__(self, in_channels, out_channels, kernel_size=2, stride=2):
+        """ Upsampling with ConvTranpose2D (simillar to U-Net Up block) """
         super().__init__(
             nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride),
             ConvModule(out_channels, out_channels, kernel_size=3, padding=1)
         )
 
 class SEBlock(nn.Module):
-    """ Squeeze and Excite module.
-        Pytorch implementation of `Squeeze-and-Excitation Networks` -
-        https://arxiv.org/pdf/1709.01507.pdf
-    """
     def __init__(self, in_channels, internal_channels):
         super(SEBlock, self).__init__()
+        """ Squeeze and Excite module.
+            Pytorch implementation of `Squeeze-and-Excitation Networks` -
+            https://arxiv.org/pdf/1709.01507.pdf
+            Source: https://github.com/apple/ml-mobileone/blob/main/mobileone.py
+        """
         self.down = nn.Conv2d(in_channels=in_channels, out_channels=internal_channels, kernel_size=1, stride=1, bias=True)
         self.up = nn.Conv2d(in_channels=internal_channels, out_channels=in_channels, kernel_size=1, stride=1, bias=True)
         self.in_channels = in_channels
@@ -45,6 +47,9 @@ class SEBlock(nn.Module):
         return inputs * x
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
+    """ Conv2d + BN
+        Source: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+    """
     result = nn.Sequential()
     result.add_module('conv', nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
                                                   kernel_size=kernel_size, stride=stride, padding=padding, groups=groups, bias=False))
@@ -52,10 +57,15 @@ def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     return result
 
 class RepVGGBlock(nn.Module):
+    """Source:https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py"""
 
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  stride=1, padding=1, dilation=1, groups=1, padding_mode='zeros', deploy=False, use_se=False):
         super(RepVGGBlock, self).__init__()
+        """ RepVGGBlock is a basic rep-style block, including training and deploy status
+            This code is based on https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
+            Source:https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+        """
         self.deploy = deploy
         self.groups = groups
         self.in_channels = in_channels
@@ -159,7 +169,7 @@ class RepVGGBlock(nn.Module):
         t = (gamma / std).reshape(-1, 1, 1, 1)
         return kernel * t, beta - running_mean * gamma / std
 
-    def switch_to_deploy(self):
+    def to_deploy(self):
         if hasattr(self, 'rbr_reparam'):
             return
         kernel, bias = self.get_equivalent_kernel_bias()
@@ -177,11 +187,12 @@ class RepVGGBlock(nn.Module):
         self.deploy = True
 
 class RepBlock(nn.Module):
-    '''
-        RepBlock is a stage block with rep-style basic block
-    '''
     def __init__(self, in_channels, out_channels, n=1, block=RepVGGBlock, basic_block=RepVGGBlock):
         super(RepBlock, self).__init__()
+        """
+            RepBlock is a stage block with rep-style basic block
+            Source: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+        """
 
         self.conv1 = block(in_channels, out_channels)
         self.block = nn.Sequential(*(block(out_channels, out_channels) for _ in range(n - 1))) if n > 1 else None
@@ -200,6 +211,7 @@ class RepBlock(nn.Module):
 class BottleRep(nn.Module):
     def __init__(self, in_channels, out_channels, basic_block=RepVGGBlock, weight=False):
         super(BottleRep, self).__init__()
+        """Source:https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py"""
         self.conv1 = basic_block(in_channels, out_channels)
         self.conv2 = basic_block(out_channels, out_channels)
         if in_channels != out_channels:
@@ -217,9 +229,11 @@ class BottleRep(nn.Module):
         return outputs + self.alpha * x if self.shortcut else outputs
 
 class SimSPPF(nn.Module):
-    '''Simplified SPPF with ReLU activation'''
     def __init__(self, in_channels, out_channels, kernel_size=5):
         super(SimSPPF, self).__init__()
+        """ Simplified SPPF with ReLU activation
+            Source: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+        """
         c_ = in_channels // 2  # hidden channels
         self.cv1 = ConvModule(in_channels, c_, 1, 1)
         self.cv2 = ConvModule(c_*4, out_channels, 1, 1)

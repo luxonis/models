@@ -119,9 +119,6 @@ if __name__ == "__main__":
     width_mul = 0.25
 
     model = EfficientRep(in_channels=3, channels_list=channels_list, num_repeats=num_repeats, depth_mul=depth_mul, width_mul=width_mul)
-    for module in model.modules():
-        if hasattr(module, 'switch_to_deploy'):
-            module.switch_to_deploy()
     model.eval()
 
     shapes = [224, 256, 384, 512]

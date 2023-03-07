@@ -165,33 +165,15 @@ class RepVGG(nn.Module):
         model_create = create_RepVGG_A0 if variant == "A0" else create_RepVGG_A1
         self.model = model_create(deploy=False)
 
-    def _pre_export(self):
-        for module in self.model.modules():
-            if hasattr(module, 'switch_to_deploy'):
-                module.switch_to_deploy()
-        print("\n[Info] Reparameterized model\n")
-        
     def forward(self, X):
         features = self.model(X)
         return features
-
-
-def repvgg_model_convert(model:torch.nn.Module, save_path=None, do_copy=True):
-    if do_copy:
-        model = copy.deepcopy(model)
-    for module in model.modules():
-        if hasattr(module, 'switch_to_deploy'):
-            module.switch_to_deploy()
-    if save_path is not None:
-        torch.save(model.state_dict(), save_path)
-    return model
 
 
 if __name__ == "__main__":
     
     for variant in ["A0", "A1"]:
         model = RepVGG(variant=variant)
-        model._pre_export()
         model.eval()
         print("Variant:", variant)
         shapes = [224, 256, 384, 512]

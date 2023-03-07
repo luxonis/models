@@ -19,6 +19,7 @@ class YoloV6Head(nn.Module):
         super(YoloV6Head, self).__init__()
         self.n_classes = n_classes  # number of classes
         self.type = ObjectDetection()
+        self.original_in_shape = kwargs["original_in_shape"]
         self.prev_out_shape = prev_out_shape
 
         self.no = n_classes + 5  # number of outputs per anchor
@@ -38,6 +39,7 @@ class YoloV6Head(nn.Module):
         for i in range(self.nl):
             curr_head = EffiDeHead(
                 prev_out_shape=[prev_out_shape[i]],
+                original_in_shape=self.original_in_shape,
                 n_classes=self.n_classes,
                 reg_max=self.reg_max,
                 n_anchors=self.n_anchors
@@ -60,6 +62,20 @@ class YoloV6Head(nn.Module):
         reg_distri_list = torch.cat(reg_distri_list, axis=1)
 
         return [x, cls_score_list, reg_distri_list]
+
+    def to_deploy(self):
+        # change definition of forward()
+        def deploy_forward(x):
+            outputs = []
+            for i, module in enumerate(self.head):
+                out_x, out_cls, out_reg = module([x[i]])
+                out_cls = torch.sigmoid(out_cls)
+                conf, _ = out_cls.max(1, keepdim=True)
+                output = torch.cat([out_reg, conf, out_cls], axis=1)
+                outputs.append(output)
+            return outputs
+
+        self.forward = deploy_forward
 
 
 if __name__ == "__main__":

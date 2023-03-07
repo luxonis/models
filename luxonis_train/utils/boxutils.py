@@ -24,10 +24,16 @@ def bbox2dist(anchor_points, bbox, reg_max):
     dist = torch.cat([lt, rb], -1).clip(0, reg_max - 0.01)
     return dist
 
-def xywh2xyxy(bboxes):
-    '''Transform bbox(xywh) to box(xyxy).'''
+def xywh2xyxy_yolo(bboxes):
+    '''Transform bbox(xywh)-[x_center, y_center, width, height] to box(xyxy).'''
     bboxes[..., 0] = bboxes[..., 0] - bboxes[..., 2] * 0.5
     bboxes[..., 1] = bboxes[..., 1] - bboxes[..., 3] * 0.5
+    bboxes[..., 2] = bboxes[..., 0] + bboxes[..., 2]
+    bboxes[..., 3] = bboxes[..., 1] + bboxes[..., 3]
+    return bboxes
+
+def xywh2xyxy_coco(bboxes):
+    '''Transform bbox(xywh)-[x_min, y_min, width, height] to box(xyxy).'''
     bboxes[..., 2] = bboxes[..., 0] + bboxes[..., 2]
     bboxes[..., 3] = bboxes[..., 1] + bboxes[..., 3]
     return bboxes
@@ -97,7 +103,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
 
         # (center x, center y, width, height) to (x1, y1, x2, y2)
-        box = xywh2xyxy(x[:, :4])
+        box = xywh2xyxy_yolo(x[:, :4])
 
         # Detections matrix's shape is  (n,6), each row represents (xyxy, conf, cls)
         if multi_label:

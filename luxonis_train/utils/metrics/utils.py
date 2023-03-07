@@ -4,6 +4,8 @@ import torchmetrics
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 from luxonis_train.utils.head_type import *
+from luxonis_train.utils.assigners.anchor_generator import generate_anchors
+from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression, xywh2xyxy_coco
 
 def init_metrics(head):
     if isinstance(head.type, Classification):
@@ -63,10 +65,7 @@ def postprocess_for_metrics(output, labels, head):
             return output, labels
 
 
-def postprocess_yolov6(output, labels, head):
-    from luxonis_train.utils.assigners.anchor_generator import generate_anchors
-    from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression, xywh2xyxy
-
+def postprocess_yolov6(output, labels, head, **kwargs):
     x, cls_score_list, reg_dist_list = output
     anchor_points, stride_tensor = generate_anchors(x, head.stride,
         head.grid_cell_size, head.grid_cell_offset, is_eval=True)
@@ -79,7 +78,11 @@ def postprocess_yolov6(output, labels, head):
         cls_score_list
     ], axis=-1)
 
-    output_nms = non_max_suppression(output_merged)
+    conf_thres = kwargs.get("conf_thres", 0.001)
+    iou_thres = kwargs.get("iou_thres", 0.6)
+
+    output_nms = non_max_suppression(output_merged, conf_thres=conf_thres, iou_thres=iou_thres)
+    img_shape = head.original_in_shape[2:]
 
     output_list = []
     labels_list = []
@@ -89,8 +92,11 @@ def postprocess_yolov6(output, labels, head):
             "scores": output_nms[i][:,4],
             "labels": output_nms[i][:,5]
         })
+
         curr_labels = labels[labels[:,0]==i]
-        curr_bboxs = xywh2xyxy(curr_labels[:, 2:])
+        curr_bboxs = xywh2xyxy_coco(curr_labels[:, 2:])
+        curr_bboxs[:, 0::2] *= img_shape[1]
+        curr_bboxs[:, 1::2] *= img_shape[0]
         labels_list.append({
             "boxes": curr_bboxs,
             "labels": curr_labels[:,1]

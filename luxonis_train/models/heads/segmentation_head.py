@@ -12,11 +12,12 @@ class SegmentationHead(nn.Module):
 
         self.n_classes = n_classes
         self.type = SemanticSegmentation()
-        original_in_shape = kwargs["original_in_shape"]
+        self.original_in_shape = kwargs["original_in_shape"]
+        self.prev_out_shape = prev_out_shape
 
-        num_up = self._get_num_heads(prev_out_shape[-1][2], original_in_shape[2])
+        num_up = self._get_num_heads(self.prev_out_shape[-1][2], self.original_in_shape[2])
         modules = []
-        in_channels = prev_out_shape[-1][1]
+        in_channels = self.prev_out_shape[-1][1]
         for _ in range(num_up):
             modules.append(Up(in_channels=in_channels, out_channels=in_channels//2))
             in_channels //= 2

@@ -3,11 +3,15 @@ Luxonis training library (luxonis-train) is intended for training deep learning 
 
 The work on this project is in an MVP state, so it may be missing some critical features or have some issues - please report any feedback!
 
+**Table of contents:**
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Training](#training)
+- [Exporting](#exporting)
+
+
 ## Installation:
-Since this package relys on `luxonis-ml` library you should first install this as specified [here](https://github.com/luxonis/luxonis-ml/tree/main#installation-and-setup). After that you can install `luxonis-train` like this: 
-```
-python3 -m pip install -e .
-```
+Since this package relys on `luxonis-ml` library you should first install this as specified [here](https://github.com/luxonis/luxonis-ml/tree/main#installation-and-setup).
 
 ## Configuration:
 Most of the work is done through a `config.yaml` file, which you can then supply to the Trainer. Config file consists of a few major blocks that are described below. You can create your own config or use/edit one of the already made ones.
@@ -172,4 +176,23 @@ To run training in another thread use this:
 ```python
 trainer = Trainer(args_dict, cfg)
 trainer.run(new_thread=True)
+```
+
+## Exporting
+We support export to ONNX, openVINO and .blob format which is used for OAK cameras. For export, you must provide configuration file. This file must include [model](#model) part and `export` part which you can define like this:
+```yaml
+export:
+  weights: # path to pretrained weights of the model
+  save_directory: # location where exported files will be saved
+  iamge_size: # list of [width, height] for image size used for export (default: [256, 256])
+```
+Once you have the `custom_export.yaml` config file ready you can export the model like this:
+```python
+python3 tools/export.py -cfg configs/custom_export.yaml 
+```
+
+## Install as a package
+If you want to initialize `Trainer` class from anywhere you can install `luxonis-train` as a package like this: 
+```
+python3 -m pip install -e .
 ```

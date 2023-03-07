@@ -58,7 +58,7 @@ def check_cfg_export(cfg):
         cfg["export"]["image_size"] = [256,256]
 
 def load_predefined_cfg(cfg):
-    model_type = cfg["model"]["type"], 
+    model_type = cfg["model"]["type"]
     if model_type.startswith("YoloV6"):
         load_yolov6_cfg(cfg)
     else:

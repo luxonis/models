@@ -12,8 +12,10 @@ class ClassificationHead(nn.Module):
         self.n_classes = n_classes
         self.n_labels = n_labels
         self.type = Classification() if self.n_classes > 0 else MultiLabelClassification()
+        self.original_in_shape = kwargs["original_in_shape"]
+        self.prev_out_shape = prev_out_shape
         
-        self.in_channels = prev_out_shape[-1][1]
+        self.in_channels = self.prev_out_shape[-1][1]
 
         self.head = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),

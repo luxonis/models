@@ -31,6 +31,11 @@ class Trainer:
         logger.log_hyperparams({"epochs": epochs, "batch_size": batch_size, "accumulate_grad_batches": train_cfg["accumulate_grad_batches"]})
         run_save_dir = os.path.join(logger_cfg["save_directory"], logger.run_name)
         
+        use_ddp = True if (args["devices"] == None or \
+            isinstance(args["devices"], list) and len(args["devices"]) > 1 or \
+            isinstance(args["devices"], int) and args["devices"]>1) \
+            else False
+
         self.train_augmentations = None
         self.val_augmentations = None
 
@@ -38,7 +43,7 @@ class Trainer:
         self.pl_trainer = pl.Trainer(
             accelerator=args["accelerator"],
             devices=args["devices"],
-            strategy="ddp" if (args["devices"] == None or len(args["devices"]) > 1) else None,
+            strategy="ddp" if use_ddp else None,
             logger=logger,
             max_epochs=epochs,
             accumulate_grad_batches=train_cfg["accumulate_grad_batches"],

@@ -20,7 +20,7 @@ model:
   heads: 
     - name: ClassificationHead
       params:
-        n_labels: 79
+        n_classes: 79
       loss: 
         name: CrossEntropyLoss
         params:

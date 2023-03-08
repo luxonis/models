@@ -17,10 +17,10 @@ def init_metrics(head):
         })
     elif isinstance(head.type, MultiLabelClassification):
         collection = torchmetrics.MetricCollection({
-            "accuracy": torchmetrics.Accuracy(task="multilabel", num_labels=head.n_labels),
-            "precision": torchmetrics.Precision(task="multilabel", num_labels=head.n_labels),
-            "recall": torchmetrics.Recall(task="multilabel", num_labels=head.n_labels),
-            "f1": torchmetrics.F1Score(task="multilabel", num_labels=head.n_labels)   
+            "accuracy": torchmetrics.Accuracy(task="multilabel", num_labels=head.n_classes),
+            "precision": torchmetrics.Precision(task="multilabel", num_labels=head.n_classes),
+            "recall": torchmetrics.Recall(task="multilabel", num_labels=head.n_classes),
+            "f1": torchmetrics.F1Score(task="multilabel", num_labels=head.n_classes)   
         })
     elif isinstance(head.type, SemanticSegmentation):
         collection = torchmetrics.MetricCollection({
@@ -56,7 +56,7 @@ def postprocess_for_metrics(output, labels, head):
             return output, labels
 
 
-def postprocess_yolov6(output, labels, head, **kwargs):    
+def postprocess_yolov6(output, labels, head, **kwargs): 
     x, cls_score_list, reg_dist_list = output
     anchor_points, stride_tensor = generate_anchors(x, head.stride, 
         head.grid_cell_size, head.grid_cell_offset, is_eval=True)

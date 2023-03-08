@@ -25,7 +25,7 @@ def check_cfg(cfg):
 
         for head in model_cfg["heads"]:
             if not("n_classes" in head["params"] and head["params"]["n_classes"]):
-                raise RuntimeError("Head 'n_classes'/'n_labels' param must be defined for every head.")
+                raise RuntimeError("Head 'n_classes' param must be defined for every head.")
 
         if "params" in model_cfg and model_cfg["params"]:
             warnings.warn("Model-wise parameters won't be taken into account if you don't specify model type.", SyntaxWarning)

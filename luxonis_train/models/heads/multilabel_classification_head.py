@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 from luxonis_train.utils.head_type import *
 
-class ClassificationHead(nn.Module):
+class MultiLabelClassificationHead(nn.Module):
     def __init__(self, prev_out_shape, n_classes=0, fc_dropout=0.2, **kwargs):
-        super(ClassificationHead, self).__init__()
+        super(MultiLabelClassificationHead, self).__init__()
 
-        assert (n_classes), "Classification head should have at least one class"
+        assert (n_classes), "MultiLabelClassificationHead head should have at least one class"
 
         self.n_classes = n_classes
-        self.type = Classification()
+        self.type = MultiLabelClassification()
         self.original_in_shape = kwargs["original_in_shape"]
         self.prev_out_shape = prev_out_shape
         

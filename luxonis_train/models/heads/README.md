@@ -2,7 +2,10 @@
 - ClassificationHead
   - Params:
     - n_classes: int # number of classes if multi-class problem
-    - n_labels: int # number of labels if multi-label problem
+    - fc_dropout: float # dropout before Linear() layer
+- MultiLabelClassificationHead
+  - Params:
+    - n_classes: int # number of classes if multi-class problem
     - fc_dropout: float # dropout before Linear() layer
 - SegmentationHead
   - Params:

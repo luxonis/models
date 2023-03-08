@@ -19,7 +19,7 @@ class TrainAugmentations:
         if self.cfg:
             for aug in self.cfg:
                 augmentations.append(
-                    eval(aug["name"])(**aug["params"] if aug["params"] else {})
+                    eval(aug["name"])(**aug.get("params", {}))
                 )
 
         if self.normalize: augmentations.append(A.Normalize())

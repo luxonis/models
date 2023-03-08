@@ -17,7 +17,7 @@ setup(
     license="MIT",
     packages=["luxonis_train"],
     package_dir={"":"."},
-    package_data={"luxonis_train": ["core/*","datasets/*","models/*","utils/*"]},
+    package_data={"luxonis_train": ["core/*","datasets/*","models/*","utils/*","models/*/*","utils/*/*"]},
     install_requires=required,
     include_package_data=True,
     project_urls={

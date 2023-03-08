@@ -6,6 +6,7 @@ from .rexnetv1 import ReXNetV1_lite
 from .mobileone import MobileOne
 from .mobilenetv2 import MobileNetV2
 from .efficientnet import EfficientNet
+from .context_spatial import ContextSpatial
 
 __all__ = [
     "MicroNet",
@@ -15,5 +16,6 @@ __all__ = [
     "ReXNetV1_lite",
     "MobileOne",
     "MobileNetV2",
-    "EfficientNet"
+    "EfficientNet",
+    "ContextSpatial"
 ]

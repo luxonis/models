@@ -1,0 +1,76 @@
+logger:
+  project_name: ml-ops-train
+  save_directory: output
+  is_tensorboard: True
+  is_wandb: False
+  is_mlflow: False
+
+model:
+  name: "test_model_seg"
+  type:
+  pretrained:
+
+  backbone:
+    name: ContextSpatial
+    pretrained:
+    params:
+
+  neck:
+
+  heads:
+    - name: BiSeNetHead
+      params:
+        n_classes: 2
+      loss:
+        name: CrossEntropyLoss
+        params:
+
+dataset:
+  local_path: coco-people
+
+
+train:
+  image_size: [640, 384]
+  batch_size: 8
+  accumulate_grad_batches: 2
+  n_workers: 2
+  epochs: 20
+  n_metrics: 1
+  eval_interval: 1
+
+  early_stopping:
+    monitor: val_loss
+    mode: min
+    patience: 3
+
+augmentations:
+  - name: Rotate
+    params:
+      limit: 20
+  - name: HorizontalFlip
+    params:
+      p: 0.5
+  - name: GaussNoise
+    params:
+      p: 0.3
+  - name: RandomShadow
+    params:
+      p: 0.1
+  - name: RandomSunFlare
+    params:
+      src_radius: 200
+      p: 0.1
+  - name: RandomRain
+    params:
+      p: 0.1
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+    weight_decay: 0.01
+
+scheduler:
+  name: LinearLR
+  params:
+    start_factor: 0.33

@@ -15,6 +15,7 @@ class MobileNetV2(nn.Module):
         super(MobileNetV2, self).__init__()
         mobilenet_v2 = torchvision.models.mobilenet_v2(weights="DEFAULT" if pretrained else None)
         self.out_indices = [3, 6, 13, 17]
+        self.channels = [24, 32, 96, 320]
         self.backbone = mobilenet_v2
 
     def forward(self, X):

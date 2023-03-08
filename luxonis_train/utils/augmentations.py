@@ -150,7 +150,8 @@ def post_augment_process(transformed, keypoints, keypoints_classes):
     out_keypoints = mark_invisible_keypoints(out_keypoints, transformed_image)
     out_keypoints[...,0] /= transformed_image.shape[2]
     out_keypoints[...,1] /= transformed_image.shape[1]
-    out_keypoints = torch.reshape(out_keypoints, (keypoints.shape[0], keypoints.shape[1]-1))
+    if keypoints.numel(): #if keypoints torch not empty
+        out_keypoints = torch.reshape(out_keypoints, (keypoints.shape[0], keypoints.shape[1]-1))
 
     final_keypoints = torch.zeros_like(keypoints)
     final_keypoints[:,1:] = out_keypoints

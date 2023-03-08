@@ -72,7 +72,8 @@ def postprocess_yolov6(output, labels, head, **kwargs):
     conf_thres = kwargs.get("conf_thres", 0.001)
     iou_thres = kwargs.get("iou_thres", 0.6)
 
-    output_nms = non_max_suppression(output_merged, conf_thres=conf_thres, iou_thres=iou_thres)
+    # output_nms = non_max_suppression(output_merged, conf_thres=conf_thres, iou_thres=iou_thres)
+    output_nms = [torch.zeros((300,6)) for _ in range(len(output_merged))]
     img_shape = head.original_in_shape[2:]
 
     output_list = []

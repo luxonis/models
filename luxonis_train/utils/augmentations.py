@@ -140,22 +140,25 @@ def post_augment_process(transformed, keypoints, keypoints_classes):
     out_bboxes[:,1::2] /= transformed_image.shape[2]
     out_bboxes[:,2::2] /= transformed_image.shape[1]
 
-    transformed_keypoints = torch.tensor(transformed["keypoints"])
-    transformed_keypoints_classes = torch.tensor(transformed["keypoints_classes"])
-    # merge keypoints and classes back together
-    transformed_keypoints_classes = torch.unsqueeze(transformed_keypoints_classes, dim=-1)
-    out_keypoints = torch.cat((transformed_keypoints, transformed_keypoints_classes), dim=1)
+    try:
+        transformed_keypoints = torch.tensor(transformed["keypoints"])
+        transformed_keypoints_classes = torch.tensor(transformed["keypoints_classes"])
+        # merge keypoints and classes back together
+        transformed_keypoints_classes = torch.unsqueeze(transformed_keypoints_classes, dim=-1)
+        out_keypoints = torch.cat((transformed_keypoints, transformed_keypoints_classes), dim=1)
 
-    out_keypoints = torch.reshape(out_keypoints, (-1, 3))
-    out_keypoints = mark_invisible_keypoints(out_keypoints, transformed_image)
-    out_keypoints[...,0] /= transformed_image.shape[2]
-    out_keypoints[...,1] /= transformed_image.shape[1]
-    if keypoints.numel(): #if keypoints torch not empty
+        out_keypoints = torch.reshape(out_keypoints, (-1, 3))
+        out_keypoints = mark_invisible_keypoints(out_keypoints, transformed_image)
+        out_keypoints[...,0] /= transformed_image.shape[2]
+        out_keypoints[...,1] /= transformed_image.shape[1]
         out_keypoints = torch.reshape(out_keypoints, (keypoints.shape[0], keypoints.shape[1]-1))
 
-    final_keypoints = torch.zeros_like(keypoints)
-    final_keypoints[:,1:] = out_keypoints
-    final_keypoints[:,0] = keypoints_classes
+        final_keypoints = torch.zeros_like(keypoints)
+        final_keypoints[:,1:] = out_keypoints
+        final_keypoints[:,0] = keypoints_classes
+    
+    except: #fix for datasets without keypoints
+        final_keypoints = torch.empty((0, 1))
 
     return transformed_image, out_bboxes, transformed_mask, final_keypoints
 

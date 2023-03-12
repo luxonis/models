@@ -4,8 +4,9 @@ import torchmetrics
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 from luxonis_train.utils.head_type import *
-from luxonis_train.utils.assigners.anchor_generator import generate_anchors
-from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression, xywh2xyxy_coco
+from luxonis_train.models.heads import *
+from luxonis_train.utils.head_utils import yolov6_out2box
+from luxonis_train.utils.boxutils import xywh2xyxy_coco
 
 def init_metrics(head):
     if isinstance(head.type, Classification):
@@ -41,7 +42,6 @@ def init_metrics(head):
 
 
 def postprocess_for_metrics(output, labels, head):
-    head_name = head.__class__.__name__
     if isinstance(head.type, Classification):
         labels = torch.argmax(labels, dim=1)
         return output, labels
@@ -51,28 +51,14 @@ def postprocess_for_metrics(output, labels, head):
         labels = torch.argmax(labels, dim=1)
         return output, labels
     elif isinstance(head.type, ObjectDetection):
-        if head_name == "YoloV6Head":
-            output, labels = postprocess_yolov6(output, labels, head)
+        if isinstance(head, YoloV6Head):
+            output, labels = yolov6_to_metrics(output, labels, head)
             return output, labels
 
 
-def postprocess_yolov6(output, labels, head, **kwargs): 
-    x, cls_score_list, reg_dist_list = output
-    anchor_points, stride_tensor = generate_anchors(x, head.stride, 
-        head.grid_cell_size, head.grid_cell_offset, is_eval=True)
-    pred_bboxes = dist2bbox(reg_dist_list, anchor_points, box_format="xywh")
-
-    pred_bboxes *= stride_tensor
-    output_merged = torch.cat([
-        pred_bboxes, 
-        torch.ones((x[-1].shape[0], pred_bboxes.shape[1], 1), dtype=pred_bboxes.dtype, device=pred_bboxes.device), 
-        cls_score_list 
-    ], axis=-1)
-
-    conf_thres = kwargs.get("conf_thres", 0.001)
-    iou_thres = kwargs.get("iou_thres", 0.6)
-
-    output_nms = non_max_suppression(output_merged, conf_thres=conf_thres, iou_thres=iou_thres)
+def yolov6_to_metrics(output, labels, head):
+    kwargs = {"conf_thres":0.001, "iou_thres": 0.6}
+    output_nms = yolov6_out2box(output, head, **kwargs)
     img_shape = head.original_in_shape[2:]
 
     output_list = []

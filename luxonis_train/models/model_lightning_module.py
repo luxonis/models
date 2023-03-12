@@ -15,6 +15,7 @@ from luxonis_train.utils.schedulers import get_scheduler
 from luxonis_train.utils.losses import *
 from luxonis_train.utils.metrics import init_metrics, postprocess_for_metrics
 from luxonis_train.utils.head_type import *
+from luxonis_train.utils.general import *
 
 
 class ModelLightningModule(pl.LightningModule):
@@ -41,7 +42,7 @@ class ModelLightningModule(pl.LightningModule):
         # for each head initialize its metrics
         self.metrics = nn.ModuleDict()
         for i, curr_head in enumerate(self.model.heads):
-            self.metrics[self.get_head_name(curr_head, i)] = init_metrics(curr_head)
+            self.metrics[get_head_name(curr_head, i)] = init_metrics(curr_head)
 
         # load pretrained weights if defined
         if self.cfg["model"]["pretrained"]:
@@ -148,8 +149,8 @@ class ModelLightningModule(pl.LightningModule):
         loss = 0
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
-            curr_head_name = self.get_head_name(curr_head, i)
-            curr_label = self._get_current_label(curr_head.type, labels)
+            curr_head_name = get_head_name(curr_head, i)
+            curr_label = get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
@@ -173,8 +174,8 @@ class ModelLightningModule(pl.LightningModule):
         loss = 0
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
-            curr_head_name = self.get_head_name(curr_head, i)
-            curr_label = self._get_current_label(curr_head.type, labels)
+            curr_head_name = get_head_name(curr_head, i)
+            curr_label = get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
@@ -196,8 +197,8 @@ class ModelLightningModule(pl.LightningModule):
         loss = 0
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
-            curr_head_name = self.get_head_name(curr_head, i)
-            curr_label = self._get_current_label(curr_head.type, labels)
+            curr_head_name = get_head_name(curr_head, i)
+            curr_label = get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
@@ -246,24 +247,6 @@ class ModelLightningModule(pl.LightningModule):
     def get_status(self):
         # return current epoch and number of all epochs
         return self.current_epoch, self.cfg["train"]["epochs"]
-
-    def get_head_name(self, head, idx):
-        # return generated head name based on its class and id
-        return head.__class__.__name__ + f"_{idx}"
-
-    def _get_current_label(self, head_type, labels):
-        # return the right type of labels depending on head type
-        classify, bboxes, seg, keypoints = labels
-        if isinstance(head_type, Classification) or isinstance(head_type, MultiLabelClassification):
-            return classify
-        elif isinstance(head_type, SemanticSegmentation) or isinstance(head_type, InstanceSegmentation):
-            return seg
-        elif isinstance(head_type, ObjectDetection):
-            return bboxes
-        elif isinstance(head_type, KeyPointDetection):
-            return keypoints
-        else:
-            raise RuntimeError(f"No labels for head type {head_type}.")
 
     def _avg(self, running_metric):
         return sum(running_metric) / len(running_metric)

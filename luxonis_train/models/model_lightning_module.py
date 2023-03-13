@@ -154,11 +154,12 @@ class ModelLightningModule(pl.LightningModule):
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
-                        
-            if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0:
-                output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
-                curr_metrics = self.metrics[curr_head_name]["train_metrics"]
-                curr_metrics.update(output_processed, curr_label_processed)
+
+            with torch.no_grad():         
+                if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0:
+                    output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
+                    curr_metrics = self.metrics[curr_head_name]["train_metrics"]
+                    curr_metrics.update(output_processed, curr_label_processed)
 
         # loss required in step output by pl
         step_output = {
@@ -179,7 +180,7 @@ class ModelLightningModule(pl.LightningModule):
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
-            
+
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)

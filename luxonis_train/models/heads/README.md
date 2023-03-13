@@ -20,3 +20,9 @@
     - n_classes: int # number of classes for object detection
     - num_layers: int # number of EffiDeHeads, should stay default
     - reg_max: int # should stay default
+- BiSeNetHead (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
+  - Params:
+    - n_classes: int # number of classes for semantic segmentation
+    - c1: int # number of input channels
+    - upscale_factor: int # factor used for upscaling input
+    - is_aux: bool # either use 256 for intermediate channels or 64

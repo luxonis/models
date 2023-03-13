@@ -33,3 +33,7 @@
 - EfficientNet ([source](https://github.com/rwightman/gen-efficientnet-pytorch))
   - Params:
     - pretrained: bool # if True download weights from imagenet
+- ContextSpatial (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
+  - Params:
+    - context_backbone: str # backbone used
+    - in_channels: int # 3 in most cases

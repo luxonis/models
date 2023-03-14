@@ -143,7 +143,7 @@ class ModelLightningModule(pl.LightningModule):
 
     def training_step(self, train_batch, batch_idx):
         inputs = train_batch[0].float()
-        labels = train_batch[1:]
+        labels = train_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
@@ -169,7 +169,7 @@ class ModelLightningModule(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         inputs = val_batch[0].float()
-        labels = val_batch[1:]
+        labels = val_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
@@ -192,7 +192,7 @@ class ModelLightningModule(pl.LightningModule):
     
     def test_step(self, test_batch, batch_idx):
         inputs = test_batch[0].float()
-        labels = test_batch[1:]
+        labels = test_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0

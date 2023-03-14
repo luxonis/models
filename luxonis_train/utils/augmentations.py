@@ -32,15 +32,21 @@ class TrainAugmentations:
         )
 
     def __call__(self, data):
-        img, classify, bboxes, seg, keypoints = data
+        img, anno_dict = data
+        present_annotations = anno_dict.keys()
         img_in = img.numpy()
-        
+
         # albumentations expects with RGB image with HWC format
         img_in = np.transpose(img_in, (1,2,0))
         img_in = cv2.cvtColor(img_in, cv2.COLOR_BGR2RGB)
-        masks = [m.numpy() for m in seg]
+
+        classes = anno_dict.get("class", np.zeros(1))
+
+        seg = anno_dict.get("segmentation", np.zeros((1, *img_in.shape[1:])))
+        masks = [m.numpy() if torch.is_tensor(m) else m for m in seg]
 
         # COCO format in albumentations is [x,y,w,h] non-normalized
+        bboxes = anno_dict.get("bbox", np.zeros((0,5)))
         ih, iw, _ = img_in.shape
         bboxes_points = bboxes[:,1:]
         bboxes_points[:,0::2] *= iw
@@ -48,11 +54,12 @@ class TrainAugmentations:
         bbox_classes = bboxes[:,0]
 
         # albumentations expects "list" of keypoints e.g. [(x,y),(x,y),(x,y),(x,y)]
+        keypoints = anno_dict.get("keypoints", np.zeros((3,3+1)))
         keypoints_classes = keypoints[:,0]
         keypoints_flat = torch.reshape(keypoints[:,1:], (-1,3))
         keypoints_points = keypoints_flat[:,:2]
-        keypoints_points[:,0] = keypoints_points[:,0]*iw
-        keypoints_points[:,1] = keypoints_points[:,1]*ih
+        keypoints_points[:,0] *= iw
+        keypoints_points[:,1] *= ih
         keypoints_visibility = keypoints_flat[:,2]
 
         transformed = self.transform(
@@ -65,7 +72,11 @@ class TrainAugmentations:
         )
 
         transformed_image, out_bboxes, transformed_mask, final_keypoints = post_augment_process(transformed, keypoints, keypoints_classes)
-        return transformed_image, classify, out_bboxes, transformed_mask, final_keypoints
+
+        out_annotations = create_out_annotations(present_annotations, classes=classes, bboxes=out_bboxes,
+            masks=transformed_mask, keypoints=final_keypoints)
+
+        return transformed_image, out_annotations
 
 
 class ValAugmentations:
@@ -89,15 +100,21 @@ class ValAugmentations:
         )
 
     def __call__(self, data):
-        img, classify, bboxes, seg, keypoints = data
+        img, anno_dict = data
+        present_annotations = anno_dict.keys()
         img_in = img.numpy()
 
         # albumentations expects with RGB image with HWC format
         img_in = np.transpose(img_in, (1,2,0))
         img_in = cv2.cvtColor(img_in, cv2.COLOR_BGR2RGB)
-        masks = [m.numpy() for m in seg]
+
+        classes = anno_dict.get("class", np.zeros(1))
+
+        seg = anno_dict.get("segmentation", np.zeros((1, *img_in.shape[1:])))
+        masks = [m.numpy() if torch.is_tensor(m) else m for m in seg]
 
         # COCO format in albumentations is [x,y,w,h] non-normalized
+        bboxes = anno_dict.get("bbox", np.zeros((0,5)))
         ih, iw, _ = img_in.shape
         bboxes_points = bboxes[:,1:]
         bboxes_points[:,0::2] *= iw
@@ -105,11 +122,12 @@ class ValAugmentations:
         bbox_classes = bboxes[:,0]
 
         # albumentations expects "list" of keypoints e.g. [(x,y),(x,y),(x,y),(x,y)]
+        keypoints = anno_dict.get("keypoints", np.zeros((3,3+1)))
         keypoints_classes = keypoints[:,0]
         keypoints_flat = torch.reshape(keypoints[:,1:], (-1,3))
         keypoints_points = keypoints_flat[:,:2]
-        keypoints_points[:,0] = keypoints_points[:,0]*iw
-        keypoints_points[:,1] = keypoints_points[:,1]*ih
+        keypoints_points[:,0] *= iw
+        keypoints_points[:,1] *= ih
         keypoints_visibility = keypoints_flat[:,2]
 
         transformed = self.transform(
@@ -122,7 +140,11 @@ class ValAugmentations:
         )
 
         transformed_image, out_bboxes, transformed_mask, final_keypoints = post_augment_process(transformed, keypoints, keypoints_classes)
-        return transformed_image, classify, out_bboxes, transformed_mask, final_keypoints
+
+        out_annotations = create_out_annotations(present_annotations, classes=classes, bboxes=out_bboxes,
+            masks=transformed_mask, keypoints=final_keypoints)
+
+        return transformed_image, out_annotations
 
 
 def post_augment_process(transformed, keypoints, keypoints_classes):
@@ -165,3 +187,15 @@ def mark_invisible_keypoints(keypoints, image):
         if not(0<=kp[0]<w and 0<=kp[1]<h):
             kp[2] = 0
     return keypoints
+
+def create_out_annotations(present_annotations, classes, bboxes, masks, keypoints):
+    out_annotations = {}
+    if "class" in present_annotations:
+        out_annotations["class"] = classes
+    if "bbox" in present_annotations:
+        out_annotations["bbox"] = bboxes
+    if "segmentation" in present_annotations:
+        out_annotations["segmentation"] = masks
+    if "keypoints" in present_annotations:
+        out_annotations["keypoints"] = keypoints
+    return out_annotations

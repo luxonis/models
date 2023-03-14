@@ -1,0 +1,54 @@
+augmentations:
+- name: Rotate
+  params: null
+dataset:
+  local_path: repo
+logger:
+  is_mlflow: false
+  is_tensorboard: true
+  is_wandb: false
+  project_name: classification
+  save_directory: output
+model:
+  backbone:
+    name: MicroNet
+    params: null
+    pretrained: null
+  heads:
+  - loss:
+      name: CrossEntropyLoss
+      params: null
+    name: ClassificationHead
+    params:
+      n_classes: 10
+  name: classification_model
+  neck: null
+  pretrained: null
+  type: null
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+    weight_decay: 0.01
+scheduler:
+  name: LinearLR
+  params:
+    start_factor: 0.33
+train:
+  accumulate_grad_batches: 2
+  batch_size: 25
+  early_stopping:
+    mode: min
+    monitor: val_loss
+    patience: 3
+  epochs: 3
+  eval_interval: 1
+  freeze_modules:
+    backbone: false
+    heads:
+    - false
+  image_size:
+  - 128
+  - 128
+  n_metrics: 1
+  n_workers: 2

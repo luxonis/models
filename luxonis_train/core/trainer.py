@@ -60,6 +60,15 @@ class Trainer:
         """
         return self.lightning_module.get_status()
     
+    @rank_zero_only
+    def get_status_percentage(self):
+        """ Return percentage of current training, takes into account early stopping
+
+        Returns:
+            Float: percentage of current training in range 0-100
+        """
+        return self.lightning_module.get_status_percentage()       
+
     def override_loss(self, custom_loss: object, head_id: int):
         """ Overrides loss function for specific head_id with custom loss """
         assert head_id in list(range(len(self.lightning_module.model.heads))), "head_id out of range"

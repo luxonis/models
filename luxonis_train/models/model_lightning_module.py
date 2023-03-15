@@ -25,6 +25,7 @@ class ModelLightningModule(pl.LightningModule):
         self.cfg = cfg
         self.save_dir = save_dir
         self.model_name = cfg["model"]["name"]
+        self.early_stopping = None # early stopping callback
 
         # check if model is predefined
         if self.cfg["model"]["type"]:
@@ -98,7 +99,8 @@ class ModelLightningModule(pl.LightningModule):
         callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor]
 
         if "early_stopping" in self.cfg["train"]:
-            callbacks.append(EarlyStopping(**self.cfg["train"]["early_stopping"]))
+            self.early_stopping = EarlyStopping(verbose=True, **self.cfg["train"]["early_stopping"])
+            callbacks.append(self.early_stopping)
 
         return callbacks
 
@@ -246,14 +248,25 @@ class ModelLightningModule(pl.LightningModule):
         pass
     
     def get_status(self):
-        # return current epoch and number of all epochs
+        """ Return current epoch and number of all epochs """
         return self.current_epoch, self.cfg["train"]["epochs"]
+    
+    def get_status_percentage(self):
+        """ Return percentage of current training, takes into account early stopping """
+        if self.early_stopping:
+             # model didn't yet stop from early stopping callback
+            if self.early_stopping.stopped_epoch == 0:
+                return (self.current_epoch / self.cfg["train"]["epochs"])*100
+            else:
+                return 100
+        else:    
+            return (self.current_epoch / self.cfg["train"]["epochs"])*100
 
     def _avg(self, running_metric):
         return sum(running_metric) / len(running_metric)
 
     @rank_zero_only
     def _print_results(self, loss, metrics):
-        print("Validation metrics:")
+        print("\nValidation metrics:")
         print(f"Val_loss: {loss}")
         pprint(metrics)  

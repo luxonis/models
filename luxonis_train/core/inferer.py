@@ -82,14 +82,14 @@ class Inferer(pl.LightningModule):
                 for data in pytorch_loader_val:
                     inputs = data[0].float()
                     img = unnormalize(inputs[0], to_uint8=True)
-                    labels = data[1:]
+                    labels = data[1]
                     outputs = self.forward(inputs)
 
                     for i, output in enumerate(outputs):
                         curr_head = self.model.heads[i]
                         curr_head_name = get_head_name(curr_head, i)
                         curr_label = get_current_label(curr_head.type, labels)
-                        
+
                         img_labels = draw_on_image(img, curr_label, curr_head, is_label=True)
                         img_labels = torch_to_cv2(img_labels, to_rgb=True)
                         img_outputs = draw_on_image(img, output, curr_head)

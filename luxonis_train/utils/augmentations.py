@@ -40,13 +40,13 @@ class TrainAugmentations:
         img_in = np.transpose(img_in, (1,2,0))
         img_in = cv2.cvtColor(img_in, cv2.COLOR_BGR2RGB)
 
-        classes = anno_dict.get("class", np.zeros(1))
+        classes = anno_dict.get("class", torch.zeros(1))
 
-        seg = anno_dict.get("segmentation", np.zeros((1, *img_in.shape[1:])))
-        masks = [m.numpy() if torch.is_tensor(m) else m for m in seg]
+        seg = anno_dict.get("segmentation", torch.zeros((1, *img_in.shape[1:])))
+        masks = [m.numpy() for m in seg]
 
         # COCO format in albumentations is [x,y,w,h] non-normalized
-        bboxes = anno_dict.get("bbox", np.zeros((0,5)))
+        bboxes = anno_dict.get("bbox", torch.zeros((0,5)))
         ih, iw, _ = img_in.shape
         bboxes_points = bboxes[:,1:]
         bboxes_points[:,0::2] *= iw
@@ -54,7 +54,7 @@ class TrainAugmentations:
         bbox_classes = bboxes[:,0]
 
         # albumentations expects "list" of keypoints e.g. [(x,y),(x,y),(x,y),(x,y)]
-        keypoints = anno_dict.get("keypoints", np.zeros((3,3+1)))
+        keypoints = anno_dict.get("keypoints", torch.zeros((1,3+1)))
         keypoints_classes = keypoints[:,0]
         keypoints_flat = torch.reshape(keypoints[:,1:], (-1,3))
         keypoints_points = keypoints_flat[:,:2]
@@ -108,13 +108,13 @@ class ValAugmentations:
         img_in = np.transpose(img_in, (1,2,0))
         img_in = cv2.cvtColor(img_in, cv2.COLOR_BGR2RGB)
 
-        classes = anno_dict.get("class", np.zeros(1))
+        classes = anno_dict.get("class", torch.zeros(1))
 
-        seg = anno_dict.get("segmentation", np.zeros((1, *img_in.shape[1:])))
-        masks = [m.numpy() if torch.is_tensor(m) else m for m in seg]
+        seg = anno_dict.get("segmentation", torch.zeros((1, *img_in.shape[1:])))
+        masks = [m.numpy() for m in seg]
 
         # COCO format in albumentations is [x,y,w,h] non-normalized
-        bboxes = anno_dict.get("bbox", np.zeros((0,5)))
+        bboxes = anno_dict.get("bbox", torch.zeros((0,5)))
         ih, iw, _ = img_in.shape
         bboxes_points = bboxes[:,1:]
         bboxes_points[:,0::2] *= iw
@@ -122,7 +122,7 @@ class ValAugmentations:
         bbox_classes = bboxes[:,0]
 
         # albumentations expects "list" of keypoints e.g. [(x,y),(x,y),(x,y),(x,y)]
-        keypoints = anno_dict.get("keypoints", np.zeros((3,3+1)))
+        keypoints = anno_dict.get("keypoints", torch.zeros((1,3+1)))
         keypoints_classes = keypoints[:,0]
         keypoints_flat = torch.reshape(keypoints[:,1:], (-1,3))
         keypoints_points = keypoints_flat[:,:2]

@@ -114,3 +114,34 @@ class Trainer:
                     daemon=True
                 )
                 self.thread.start()
+
+    def test(self, new_thread: bool = False):
+        """ Runs testing
+        Args:
+            new_thread (bool, optional): Runs training in new thread if set to True. Defaults to False.
+        """
+
+        with LuxonisDataset(
+            local_path=self.cfg["dataset"]["local_path"] if "local_path" in self.cfg["dataset"] else None,
+            s3_path=self.cfg["dataset"]["s3_path"] if "s3_path" in self.cfg["dataset"] else None
+        ) as dataset:
+
+            self.test_augmentations = ValAugmentations(image_size=self.cfg["train"]["image_size"])
+
+            loader_test = LuxonisLoader(dataset, view="test")
+            loader_test.map(loader_test.auto_preprocess)
+            loader_test.map(self.test_augmentations)
+            pytorch_loader_test = loader_test.to_pytorch(
+                batch_size=self.cfg["train"]["batch_size"],
+                num_workers=self.cfg["train"]["n_workers"]
+            )
+
+            if not new_thread:
+                self.pl_trainer.test(self.lightning_module, pytorch_loader_test)
+            else:
+                self.thread = threading.Thread(
+                    target=self.pl_trainer.test,
+                    args=(self.lightning_module, pytorch_loader_test),
+                    daemon=True
+                )
+                self.thread.start()

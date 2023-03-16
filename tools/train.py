@@ -21,6 +21,8 @@ if __name__ == "__main__":
 
     trainer = Trainer(args_dict, cfg)
     trainer.run()
+    
+    trainer.test()
 
     # Example: run in new thread
     # import time

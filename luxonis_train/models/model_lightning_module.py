@@ -17,6 +17,8 @@ from luxonis_train.utils.metrics import init_metrics, postprocess_for_metrics
 from luxonis_train.utils.head_type import *
 from luxonis_train.utils.general import *
 
+from luxonis_train.utils.visualization import *
+
 
 class ModelLightningModule(pl.LightningModule):
     def __init__(self, cfg, save_dir):
@@ -184,12 +186,30 @@ class ModelLightningModule(pl.LightningModule):
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
+
+            ## visualize images in tensorboard
+            if batch_idx == 0 and isinstance(curr_head.type, Classification) and self.global_step>0:
+                labels_processed = torch.argmax(curr_label, dim=1)
+                outputs_processed = torch.argmax(output, dim=1)
+                
+                for i in range(5): # show 5 images
+                    label = int(labels_processed[i])
+                    prediction = int(outputs_processed[i])
+
+                    img = unnormalize(inputs[i], to_uint8=True)
+                    out_img = torch_to_cv2(img, to_rgb=True)
+                    img_tags = {"image_n": i, 
+                               "epoch_n": self.current_epoch,
+                               "label": label,
+                               "prediction": prediction}
+
+                    self.logger.log_image(img_tags, out_img, step=self.current_epoch)
         
         step_output = {
             "loss": loss,
         }
         return step_output
-    
+
     def test_step(self, test_batch, batch_idx):
         inputs = test_batch[0].float()
         labels = test_batch[1]

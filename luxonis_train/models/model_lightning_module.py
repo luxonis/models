@@ -262,8 +262,21 @@ class ModelLightningModule(pl.LightningModule):
         self._print_results(epoch_val_loss, results)
 
     def test_epoch_end(self, outputs):
-        # TODO: what do we want to log/show on test epoch end? same as validation epoch end?
-        pass
+        epoch_test_loss = self._avg([step_output["loss"] for step_output in outputs])
+        self.log("test_loss", epoch_test_loss, sync_dist=True)
+
+        results = {} # used for printing to console
+        for i, curr_head_name in enumerate(self.metrics):
+            curr_metrics = self.metrics[curr_head_name]["test_metrics"].compute()
+            results[curr_head_name] = curr_metrics
+            for metric_name in curr_metrics:
+                self.log(f"{curr_head_name}_{metric_name}/test", curr_metrics[metric_name], sync_dist=True)
+            # log main metrics separately (used in callback)
+            if i == 0:
+                self.log(f"test_{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)
+            self.metrics[curr_head_name]["test_metrics"].reset()
+
+        self._print_results(epoch_test_loss, results)
     
     def get_status(self):
         # return current epoch and number of all epochs

@@ -11,7 +11,7 @@ model:
   pretrained: 
 
   backbone:
-    name: MicroNet #"ResNet18"
+    name: ResNet18 #"ResNet18"
     pretrained:
     params:
 
@@ -22,7 +22,7 @@ model:
       params:
         n_classes: 79
       loss: 
-        name: CrossEntropyLoss
+        name: FocalLoss
         params:
 
 dataset:
@@ -45,7 +45,7 @@ train:
 
 augmentations:
   - name: Rotate
-    params:
+    # params:
 
 optimizer:
   name: Adam

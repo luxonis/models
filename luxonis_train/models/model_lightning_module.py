@@ -145,7 +145,7 @@ class ModelLightningModule(pl.LightningModule):
 
     def training_step(self, train_batch, batch_idx):
         inputs = train_batch[0].float()
-        labels = train_batch[1:]
+        labels = train_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
@@ -171,7 +171,7 @@ class ModelLightningModule(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         inputs = val_batch[0].float()
-        labels = val_batch[1:]
+        labels = val_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
@@ -194,7 +194,7 @@ class ModelLightningModule(pl.LightningModule):
     
     def test_step(self, test_batch, batch_idx):
         inputs = test_batch[0].float()
-        labels = test_batch[1:]
+        labels = test_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
@@ -261,6 +261,17 @@ class ModelLightningModule(pl.LightningModule):
                 return 100
         else:    
             return (self.current_epoch / self.cfg["train"]["epochs"])*100
+
+    def get_n_classes(self):
+        """ Return n_classes for each type of annotation """
+        out_dict = {}
+        for head in self.model.heads:
+            if isinstance(head.type, Classification) or isinstance(head.type, MultiLabelClassification):
+                out_dict["class"] = head.n_classes
+            elif isinstance(head.type, SemanticSegmentation) or isinstance(head.type, InstanceSegmentation):
+                out_dict["segmentation"] = head.n_classes
+            # TODO: do we need the same for object detection and keypoint detection?
+        return out_dict            
 
     def _avg(self, running_metric):
         return sum(running_metric) / len(running_metric)

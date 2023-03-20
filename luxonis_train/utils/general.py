@@ -30,14 +30,22 @@ def get_head_name(head, idx):
 
 def get_current_label(head_type, labels):
     """ Return the right type of labels depending on head type """
-    classify, bboxes, seg, keypoints = labels
+    present_annotations = labels.keys()
     if isinstance(head_type, Classification) or isinstance(head_type, MultiLabelClassification):
-        return classify
+        if "class" not in present_annotations:
+            raise RuntimeError("Class labels not avaliable but needed for training.")
+        return labels["class"]
     elif isinstance(head_type, SemanticSegmentation) or isinstance(head_type, InstanceSegmentation):
-        return seg
+        if "segmentation" not in present_annotations:
+            raise RuntimeError("Segmentation labels not avaliable but needed for training.")
+        return labels["segmentation"]
     elif isinstance(head_type, ObjectDetection):
-        return bboxes
+        if "bbox" not in present_annotations:
+            raise RuntimeError("Bbox labels not avaliable but needed for training.")
+        return labels["bbox"]
     elif isinstance(head_type, KeyPointDetection):
-        return keypoints
+        if "keypoints" not in present_annotations:
+            raise RuntimeError("Keypoints labels not avaliable but needed for training.")
+        return labels["keypoints"]
     else:
         raise RuntimeError(f"No labels for head type {head_type}.")

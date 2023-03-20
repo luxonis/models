@@ -7,6 +7,8 @@ from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_train.models import ModelLightningModule
 from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations
+from luxonis_train.utils.general import get_current_label
+from luxonis_train.utils.head_type import *
 
 class Trainer:
     def __init__(self, args: dict, cfg: dict):
@@ -93,7 +95,7 @@ class Trainer:
             local_path=self.cfg["dataset"]["local_path"] if "local_path" in self.cfg["dataset"] else None,
             s3_path=self.cfg["dataset"]["s3_path"] if "s3_path" in self.cfg["dataset"] else None
         ) as dataset:
-            
+
             if self.train_augmentations == None:
                 self.train_augmentations = TrainAugmentations(
                     cfg=self.cfg["augmentations"] if self.cfg["augmentations"] else None,
@@ -119,6 +121,9 @@ class Trainer:
                 num_workers=self.cfg["train"]["n_workers"]
             )
 
+            self._validate_dataset(loader=pytorch_loader_train)
+            self._validate_dataset(loader=pytorch_loader_val)
+
             if not new_thread:
                 self.pl_trainer.fit(self.lightning_module, pytorch_loader_train, pytorch_loader_val)
             else:
@@ -128,3 +133,27 @@ class Trainer:
                     daemon=True
                 )
                 self.thread.start()
+
+    def _validate_dataset(self, loader):
+        """ Checks if number of classes specified in config file matches number of classes present in annotations.
+
+        Args:
+            loader : Loader used for comparison
+
+        Raises:
+            RuntimeError
+        """
+        n_classes_dict = self.lightning_module.get_n_classes()
+        _, labels = next(iter(loader))
+        if "class" in n_classes_dict:
+            curr_labels = get_current_label(Classification(), labels)
+            n_classes_anno = curr_labels.shape[1]
+            if n_classes_anno != n_classes_dict["class"]:
+                raise RuntimeError(f"Number of classes in 'class' anotations ({n_classes_anno}) don't match" +
+                    f"'n_classes' specified in config file ({n_classes_dict['class']})")
+        if "segmentation" in n_classes_dict:
+            curr_labels = get_current_label(SemanticSegmentation(), labels)
+            n_classes_anno = curr_labels.shape[1]
+            if n_classes_anno != n_classes_dict["segmentation"]:
+                raise RuntimeError(f"Number of classes in 'segmentation' anotations ({n_classes_anno}) don't match" +
+                    f"'n_classes' specified in config file ({n_classes_dict['segmentation']})")

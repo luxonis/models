@@ -91,7 +91,11 @@ def unnormalize(img, original_mean=(0.485, 0.456, 0.406),
 
 def seg_output_to_bool(data):
     masks = torch.empty_like(data, dtype=torch.bool)
-    classes = torch.argmax(data, dim=0)
-    for i in range(masks.shape[0]):
-        masks[i] = classes == i
+    if data.shape[0] == 1:
+        classes = torch.nn.functional.sigmoid(data)
+        masks[0] = classes > 0.4
+    else:
+        classes = torch.argmax(data, dim=0)
+        for i in range(masks.shape[0]):
+            masks[i] = classes == i
     return masks

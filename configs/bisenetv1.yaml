@@ -8,7 +8,7 @@ logger:
 model:
   name: "test_model_seg"
   type:
-  pretrained:
+  pretrained: 
 
   backbone:
     name: ContextSpatial
@@ -20,17 +20,17 @@ model:
   heads:
     - name: BiSeNetHead
       params:
-        n_classes: 2
+        n_classes: 1
       loss:
-        name: CrossEntropyLoss
+        name: FocalLoss
         params:
 
 dataset:
-  local_path: coco-people
+  local_path: demo
 
 
 train:
-  image_size: [640, 384]
+  image_size: [128, 128] #[640, 384]
   batch_size: 8
   accumulate_grad_batches: 2
   n_workers: 2

@@ -9,6 +9,7 @@ if __name__ == "__main__":
     parser.add_argument("--accelerator", type=str, help="Accelerator to use ('gpu' or 'cpu')", 
         default="gpu" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--devices", default=None, nargs="+", help="Devices to use (e.g. 1 2)")
+    parser.add_argument("--override", default=None, type=str, help="Manually override config parameter")
     args = parser.parse_args()
    
     if args.devices: # convert list of strings to ints

@@ -4,6 +4,21 @@ import warnings
 
 DB_PATH = "./configs/db" # probably a nicer way to do this
 
+def cfg_override(cfg, args):
+    items = args.split(" ")
+    if len(items) % 2 != 0:
+        raise RuntimeError("Parameters passed by --override should be in 'key value' shape but one value is missing")
+
+    for i in range(0, len(items), 2):
+        keys = items[i]
+        value = items[i+1]
+        subkeys = keys.split(".")
+        sub_dict = cfg
+        for key in subkeys[:-1]:
+            sub_dict = sub_dict[key]
+        sub_dict[subkeys[-1]] = value
+    return cfg
+
 def check_cfg(cfg):
     # TODO: more checks, now only basic ones related to model creation
 

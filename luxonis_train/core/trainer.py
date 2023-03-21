@@ -6,6 +6,7 @@ from luxonis_ml import *
 from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_train.models import ModelLightningModule
+from luxonis_train.utils.config import cfg_override
 from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations
 from luxonis_train.utils.general import get_current_label
 from luxonis_train.utils.head_type import *
@@ -22,6 +23,9 @@ class Trainer:
         
         self.args = args
         self.cfg = cfg
+        if self.args["override"]:
+            self.cfg = cfg_override(self.cfg, self.args["override"])
+
         self.rank = rank_zero_only.rank    
 
         train_cfg = cfg["train"]

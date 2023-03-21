@@ -43,11 +43,11 @@ class ATSSAssigner(nn.Module):
         self.n_max_boxes = gt_bboxes.size(1)
 
         if self.n_max_boxes == 0:
-            return torch.full( [self.bs, self.n_anchors], self.bg_idx), \
-                   torch.zeros([self.bs, self.n_anchors, 4]), \
-                   torch.zeros([self.bs, self.n_anchors, self.num_classes]), \
-                   torch.zeros([self.bs, self.n_anchors])
-
+            device = gt_bboxes.device
+            return torch.full( [self.bs, self.n_anchors], self.bg_idx).to(device), \
+                   torch.zeros([self.bs, self.n_anchors, 4]).to(device), \
+                   torch.zeros([self.bs, self.n_anchors, self.num_classes]).to(device), \
+                   torch.zeros([self.bs, self.n_anchors]).to(device)
 
         overlaps = iou2d_calculator(gt_bboxes.reshape([-1, 4]), anc_bboxes)
         overlaps = overlaps.reshape([self.bs, -1, self.n_anchors])
@@ -122,7 +122,7 @@ class ATSSAssigner(nn.Module):
         _candidate_overlaps = torch.where(is_in_candidate > 0,
             overlaps, torch.zeros_like(overlaps))
         candidate_idxs = candidate_idxs.reshape([n_bs_max_boxes, -1])
-        assist_idxs = self.n_anchors * torch.arange(n_bs_max_boxes)
+        assist_idxs = self.n_anchors * torch.arange(n_bs_max_boxes, device=candidate_idxs.device)
         assist_idxs = assist_idxs[:,None]
         faltten_idxs = candidate_idxs + assist_idxs
         candidate_overlaps = _candidate_overlaps.reshape(-1)[faltten_idxs]
@@ -141,7 +141,7 @@ class ATSSAssigner(nn.Module):
                     fg_mask):
 
         # assigned target labels
-        batch_idx = torch.arange(self.bs, dtype=gt_labels.dtype)
+        batch_idx = torch.arange(self.bs, dtype=gt_labels.dtype, device=gt_labels.device)
         batch_idx = batch_idx[...,None]
         target_gt_idx = (target_gt_idx + batch_idx * self.n_max_boxes).long()
         target_labels = gt_labels.flatten()[target_gt_idx.flatten()]

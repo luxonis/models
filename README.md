@@ -7,6 +7,7 @@ The work on this project is in an MVP state, so it may be missing some critical 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Training](#training)
+- [Inference](#inference)
 - [Exporting](#exporting)
 
 
@@ -182,6 +183,12 @@ To run training in another thread use this:
 ```python
 trainer = Trainer(args_dict, cfg)
 trainer.run(new_thread=True)
+```
+
+## Inference
+When you have a trained model you can perform inference with it. To do this setup a path to dataset directory (under `dataset` in config file) and path to local pretrained weights (under `model.pretrained` in config file). After that you can can perform inference on whole dataset like this:
+```
+python3 tools/infer.py -cfg configs/custom_infer.yaml
 ```
 
 ## Exporting

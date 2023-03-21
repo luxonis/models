@@ -131,3 +131,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Datasets
+cifar_ldf/*
+cifar_small_ldf/*
+
+# Venv
+models_venv/*

@@ -25,7 +25,6 @@ class Trainer:
         self.cfg = cfg
         if self.args["override"]:
             self.cfg = cfg_override(self.cfg, self.args["override"])
-
         self.rank = rank_zero_only.rank    
 
         train_cfg = cfg["train"]

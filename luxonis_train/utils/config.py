@@ -7,7 +7,7 @@ DB_PATH = "./configs/db" # probably a nicer way to do this
 def cfg_override(cfg, args):
     items = args.split(" ")
     if len(items) % 2 != 0:
-        raise RuntimeError("Parameters passed by --override should be in 'key value' shape but one value is missing")
+        raise RuntimeError("Parameters passed by --override should be in 'key value' shape but one value is missing.")
 
     for i in range(0, len(items), 2):
         keys = items[i]
@@ -16,7 +16,9 @@ def cfg_override(cfg, args):
         sub_dict = cfg
         for key in subkeys[:-1]:
             sub_dict = sub_dict[key]
-        sub_dict[subkeys[-1]] = value
+        if subkeys[-1] not in sub_dict:
+            raise RuntimeError(f"Key '{keys}' not present in config.")
+        sub_dict[subkeys[-1]] = int(value) if value.isdigit() else value
     return cfg
 
 def check_cfg(cfg):

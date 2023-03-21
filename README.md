@@ -155,6 +155,12 @@ python3 tools/train.py -cfg configs/custom.yaml
 ```
 You can also specify accelerator with `--accelerator` flag (cpu or gpu) and device with `--devices` that you want to use for training (e.g. `--devices 1`)
 
+If you wish to manually override some config parameters you can do this by using `--override` flag. Example of this is: 
+```
+python3 tools/train.py -cfg configs/custom.yaml --override "train.batch_size 8 train.epochs 10 train.early_stopping.patience 5"
+```
+where key and value are space separated and sub-keys are dot(`.`) separated.
+
 ## Customize Trainer through API
 Before trainig the model you can also additionaly configure it with the use of our [Trainer](./luxonis_train/core/trainer.py) API. Look at [train.py](./tools/train.py) to see how Trainer is initialized. 
 

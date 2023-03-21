@@ -68,7 +68,7 @@ class YoloV6Loss(nn.Module):
         
         # gt_bboxes_scale = torch.full((1,4), img_size).type_as(pred_scores)
         # supports rectangular original images
-        gt_bboxes_scale = torch.FloatTensor([original_in_shape[1], original_in_shape[0], original_in_shape[1], original_in_shape[0]]) # use if bboxes normalized
+        gt_bboxes_scale = torch.tensor([original_in_shape[1], original_in_shape[0], original_in_shape[1], original_in_shape[0]], device=targets.device) # use if bboxes normalized
         batch_size = pred_scores.shape[0]
 
         # targets
@@ -149,6 +149,7 @@ class YoloV6Loss(nn.Module):
             target_bboxes = target_bboxes.cuda()
             target_scores = target_scores.cuda()
             fg_mask = fg_mask.cuda()
+        
         #Dynamic release GPU memory
         if step_num % 10 == 0:
             torch.cuda.empty_cache()
@@ -188,7 +189,7 @@ class YoloV6Loss(nn.Module):
         for i, item in enumerate(targets.cpu().numpy().tolist()):
             targets_list[int(item[0])].append(item[1:])
         max_len = max((len(l) for l in targets_list))
-        targets = torch.from_numpy(np.array(list(map(lambda l:l + [[-1,0,0,0,0]]*(max_len - len(l)), targets_list)))[:,1:,:])
+        targets = torch.from_numpy(np.array(list(map(lambda l:l + [[-1,0,0,0,0]]*(max_len - len(l)), targets_list)))[:,1:,:]).to(targets.device)
         batch_target = targets[:, :, 1:5].mul_(scale_tensor)
         targets[..., 1:] = xywh2xyxy_coco(batch_target)
         return targets
@@ -196,7 +197,7 @@ class YoloV6Loss(nn.Module):
     def bbox_decode(self, anchor_points, pred_dist):
         if self.use_dfl:
             batch_size, n_anchors, _ = pred_dist.shape
-            pred_dist = F.softmax(pred_dist.view(batch_size, n_anchors, 4, self.reg_max + 1), dim=-1).matmul(self.proj)
+            pred_dist = F.softmax(pred_dist.view(batch_size, n_anchors, 4, self.reg_max + 1), dim=-1).matmul(self.proj).to(pred_dist.device)
         return dist2bbox(pred_dist, anchor_points)
 
 
@@ -258,11 +259,11 @@ class BboxLoss(nn.Module):
                 else:
                     loss_dfl = loss_dfl.sum() / target_scores_sum
             else:
-                loss_dfl = pred_dist.sum() * 0.
+                loss_dfl = torch.tensor(0.).to(pred_dist.device)
 
         else:
-            loss_iou = pred_dist.sum() * 0.
-            loss_dfl = pred_dist.sum() * 0.
+            loss_iou = torch.tensor(0.).to(pred_dist.device)
+            loss_dfl = torch.tensor(0.).to(pred_dist.device)
 
         return loss_iou, loss_dfl
 

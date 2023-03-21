@@ -4,7 +4,7 @@ import torch.nn as nn
 import glob
 import warnings
 from pprint import pprint
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor, DeviceStatsMonitor
 from pytorch_lightning.utilities import rank_zero_only
 
 from .model import Model
@@ -94,8 +94,9 @@ class ModelLightningModule(pl.LightningModule):
         )
         
         lr_monitor = LearningRateMonitor(logging_interval="step")
-
-        callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor]
+        device_stats = DeviceStatsMonitor()
+        
+        callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor, device_stats]
 
         if "early_stopping" in self.cfg["train"]:
             callbacks.append(EarlyStopping(**self.cfg["train"]["early_stopping"]))

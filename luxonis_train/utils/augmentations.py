@@ -45,6 +45,7 @@ class TrainAugmentations:
         bboxes_points = bboxes[:,1:]
         bboxes_points[:,0::2] *= iw
         bboxes_points[:,1::2] *= ih
+        bboxes_points = check_bboxes(bboxes_points)
         bbox_classes = bboxes[:,0]
 
         # albumentations expects "list" of keypoints e.g. [(x,y),(x,y),(x,y),(x,y)]
@@ -102,6 +103,7 @@ class ValAugmentations:
         bboxes_points = bboxes[:,1:]
         bboxes_points[:,0::2] *= iw
         bboxes_points[:,1::2] *= ih
+        bboxes_points = check_bboxes(bboxes_points)
         bbox_classes = bboxes[:,0]
 
         # albumentations expects "list" of keypoints e.g. [(x,y),(x,y),(x,y),(x,y)]
@@ -159,9 +161,18 @@ def post_augment_process(transformed, keypoints, keypoints_classes):
     return transformed_image, out_bboxes, transformed_mask, final_keypoints
 
 def mark_invisible_keypoints(keypoints, image):
-    # invisible keypoints should have label == 0
+    """ Mark invisible keypoints with label == 0 """
     _, h, w = image.shape
     for kp in keypoints:
         if not(0<=kp[0]<w and 0<=kp[1]<h):
             kp[2] = 0
     return keypoints
+    
+def check_bboxes(bboxes):
+    """ Check bbox annotations and correct those with widht or height 0 """
+    for i in range(bboxes.shape[0]):
+        if bboxes[i, 2] == 0:
+            bboxes[i, 2] = 1
+        if bboxes[i, 3] == 0:
+            bboxes[i, 3] = 1
+    return bboxes

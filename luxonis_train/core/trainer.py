@@ -40,7 +40,7 @@ class Trainer:
 
         self.train_augmentations = None
         self.val_augmentations = None
-
+        
         self.lightning_module = ModelLightningModule(self.cfg, run_save_dir)
         self.pl_trainer = pl.Trainer(
             accelerator=args["accelerator"],
@@ -51,6 +51,7 @@ class Trainer:
             accumulate_grad_batches=train_cfg["accumulate_grad_batches"],
             check_val_every_n_epoch=eval_interval,
             num_sanity_val_steps=2,
+            #profiler="pytorch"
         )
 
     @rank_zero_only

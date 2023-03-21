@@ -51,6 +51,23 @@ def draw_on_image(img, data, head, is_label=False, **kwargs):
             
             img = draw_bounding_boxes(img, bboxs, labels=labels_list if label_map else None)
             return img
+    elif isinstance(head.type, KeyPointDetection):
+        if is_label:
+            keypoints_flat = torch.reshape(data[:,1:], (-1,3))
+            keypoints_points = keypoints_flat[:,:2]
+            keypoints_points[:,0] *= img_shape[1]
+            keypoints_points[:,1] *= img_shape[0]
+            #TODO: do we want to visualize based on visibility? now it just draws all (false point at 0,0 for invisible points)
+            keypoints_visibility = keypoints_flat[:,2]
+
+            # torchvision expects format [num_instances, K, 2]
+            out_keypoints = torch.reshape(keypoints_points, (-1, 17, 2)).int()
+            img = draw_keypoints(img, out_keypoints, colors="red")
+            return img
+        else:
+            # TODO: need to implement this but don't have a keypoint yet to check what is the output from it
+            # probably have to do something very similar than for labels
+            return img
         
 def torch_to_cv2(img, to_rgb=False):
     if img.is_floating_point():

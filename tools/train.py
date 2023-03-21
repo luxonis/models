@@ -28,3 +28,4 @@ if __name__ == "__main__":
     # while True:
     #     time.sleep(5)
     #     print(trainer.get_status())
+    #     print(trainer.get_status_percentage())

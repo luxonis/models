@@ -25,6 +25,7 @@ class ModelLightningModule(pl.LightningModule):
         self.cfg = cfg
         self.save_dir = save_dir
         self.model_name = cfg["model"]["name"]
+        self.early_stopping = None # early stopping callback
 
         # check if model is predefined
         if self.cfg["model"]["type"]:
@@ -98,7 +99,8 @@ class ModelLightningModule(pl.LightningModule):
         callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor]
 
         if "early_stopping" in self.cfg["train"]:
-            callbacks.append(EarlyStopping(**self.cfg["train"]["early_stopping"]))
+            self.early_stopping = EarlyStopping(verbose=True, **self.cfg["train"]["early_stopping"])
+            callbacks.append(self.early_stopping)
 
         return callbacks
 
@@ -143,7 +145,7 @@ class ModelLightningModule(pl.LightningModule):
 
     def training_step(self, train_batch, batch_idx):
         inputs = train_batch[0].float()
-        labels = train_batch[1:]
+        labels = train_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
@@ -154,11 +156,12 @@ class ModelLightningModule(pl.LightningModule):
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
-                        
-            if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0:
-                output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
-                curr_metrics = self.metrics[curr_head_name]["train_metrics"]
-                curr_metrics.update(output_processed, curr_label_processed)
+
+            with torch.no_grad():         
+                if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0:
+                    output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
+                    curr_metrics = self.metrics[curr_head_name]["train_metrics"]
+                    curr_metrics.update(output_processed, curr_label_processed)
 
         # loss required in step output by pl
         step_output = {
@@ -168,7 +171,7 @@ class ModelLightningModule(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         inputs = val_batch[0].float()
-        labels = val_batch[1:]
+        labels = val_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
@@ -179,7 +182,7 @@ class ModelLightningModule(pl.LightningModule):
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
-            
+
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
@@ -191,7 +194,7 @@ class ModelLightningModule(pl.LightningModule):
     
     def test_step(self, test_batch, batch_idx):
         inputs = test_batch[0].float()
-        labels = test_batch[1:]
+        labels = test_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
@@ -245,14 +248,36 @@ class ModelLightningModule(pl.LightningModule):
         pass
     
     def get_status(self):
-        # return current epoch and number of all epochs
+        """ Return current epoch and number of all epochs """
         return self.current_epoch, self.cfg["train"]["epochs"]
+    
+    def get_status_percentage(self):
+        """ Return percentage of current training, takes into account early stopping """
+        if self.early_stopping:
+             # model didn't yet stop from early stopping callback
+            if self.early_stopping.stopped_epoch == 0:
+                return (self.current_epoch / self.cfg["train"]["epochs"])*100
+            else:
+                return 100
+        else:    
+            return (self.current_epoch / self.cfg["train"]["epochs"])*100
+
+    def get_n_classes(self):
+        """ Return n_classes for each type of annotation """
+        out_dict = {}
+        for head in self.model.heads:
+            if isinstance(head.type, Classification) or isinstance(head.type, MultiLabelClassification):
+                out_dict["class"] = head.n_classes
+            elif isinstance(head.type, SemanticSegmentation) or isinstance(head.type, InstanceSegmentation):
+                out_dict["segmentation"] = head.n_classes
+            # TODO: do we need the same for object detection and keypoint detection?
+        return out_dict            
 
     def _avg(self, running_metric):
         return sum(running_metric) / len(running_metric)
 
     @rank_zero_only
     def _print_results(self, loss, metrics):
-        print("Validation metrics:")
+        print("\nValidation metrics:")
         print(f"Val_loss: {loss}")
         pprint(metrics)  

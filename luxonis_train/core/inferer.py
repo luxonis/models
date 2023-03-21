@@ -77,34 +77,35 @@ class Inferer(pl.LightningModule):
                 batch_size=1,
                 num_workers=self.cfg["train"]["n_workers"]
             )
+            
+            with torch.no_grad():
+                for data in pytorch_loader_val:
+                    inputs = data[0].float()
+                    img = unnormalize(inputs[0], to_uint8=True)
+                    labels = data[1]
+                    outputs = self.forward(inputs)
 
-            for data in pytorch_loader_val:
-                inputs = data[0].float()
-                img = unnormalize(inputs[0], to_uint8=True)
-                labels = data[1:]
-                outputs = self.forward(inputs)
+                    for i, output in enumerate(outputs):
+                        curr_head = self.model.heads[i]
+                        curr_head_name = get_head_name(curr_head, i)
+                        curr_label = get_current_label(curr_head.type, labels)
 
-                for i, output in enumerate(outputs):
-                    curr_head = self.model.heads[i]
-                    curr_head_name = get_head_name(curr_head, i)
-                    curr_label = get_current_label(curr_head.type, labels)
-                    
-                    img_labels = draw_on_image(img, curr_label, curr_head, is_label=True)
-                    img_labels = torch_to_cv2(img_labels, to_rgb=True)
-                    img_outputs = draw_on_image(img, output, curr_head)
-                    img_outputs = torch_to_cv2(img_outputs, to_rgb=True)
-                    
-                    out_img = cv2.hconcat([img_labels, img_outputs])
-                    if display:
-                        plt.imshow(out_img)
-                        plt.title(curr_head_name+f"\n(labels left, outputs right)")
-                        plt.show()
-                        # TODO: this freezes for loop, needs to be fixed and then set to_rgb=False 
-                        # cv2.imshow(curr_head_name, out_img)
-                        # key = cv2.waitKey(0)
-                    if save:
-                        # TODO: What do we want to save?
-                        pass
+                        img_labels = draw_on_image(img, curr_label, curr_head, is_label=True)
+                        img_labels = torch_to_cv2(img_labels, to_rgb=True)
+                        img_outputs = draw_on_image(img, output, curr_head)
+                        img_outputs = torch_to_cv2(img_outputs, to_rgb=True)
+                        
+                        out_img = cv2.hconcat([img_labels, img_outputs])
+                        if display:
+                            plt.imshow(out_img)
+                            plt.title(curr_head_name+f"\n(labels left, outputs right)")
+                            plt.show()
+                            # TODO: this freezes for loop, needs to be fixed and then set to_rgb=False 
+                            # cv2.imshow(curr_head_name, out_img)
+                            # key = cv2.waitKey(0)
+                        if save:
+                            # TODO: What do we want to save?
+                            pass
 
     def infer_image(self, img:torch.tensor, display:bool = True, save:bool = False):
         """Runs inference on a single image

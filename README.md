@@ -153,7 +153,7 @@ Once you've configured your `custom.yaml` file you can train the model using thi
 ```
 python3 tools/train.py -cfg configs/custom.yaml
 ```
-You can also specify accelerator with `--acclerator` flag (cpu or gpu) and device with `--devices` that you want to use for training (e.g. `--devices 1`)
+You can also specify accelerator with `--accelerator` flag (cpu or gpu) and device with `--devices` that you want to use for training (e.g. `--devices 1`)
 
 ## Customize Trainer through API
 Before trainig the model you can also additionaly configure it with the use of our [Trainer](./luxonis_train/core/trainer.py) API. Look at [train.py](./tools/train.py) to see how Trainer is initialized. 

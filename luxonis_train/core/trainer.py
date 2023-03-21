@@ -31,7 +31,7 @@ class Trainer:
         load_dotenv() # loads env variables for mlflow logging
         logger = LuxonisTrackerPL(rank=self.rank, **logger_cfg)
         logger.log_hyperparams({"epochs": epochs, "batch_size": batch_size, "accumulate_grad_batches": train_cfg["accumulate_grad_batches"]})
-        run_save_dir = os.path.join(logger_cfg["save_directory"], logger.run_name)
+        self.run_save_dir = os.path.join(logger_cfg["save_directory"], logger.run_name)
         
         use_ddp = True if (args["devices"] == None or \
             isinstance(args["devices"], list) and len(args["devices"]) > 1 or \
@@ -41,7 +41,7 @@ class Trainer:
         self.train_augmentations = None
         self.val_augmentations = None
         
-        self.lightning_module = ModelLightningModule(self.cfg, run_save_dir)
+        self.lightning_module = ModelLightningModule(self.cfg, self.run_save_dir)
         self.pl_trainer = pl.Trainer(
             accelerator=args["accelerator"],
             devices=args["devices"],
@@ -51,26 +51,8 @@ class Trainer:
             accumulate_grad_batches=train_cfg["accumulate_grad_batches"],
             check_val_every_n_epoch=eval_interval,
             num_sanity_val_steps=2,
-            #profiler="pytorch"
+            #profiler="pytorch" # for debugging purposes
         )
-
-    @rank_zero_only
-    def get_status(self):
-        """Get current status of training
-
-        Returns:
-            Tuple(int, int): First element is current epoch, second element is total number of epochs
-        """
-        return self.lightning_module.get_status()
-    
-    @rank_zero_only
-    def get_status_percentage(self):
-        """ Return percentage of current training, takes into account early stopping
-
-        Returns:
-            Float: percentage of current training in range 0-100
-        """
-        return self.lightning_module.get_status_percentage()       
 
     def override_loss(self, custom_loss: object, head_id: int):
         """ Overrides loss function for specific head_id with custom loss """
@@ -127,6 +109,7 @@ class Trainer:
 
             if not new_thread:
                 self.pl_trainer.fit(self.lightning_module, pytorch_loader_train, pytorch_loader_val)
+                print(f"Checkpoints saved in: {self.get_save_dir()}")
             else:
                 self.thread = threading.Thread(
                     target=self.pl_trainer.fit,
@@ -134,7 +117,34 @@ class Trainer:
                     daemon=True
                 )
                 self.thread.start()
+            
+    @rank_zero_only
+    def get_status(self):
+        """Get current status of training
 
+        Returns:
+            Tuple(int, int): First element is current epoch, second element is total number of epochs
+        """
+        return self.lightning_module.get_status()
+    
+    @rank_zero_only
+    def get_status_percentage(self):
+        """ Return percentage of current training, takes into account early stopping
+
+        Returns:
+            float: Percentage of current training in range 0-100
+        """
+        return self.lightning_module.get_status_percentage()       
+
+    @rank_zero_only
+    def get_save_dir(self):
+        """ Return path to directory where checkpoints are saved
+
+        Returns:
+            str: Save directory path
+        """
+        return self.run_save_dir
+    
     def _validate_dataset(self, loader):
         """ Checks if number of classes specified in config file matches number of classes present in annotations.
 
@@ -150,11 +160,11 @@ class Trainer:
             curr_labels = get_current_label(Classification(), labels)
             n_classes_anno = curr_labels.shape[1]
             if n_classes_anno != n_classes_dict["class"]:
-                raise RuntimeError(f"Number of classes in 'class' anotations ({n_classes_anno}) don't match" +
+                raise RuntimeError(f"Number of classes in 'class' anotations ({n_classes_anno}) doesn't match" +
                     f"'n_classes' specified in config file ({n_classes_dict['class']})")
         if "segmentation" in n_classes_dict:
             curr_labels = get_current_label(SemanticSegmentation(), labels)
             n_classes_anno = curr_labels.shape[1]
             if n_classes_anno != n_classes_dict["segmentation"]:
-                raise RuntimeError(f"Number of classes in 'segmentation' anotations ({n_classes_anno}) don't match" +
+                raise RuntimeError(f"Number of classes in 'segmentation' anotations ({n_classes_anno}) doesn't match" +
                     f"'n_classes' specified in config file ({n_classes_dict['segmentation']})")

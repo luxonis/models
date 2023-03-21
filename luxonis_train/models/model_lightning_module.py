@@ -95,9 +95,11 @@ class ModelLightningModule(pl.LightningModule):
         )
         
         lr_monitor = LearningRateMonitor(logging_interval="step")
-        device_stats = DeviceStatsMonitor()
-        
-        callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor, device_stats]
+        callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor]
+
+        # used if we want to perform fine-grained debugging
+        # device_stats = DeviceStatsMonitor()
+        # callbacks.append(device_stats)
 
         if "early_stopping" in self.cfg["train"]:
             self.early_stopping = EarlyStopping(verbose=True, **self.cfg["train"]["early_stopping"])

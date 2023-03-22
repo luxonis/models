@@ -187,23 +187,29 @@ class ModelLightningModule(pl.LightningModule):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
 
-            ## visualize images in tensorboard
-            if batch_idx == 0 and isinstance(curr_head.type, Classification) and self.global_step>0:
-                labels_processed = torch.argmax(curr_label, dim=1)
-                outputs_processed = torch.argmax(output, dim=1)
-                
-                for i in range(5): # show 5 images
-                    label = int(labels_processed[i])
-                    prediction = int(outputs_processed[i])
+            if batch_idx == 0: # log images of the first batch
+                labels = torch.argmax(curr_label, dim=1)
+                predictions = torch.argmax(output, dim=1)
+                # TODO: also read-in and draw on images class names instead of indexes
+                images_to_log = []
+                for i, (img, label, prediction) in enumerate(zip(inputs, labels, predictions)):
+                    label = int(label)
+                    prediction = int(prediction)
+                    img = unnormalize(img, to_uint8=True)
+                    img = torch_to_cv2(img, to_rgb=True)
+                    img_data = {"label":f"{label}", "prediction":f"{prediction}"}
+                    images_to_log.append(draw_on_image(img, img_data, curr_head))
+                    if i>=2: # only log a few images
+                        break
 
-                    img = unnormalize(inputs[i], to_uint8=True)
-                    out_img = torch_to_cv2(img, to_rgb=True)
-                    img_tags = {"image_n": i, 
-                               "epoch_n": self.current_epoch,
-                               "label": label,
-                               "prediction": prediction}
+                # use log_images()
+                #self.logger.log_images(curr_head_name, np.array(images_to_log), step=self.current_epoch)
 
-                    self.logger.log_image(img_tags, out_img, step=self.current_epoch)
+                # use log_image()
+                concatenate = images_to_log.pop(0)
+                while images_to_log != []:
+                    concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
+                self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
         
         step_output = {
             "loss": loss,

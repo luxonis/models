@@ -15,10 +15,14 @@ def cfg_override(cfg, args):
         subkeys = keys.split(".")
         sub_dict = cfg
         for key in subkeys[:-1]:
+            if isinstance(sub_dict, list): # check if key should be list index 
+                key = int(key)
             sub_dict = sub_dict[key]
+
         if subkeys[-1] not in sub_dict:
             raise RuntimeError(f"Key '{keys}' not present in config.")
-        sub_dict[subkeys[-1]] = int(value) if value.isdigit() else value
+        key = subkeys[-1] if isinstance(sub_dict, dict) else int(subkeys[-1])
+        sub_dict[key] = int(value) if value.isdigit() else value
     return cfg
 
 def check_cfg(cfg):

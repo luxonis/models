@@ -261,7 +261,7 @@ class ModelLightningModule(pl.LightningModule):
             if self.early_stopping.stopped_epoch == 0:
                 return (self.current_epoch / self.cfg["train"]["epochs"])*100
             else:
-                return 100
+                return 100.0
         else:    
             return (self.current_epoch / self.cfg["train"]["epochs"])*100
 

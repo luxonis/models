@@ -17,6 +17,8 @@ from luxonis_train.utils.metrics import init_metrics, postprocess_for_metrics
 from luxonis_train.utils.head_type import *
 from luxonis_train.utils.general import *
 
+from luxonis_train.utils.visualization import *
+
 
 class ModelLightningModule(pl.LightningModule):
     def __init__(self, cfg, save_dir):
@@ -189,12 +191,36 @@ class ModelLightningModule(pl.LightningModule):
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
+
+            if batch_idx == 0: # log images of the first batch
+                labels = torch.argmax(curr_label, dim=1)
+                predictions = torch.argmax(output, dim=1)
+                # TODO: also read-in and draw on images class names instead of indexes
+                images_to_log = []
+                for i, (img, label, prediction) in enumerate(zip(inputs, labels, predictions)):
+                    label = int(label)
+                    prediction = int(prediction)
+                    img = unnormalize(img, to_uint8=True)
+                    img = torch_to_cv2(img, to_rgb=True)
+                    img_data = {"label":f"{label}", "prediction":f"{prediction}"}
+                    images_to_log.append(draw_on_image(img, img_data, curr_head))
+                    if i>=2: # only log a few images
+                        break
+
+                # use log_images()
+                #self.logger.log_images(curr_head_name, np.array(images_to_log), step=self.current_epoch)
+
+                # use log_image()
+                concatenate = images_to_log.pop(0)
+                while images_to_log != []:
+                    concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
+                self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
         
         step_output = {
             "loss": loss,
         }
         return step_output
-    
+
     def test_step(self, test_batch, batch_idx):
         inputs = test_batch[0].float()
         labels = test_batch[1]
@@ -247,8 +273,21 @@ class ModelLightningModule(pl.LightningModule):
         self._print_results(epoch_val_loss, results)
 
     def test_epoch_end(self, outputs):
-        # TODO: what do we want to log/show on test epoch end? same as validation epoch end?
-        pass
+        epoch_test_loss = self._avg([step_output["loss"] for step_output in outputs])
+        self.log("test_loss", epoch_test_loss, sync_dist=True)
+
+        results = {} # used for printing to console
+        for i, curr_head_name in enumerate(self.metrics):
+            curr_metrics = self.metrics[curr_head_name]["test_metrics"].compute()
+            results[curr_head_name] = curr_metrics
+            for metric_name in curr_metrics:
+                self.log(f"{curr_head_name}_{metric_name}/test", curr_metrics[metric_name], sync_dist=True)
+            # log main metrics separately (used in callback)
+            if i == 0:
+                self.log(f"test_{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)
+            self.metrics[curr_head_name]["test_metrics"].reset()
+
+        self._print_results(epoch_test_loss, results)
     
     def get_status(self):
         """ Return current epoch and number of all epochs """

@@ -14,10 +14,22 @@ from luxonis_train.utils.head_utils import yolov6_out2box
 def draw_on_image(img, data, head, is_label=False, **kwargs):
     img_shape = head.original_in_shape[2:]
 
-    if isinstance(head.type, Classification) or \
-        isinstance(head.type, MultiLabelClassification):
-        # TODO: what do we want to visualize in this case? maybe just print predicted class/labels
-        return img
+    if isinstance(head.type, Classification):
+        # resize image
+        width_orig, height_orig, _ = img.shape
+        width_new = 252 # fix image width to 252
+        height_new = int(height_orig * width_new/width_orig)
+        img = cv2.resize(img, (width_new,height_new))
+        # construct info box
+        info_box = np.zeros((40, 252, 3),dtype=np.uint8)
+        info_box[True] = 255 #change all values to 255
+        info_text = f"idx: {data['label']}; prediction: {data['prediction']}"
+        cv2.putText(info_box,info_text,(10,30),cv2.FONT_HERSHEY_SIMPLEX,0.6,(0,0,0),2)
+        # join resized image and infobox
+        return np.concatenate((img, info_box), axis=0)
+    elif isinstance(head.type, MultiLabelClassification):
+        # TODO: what do we want to visualize in this case?
+        return img 
     elif isinstance(head.type, SemanticSegmentation):
         if data.ndim == 4:
             data = data[0]

@@ -164,6 +164,18 @@ class Trainer:
         """
         return self.error_message
     
+    @rank_zero_only
+    def get_min_val_checkpoint_path(self):
+        """ Return best min_val checkpoint path
+        """
+        return self.pl_trainer.checkpoint_callbacks[0].best_model_path
+    
+    @rank_zero_only
+    def get_best_metric_checkpoint_path(self):
+        """ Return best best_metric checkpoint path
+        """
+        return self.pl_trainer.checkpoint_callbacks[1].best_model_path
+    
     def test(self, new_thread: bool = False):
         """ Runs testing
         Args:

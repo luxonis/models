@@ -57,6 +57,8 @@ class Trainer:
             #profiler="pytorch" # for debugging purposes
         )
 
+        self.error_message = None
+
     def override_loss(self, custom_loss: object, head_id: int):
         """ Overrides loss function for specific head_id with custom loss """
         assert head_id in list(range(len(self.lightning_module.model.heads))), "head_id out of range"
@@ -114,6 +116,11 @@ class Trainer:
                 self.pl_trainer.fit(self.lightning_module, pytorch_loader_train, pytorch_loader_val)
                 print(f"Checkpoints saved in: {self.get_save_dir()}")
             else:
+                # Every time expection happens in the Thread, this hook will activate
+                def thread_exception_hook(args):
+                    self.error_message = str(args.exc_value)
+                threading.excepthook = thread_exception_hook
+
                 self.thread = threading.Thread(
                     target=self.pl_trainer.fit,
                     args=(self.lightning_module, pytorch_loader_train, pytorch_loader_val),
@@ -148,6 +155,15 @@ class Trainer:
         """
         return self.run_save_dir
     
+    @rank_zero_only
+    def get_error_message(self):
+        """ Return error message if one occures while running in thread, otherwise None
+
+        Returns:
+            str or None: Error message
+        """
+        return self.error_message
+    
     def _validate_dataset(self, loader):
         """ Checks if number of classes specified in config file matches number of classes present in annotations.
 
@@ -171,3 +187,4 @@ class Trainer:
             if n_classes_anno != n_classes_dict["segmentation"]:
                 raise RuntimeError(f"Number of classes in 'segmentation' anotations ({n_classes_anno}) doesn't match" +
                     f"'n_classes' specified in config file ({n_classes_dict['segmentation']})")
+

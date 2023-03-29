@@ -107,18 +107,6 @@ class ModelLightningModule(pl.LightningModule):
 
         return callbacks
 
-    def load_best_checkpoint(self):
-        checkpoint_paths = glob.glob(
-            f"{self.min_val_loss_checkpoints_path}/*"
-        )
-        # lowest val_loss
-        best_checkpoint_path = sorted(checkpoint_paths)[0]
-        lowest_val_loss = best_checkpoint_path.split("/")[-1].split("_")[1].replace("loss=", "")
-        self.load_state_dict(
-            torch.load(best_checkpoint_path)["state_dict"]
-        )
-        return lowest_val_loss
-
     def load_checkpoint(self, path):
         print(f"Loading model weights from: {path}")
         self.load_state_dict(torch.load(path)["state_dict"])

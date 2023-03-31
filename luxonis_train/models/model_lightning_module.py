@@ -54,7 +54,11 @@ class ModelLightningModule(pl.LightningModule):
         # freeze modules if defined
         if "freeze_modules" in self.cfg["train"] and self.cfg["train"]["freeze_modules"]:
             self.freeze_modules(self.cfg["train"]["freeze_modules"])
-
+        
+        if "model_checkpoint" in self.cfg["train"] and "save_top_k" in self.cfg["train"]["model_checkpoint"] and self.cfg["train"]["model_checkpoint"]["save_top_k"]:
+            self.save_top_k = self.cfg["train"]["model_checkpoint"]["save_top_k"]
+        else:
+            self.save_top_k = 3
 
     def freeze_modules(self, freeze_info):
         modules_to_freeze = []
@@ -84,7 +88,7 @@ class ModelLightningModule(pl.LightningModule):
             monitor = "val_loss",
             dirpath = self.min_val_loss_checkpoints_path,
             filename = "{val_loss:.4f}_{val_"+self.main_metric+":.4f}_{epoch:02d}_" + self.model_name,
-            save_top_k = 3,
+            save_top_k = self.save_top_k,
             mode = "min"
         )
 
@@ -92,7 +96,7 @@ class ModelLightningModule(pl.LightningModule):
             monitor = f"val_{self.main_metric}",
             dirpath = self.best_val_metric_checkpoints_path,
             filename = "{val_"+self.main_metric+":.4f}_{val_loss:.4f}_{epoch:02d}_" + self.model_name,
-            save_top_k = 3,
+            save_top_k = self.save_top_k,
             mode = "max"
         )
         

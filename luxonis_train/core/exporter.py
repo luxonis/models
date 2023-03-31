@@ -15,7 +15,7 @@ from luxonis_train.utils.head_type import *
 
 
 class Exporter(pl.LightningModule):
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, args = {"override": None}):
         """ Main API which is used for exporting models trained with this library to .onnx, openVINO and .blob format.
 
         Args:
@@ -23,7 +23,11 @@ class Exporter(pl.LightningModule):
         """
         super().__init__()
         self.cfg = cfg
+        self.args = args
         
+        if self.args["override"]:
+            self.cfg = cfg_override(self.cfg, self.args["override"])
+
         # check if model is predefined
         if self.cfg["model"]["type"]:
             self.load_predefined_cfg(self.cfg["model"]["type"])
@@ -67,6 +71,39 @@ class Exporter(pl.LightningModule):
         """ Forward function used in export """
         outputs = self.model(inputs)
         return outputs
+    
+    def to_blob(self):
+        dummy_input = torch.rand(1,3,*self.cfg["export"]["image_size"])
+        base_path = self.cfg["export"]["save_directory"]
+        output_names = self._get_output_names()
+
+        print("Converting PyTorch model to ONNX")
+        onnx_path = os.path.join(base_path, f"{self.cfg['model']['name']}.onnx") 
+        self.to_onnx(
+            onnx_path,
+            dummy_input,
+            opset_version=12,
+            input_names=["input"],
+            output_names=output_names,
+            dynamic_axes=None
+        )
+        model_onnx = onnx.load(onnx_path)
+        onnx_model, check = onnxsim.simplify(model_onnx)
+        assert check, "assert check failed"
+        onnx.save(onnx_model, onnx_path)
+        
+        print("Converting ONNX to blob")
+        xmlfile = f"{os.path.join(base_path, self.cfg['model']['name'])}.xml"
+        binfile = f"{os.path.join(base_path, self.cfg['model']['name'])}.bin"
+        blob_path = blobconverter.from_onnx(
+            model=onnx_path,
+            data_type="FP16",
+            shaves=6,
+            output_dir=base_path
+        )
+        os.remove(onnx_path)
+        print(f"Finished exporting. File saved in: {blob_path}")
+
 
     def export(self):
         """ Export model to onnx, openVINO and .blob format """

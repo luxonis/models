@@ -5,10 +5,12 @@ from luxonis_train.core import Exporter
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-cfg', '--config', type=str, help="Path to export config", required=True)
+    parser.add_argument("--override", default=None, type=str, help="Manually override config parameter")
     args = parser.parse_args()
+    args_dict = vars(args)
 
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
-    exporter = Exporter(cfg)
+    exporter = Exporter(cfg, args_dict)
     exporter.export()

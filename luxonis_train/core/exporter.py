@@ -99,7 +99,8 @@ class Exporter(pl.LightningModule):
             model=onnx_path,
             data_type="FP16",
             shaves=6,
-            output_dir=base_path
+            output_dir=base_path,
+            use_cache=False
         )
         os.remove(onnx_path)
         print(f"Finished exporting. File saved in: {blob_path}")

@@ -72,7 +72,7 @@ class Exporter(pl.LightningModule):
         outputs = self.model(inputs)
         return outputs
     
-    def to_blob(self):
+    def to_blob(self, remove_onnx = True):
         dummy_input = torch.rand(1,3,*self.cfg["export"]["image_size"])
         base_path = self.cfg["export"]["save_directory"]
         output_names = self._get_output_names()
@@ -102,7 +102,8 @@ class Exporter(pl.LightningModule):
             output_dir=base_path,
             use_cache=False
         )
-        os.remove(onnx_path)
+        if remove_onnx:
+            os.remove(onnx_path)
         print(f"Finished exporting. File saved in: {blob_path}")
 
 

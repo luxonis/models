@@ -244,7 +244,7 @@ class ModelLightningModule(pl.LightningModule):
             for curr_head_name in self.metrics:
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
                 for metric_name in curr_metrics:
-                    self.log(f"{curr_head_name}_{metric_name}/train", curr_metrics[metric_name], sync_dist=True)
+                    self.log(f"train/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
                 self.metrics[curr_head_name]["train_metrics"].reset() 
 
     def validation_epoch_end(self, outputs):
@@ -256,7 +256,7 @@ class ModelLightningModule(pl.LightningModule):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"].compute()
             results[curr_head_name] = curr_metrics
             for metric_name in curr_metrics:
-                self.log(f"{curr_head_name}_{metric_name}/val", curr_metrics[metric_name], sync_dist=True)
+                self.log(f"val/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
             # log main metrics separately (used in callback)
             if i == 0:
                 self.log(f"val_{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)
@@ -273,7 +273,7 @@ class ModelLightningModule(pl.LightningModule):
             curr_metrics = self.metrics[curr_head_name]["test_metrics"].compute()
             results[curr_head_name] = curr_metrics
             for metric_name in curr_metrics:
-                self.log(f"{curr_head_name}_{metric_name}/test", curr_metrics[metric_name], sync_dist=True)
+                self.log(f"test/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
             # log main metrics separately (used in callback)
             if i == 0:
                 self.log(f"test_{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)

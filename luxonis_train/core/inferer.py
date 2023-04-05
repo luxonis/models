@@ -25,7 +25,7 @@ class Inferer(pl.LightningModule):
 
         # check if model is predefined
         if self.cfg["model"]["type"]:
-            self.load_predefined_cfg(self.cfg["model"]["type"])
+            load_predefined_cfg(self.cfg)
         
         self.model = Model()
         self.model.build_model(self.cfg["model"], self.cfg["train"]["image_size"])

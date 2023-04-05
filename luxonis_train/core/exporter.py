@@ -30,7 +30,7 @@ class Exporter(pl.LightningModule):
 
         # check if model is predefined
         if self.cfg["model"]["type"]:
-            self.load_predefined_cfg(self.cfg["model"]["type"])
+            load_predefined_cfg(self.cfg)
         
         check_cfg_export(self.cfg)
         

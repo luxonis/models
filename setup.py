@@ -10,7 +10,7 @@ setup(
     description="Luxonis training library for training lightweight models that run fast on OAK products.",
     long_description=io.open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/luxonis/models-private",
+    url="https://github.com/luxonis/models",
     keywords="ml trainig luxonis",
     author="Luxonis",
     author_email="support@luxonis.com",
@@ -20,8 +20,8 @@ setup(
     install_requires=required,
     include_package_data=True,
     project_urls={
-        "Bug Tracker": "https://github.com/luxonis/models-private/issues",
-        "Source Code": "https://github.com/luxonis/models-private/tree/train-refactor",
+        "Bug Tracker": "https://github.com/luxonis/models/issues",
+        "Source Code": "https://github.com/luxonis/models/tree/dev",
     },
     classifiers=[
         "License :: MIT License",

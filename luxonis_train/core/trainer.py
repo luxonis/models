@@ -6,7 +6,7 @@ from luxonis_ml import *
 from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_train.models import ModelLightningModule
-from luxonis_train.utils.config import cfg_override
+from luxonis_train.utils.config import *
 from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations
 from luxonis_train.utils.general import get_current_label
 from luxonis_train.utils.head_type import *
@@ -25,6 +25,14 @@ class Trainer:
         self.cfg = cfg
         if self.args["override"]:
             self.cfg = cfg_override(self.cfg, self.args["override"])
+
+        # check if model is predefined
+        if self.cfg["model"]["type"]:
+            load_predefined_cfg(self.cfg)
+        
+        self._validate_dataset()
+        check_cfg(self.cfg)
+        
         self.rank = rank_zero_only.rank    
 
         train_cfg = cfg["train"]
@@ -108,9 +116,6 @@ class Trainer:
                 batch_size=self.cfg["train"]["batch_size"],
                 num_workers=self.cfg["train"]["n_workers"]
             )
-
-            self._validate_dataset(loader=pytorch_loader_train)
-            self._validate_dataset(loader=pytorch_loader_val)
 
             if not new_thread:
                 self.pl_trainer.fit(self.lightning_module, pytorch_loader_train, pytorch_loader_val)
@@ -207,7 +212,41 @@ class Trainer:
                 )
                 self.thread.start()
 
-    def _validate_dataset(self, loader):
+    def _validate_dataset(self):
+        """ Checks if number of classes specified in config file matches number of classes present in dataset.
+        If it doesn't match we adopt value from dataset and override the config.
+        """
+        with LuxonisDataset(
+            local_path=self.cfg["dataset"]["local_path"] if "local_path" in self.cfg["dataset"] else None,
+            s3_path=self.cfg["dataset"]["s3_path"] if "s3_path" in self.cfg["dataset"] else None
+        ) as dataset:
+            dataset_n_classes = len(dataset.classes)
+            
+            # TODO: implement per task number of classes
+            # for key in dataset.classes_by_task:
+            #     print(key, len(dataset.classes_by_task[key]))
+
+            model_cfg = self.cfg["model"]
+            for head in model_cfg["heads"]:
+                if head["params"] is None:
+                    head["params"] = {}
+
+                curr_n_classes = head["params"].get("n_classes", None)
+                if curr_n_classes is None:
+                    warnings.warn(f"Inheriting 'n_classes' parameter from dataset. Setting it to {dataset_n_classes}")
+                elif curr_n_classes != dataset_n_classes:
+                    warnings.warn(f"Number of classes in config ({curr_n_classes}) doesn't match number of \
+                        classes in dataset ({dataset_n_classes}). Setting it to {dataset_n_classes}")
+                head["params"]["n_classes"] = dataset_n_classes
+
+                # also set n_classes to loss params (for now only if it's YoloV6 loss) 
+                # TODO: avoid hardcoding, make the loss classes general so they can accept n_classes even if not used
+                if head["loss"]["name"] == "YoloV6Loss":
+                    if head["loss"]["params"] is None:
+                        head["loss"]["params"] = {}
+                    head["loss"]["params"]["n_classes"] = dataset_n_classes
+
+    def _validate_dataset_old(self, loader):
         """ Checks if number of classes specified in config file matches number of classes present in annotations.
 
         Args:

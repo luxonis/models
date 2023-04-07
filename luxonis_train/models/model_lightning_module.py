@@ -8,7 +8,6 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, Learning
 from pytorch_lightning.utilities import rank_zero_only
 
 from .model import Model
-from luxonis_train.utils.config import *
 from luxonis_train.utils.losses import get_loss
 from luxonis_train.utils.optimizers import get_optimizer
 from luxonis_train.utils.schedulers import get_scheduler
@@ -29,11 +28,6 @@ class ModelLightningModule(pl.LightningModule):
         self.model_name = cfg["model"]["name"]
         self.early_stopping = None # early stopping callback
 
-        # check if model is predefined
-        if self.cfg["model"]["type"]:
-            load_predefined_cfg(self.cfg)
-
-        check_cfg(self.cfg)
         self.model = Model()
         self.model.build_model(self.cfg["model"], self.cfg["train"]["image_size"])
 
@@ -116,9 +110,6 @@ class ModelLightningModule(pl.LightningModule):
     def load_checkpoint(self, path):
         print(f"Loading model weights from: {path}")
         self.load_state_dict(torch.load(path)["state_dict"])
-
-    def export(self):
-        pass
 
     def forward(self, inputs):
         outputs = self.model(inputs)

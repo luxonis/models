@@ -151,7 +151,6 @@ class ValAugmentations:
 
 def post_augment_process(transformed, keypoints, keypoints_classes):
     transformed_image = transformed["image"]
-    transformed_image = transformed_image.flip(-3) # to BGR format
 
     transformed_mask = torch.stack(transformed["masks"]) # stack list of masks
 

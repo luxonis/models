@@ -134,10 +134,11 @@ class Exporter(pl.LightningModule):
         cmd = f"mo --input_model {onnx_path} " \
         f"--output_dir {base_path} " \
         f"--model_name {self.cfg['model']['name']} " \
+        "--reverse_input_channels " \
         "--data_type FP16 " \
-        "--reverse_input_channel " 
-        "--scale 255 " \
-        f"--output {output_list} "
+        "--scale_values '[58.395, 57.120, 57.375]' " \
+        "--mean_values '[123.675, 116.28, 103.53]' "  \
+        f"--output {output_list}"
 
         subprocess.check_output(cmd, shell=True)
     
@@ -149,10 +150,11 @@ class Exporter(pl.LightningModule):
             bin=binfile,
             data_type="FP16",
             shaves=6,
-            version="2021.4",
+            version="2022.1",
             use_cache=False,
             output_dir=base_path
         )
+
         print(f"Finished exporting. Files saved in: {base_path}")
 
     def _get_output_names(self):

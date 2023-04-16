@@ -56,7 +56,7 @@ class Trainer:
         self.pl_trainer = pl.Trainer(
             accelerator=args["accelerator"],
             devices=args["devices"],
-            strategy="ddp_find_unused_parameters_false" if use_ddp else None,
+            strategy="ddp" if use_ddp else None,
             logger=logger,
             max_epochs=epochs,
             accumulate_grad_batches=train_cfg["accumulate_grad_batches"],

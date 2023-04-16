@@ -1,8 +1,41 @@
 import os
 import yaml
 import warnings
+from functools import reduce
 
 DB_PATH = "./configs/db" # probably a nicer way to do this
+
+class Config:
+    _db_path = "./configs/db"
+
+    def __new__(cls, cfg_path):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(Config, cls).__new__(cls)
+            cls.instance.load(cfg_path)
+        return cls.instance
+
+    def load(self, cfg_path):
+        with open(cfg_path, "r") as f:
+            user_config = yaml.load(f, Loader=yaml.SafeLoader)
+        with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
+            db_config = yaml.load(f, Loader=yaml.SafeLoader)
+        
+        self._data = self._merge_configs(user_config, db_config)
+        print("Config loaded.")
+
+    def _merge_configs(user_config, db_config):
+        new_config = {}
+        for key in db_config:
+            pass
+        pass
+
+    def get(self, key):
+        if "." not in key:
+            return self._data.get(key, None)
+        else:
+            keys = key.split(".")
+            return reduce(lambda data, key: data[key], keys, self._data)
+
 
 def cfg_override(cfg, args):
     items = args.split(" ")

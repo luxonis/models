@@ -83,7 +83,7 @@ class ModelLightningModule(pl.LightningModule):
         self.min_val_loss_checkpoints_path = f"{self.save_dir}/min_val_loss"
         self.best_val_metric_checkpoints_path = f"{self.save_dir}/best_val_metric"
         self.main_metric = self.model.heads[0].type.main_metric
-        
+
         loss_checkpoint = ModelCheckpoint(
             monitor = "val_loss",
             dirpath = self.min_val_loss_checkpoints_path,
@@ -138,6 +138,7 @@ class ModelLightningModule(pl.LightningModule):
             name=scheduler_name,
             **self.cfg["scheduler"]["params"] if self.cfg["scheduler"]["params"] else {}
         )
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.trainer.max_epochs, eta_min=0)
         return [optimizer], [scheduler]
 
     def training_step(self, train_batch, batch_idx):
@@ -152,6 +153,10 @@ class ModelLightningModule(pl.LightningModule):
             curr_label = get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
+            
+            if isinstance(curr_head.type, ObjectDetection):
+                curr_loss *= 0.1
+            
             loss += curr_loss
 
             with torch.no_grad():         
@@ -178,12 +183,17 @@ class ModelLightningModule(pl.LightningModule):
             curr_label = get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
+                
+            if isinstance(curr_head.type, ObjectDetection):
+                curr_loss *= 0.1
+                
             loss += curr_loss
 
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
 
+            """
             if batch_idx == 0: # log images of the first batch
                 labels = torch.argmax(curr_label, dim=1)
                 predictions = torch.argmax(output, dim=1)
@@ -207,6 +217,7 @@ class ModelLightningModule(pl.LightningModule):
                 while images_to_log != []:
                     concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
                 self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
+        """
         
         step_output = {
             "loss": loss,
@@ -225,6 +236,7 @@ class ModelLightningModule(pl.LightningModule):
             curr_label = get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
+                
             loss += curr_loss
             
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)

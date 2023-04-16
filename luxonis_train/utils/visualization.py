@@ -37,7 +37,7 @@ def draw_on_image(img, data, head, is_label=False, **kwargs):
             masks = data.bool()
         else:
             masks = seg_output_to_bool(data)
-        img = draw_segmentation_masks(img, masks, alpha=0.4)
+        img = draw_segmentation_masks(img, masks, alpha=0.4, colors=["green"])
         return img
     elif isinstance(head.type, ObjectDetection):
         label_map = kwargs.get("label_map", None)
@@ -105,7 +105,7 @@ def seg_output_to_bool(data):
     masks = torch.empty_like(data, dtype=torch.bool)
     if data.shape[0] == 1:
         classes = torch.sigmoid(data)
-        masks[0] = classes > 0.4
+        masks[0] = classes > 0.5
     else:
         classes = torch.argmax(data, dim=0)
         for i in range(masks.shape[0]):

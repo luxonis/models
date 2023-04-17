@@ -54,6 +54,9 @@ class ModelLightningModule(pl.LightningModule):
         else:
             self.save_top_k = 3
 
+        self.last_loss_train = None
+        self.last_loss_val = None
+
     def freeze_modules(self, freeze_info):
         modules_to_freeze = []
         for key, value in freeze_info.items():
@@ -165,6 +168,23 @@ class ModelLightningModule(pl.LightningModule):
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
                     curr_metrics.update(output_processed, curr_label_processed)
 
+        if self.last_loss_train is None:
+            self.last_loss_train = loss.item()
+        
+        if self.current_epoch > 3 and loss.item() / self.last_loss_train > 1.5:
+            print("ERROR: Found bad train batch. Saving it.")
+            import json
+            with open("temp_output/bad_train_batch.json", "w+") as f:
+                label_save = {key: value.detach().cpu().numpy().tolist() if not isinstance(value, list) else value for key, value in labels.items()}
+                json.dump({
+                    "inputs": inputs.detach().cpu().numpy().tolist(),
+                    "labels": label_save,
+                    "batch_size": inputs.shape[0],
+                    "loss": loss.item(),
+                    "epoch": self.current_epoch,
+                }, f)
+            self.trainer.save_checkpoint("temp_output/train_checkpoint.ckpt")
+
         # loss required in step output by pl
         step_output = {
             "loss": loss, #NOTE: if accumulate batches is used then loss is divided by that value
@@ -201,6 +221,23 @@ class ModelLightningModule(pl.LightningModule):
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
+
+        if self.last_loss_val is None:
+            self.last_loss_val = loss.item()
+        
+        if self.current_epoch > 1 and loss.item() / self.last_loss_val > 1.5:
+            print("ERROR: Found bad val batch. Saving it.")
+            import json
+            with open("temp_output/bad_val_batch.json", "w+") as f:
+                label_save = {key: value.detach().cpu().numpy().tolist() if not isinstance(value, list) else value for key, value in labels.items()}
+                json.dump({
+                    "inputs": inputs.detach().cpu().numpy().tolist(),
+                    "labels": label_save,
+                    "batch_size": inputs.shape[0],
+                    "loss": loss.item(),
+                    "epoch": self.current_epoch,
+                }, f)
+            self.trainer.save_checkpoint("temp_output/val_checkpoint.ckpt")
 
         if batch_idx == 0:
             img = unnormalize(inputs[0], to_uint8=True)

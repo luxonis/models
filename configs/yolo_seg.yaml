@@ -2,7 +2,7 @@ logger:
   project_name: ml-ops-train
   save_directory: output
   is_tensorboard: True
-  is_wandb: True #True #False
+  is_wandb: False #True #False
   wandb_entity: Luxonis
   is_mlflow: False
 
@@ -51,15 +51,15 @@ model:
         params:
 
 dataset:
-  local_path: ../coco-people
+  local_path: /home/klemen/luxonis/model_debug/datasets/coco-2017-person
   s3_path: #s3://luxonis/datasets/demo
 
 train:
-  image_size: [512, 512] #[128, 128]
-  batch_size: 32
+  image_size: [128,128] #[128, 128]
+  batch_size: 8 #32
   accumulate_grad_batches: #2 # number of batches we do before doing backward pass
   epochs: 400
-  n_workers: 8
+  n_workers: 4
   n_metrics:  # compute metrics on train set every n_metric epochs
   eval_interval: 10
   

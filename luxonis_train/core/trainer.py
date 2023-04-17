@@ -113,7 +113,7 @@ class Trainer:
             loader_val.map(loader_val.auto_preprocess)
             loader_val.map(self.val_augmentations)
             pytorch_loader_val = loader_val.to_pytorch(
-                batch_size=self.cfg["train"]["batch_size"],
+                batch_size=1, #self.cfg["train"]["batch_size"],
                 num_workers=self.cfg["train"]["n_workers"]
             )
 

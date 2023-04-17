@@ -143,10 +143,19 @@ class ModelLightningModule(pl.LightningModule):
             curr_head_name = get_head_name(curr_head, i)
             curr_label = get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
-                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
+                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"], logger=self, stage="train")
             
             if isinstance(curr_head.type, ObjectDetection):
+                curr_loss, additional_loss = curr_loss
+                additional_loss=additional_loss.detach().cpu().numpy()
+                self.log("train/iou", additional_loss[0])
+                self.log("train/dfl", additional_loss[1])
+                self.log("train/class", additional_loss[2])
                 curr_loss *= 0.1
+                self.log("train/det", curr_loss.item())
+            else:
+                self.log("train/seg", curr_loss.item())
+                
             
             loss += curr_loss
 
@@ -174,16 +183,43 @@ class ModelLightningModule(pl.LightningModule):
             curr_head_name = get_head_name(curr_head, i)
             curr_label = get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
-                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
+                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"], logger=self, stage="val")
                 
             if isinstance(curr_head.type, ObjectDetection):
+                curr_loss, additional_loss = curr_loss
+                additional_loss=additional_loss.detach().cpu().numpy()
+                self.log("val/iou", additional_loss[0])
+                self.log("val/dfl", additional_loss[1])
+                self.log("val/class", additional_loss[2])
                 curr_loss *= 0.1
+                self.log("val/det", curr_loss.item())
+            else:
+                self.log("val/seg", curr_loss.item())
                 
             loss += curr_loss
 
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
+
+        if batch_idx == 0:
+            img = unnormalize(inputs[0], to_uint8=True)
+            out_imgs = []
+            for i, output in enumerate(outputs):
+                curr_head = self.model.heads[i]
+                curr_head_name = get_head_name(curr_head, i)
+                curr_label = get_current_label(curr_head.type, labels)
+
+                img_labels = draw_on_image(img, curr_label, curr_head, is_label=True)
+                img_labels = torch_to_cv2(img_labels, to_rgb=True)
+                img_outputs = draw_on_image(img, output, curr_head)
+                img_outputs = torch_to_cv2(img_outputs, to_rgb=True)
+                
+                out_img = cv2.hconcat([img_labels, img_outputs])
+                out_imgs.append(out_img)
+            
+            log_img = cv2.vconcat(out_imgs)
+            self.logger.log_image("test", log_img, step=self.current_epoch)
 
             """
             if batch_idx == 0: # log images of the first batch

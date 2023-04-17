@@ -181,7 +181,7 @@ class YoloV6Loss(nn.Module):
             (self.loss_weight['dfl'] * loss_dfl).unsqueeze(0),
             (self.loss_weight['class'] * loss_cls).unsqueeze(0))).detach()
 
-        return loss
+        return loss, additional_output
             
 
     def preprocess(self, targets, batch_size, scale_tensor):

@@ -158,8 +158,9 @@ class ModelLightningModule(pl.LightningModule):
 
         # loss required in step output by pl
         step_output = {
-            "loss": loss
+            "loss": loss, #NOTE: if accumulate batches is used then loss is divided by that value
         }
+
         return step_output
 
     def validation_step(self, val_batch, batch_idx):

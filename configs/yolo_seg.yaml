@@ -2,14 +2,14 @@ logger:
   project_name: ml-ops-train
   save_directory: output
   is_tensorboard: True
-  is_wandb: True #False
+  is_wandb: True #True #False
   wandb_entity: Luxonis
   is_mlflow: False
 
 model:
   name: YoloV6-n
   type: YoloV6-n # uncomment this to use predefined model
-  pretrained: /home/paperspace/models/output/brown-pheasant-25/best_val_metric/val_map=0.3097_val_loss=0.1417_epoch=109_YoloV6-n.ckpt
+  pretrained: #/home/paperspace/models/output/brown-pheasant-25/best_val_metric/val_map=0.3097_val_loss=0.1417_epoch=109_YoloV6-n.ckpt
   params: # only take into account if using predefined model
     n_classes: 1
 
@@ -57,7 +57,7 @@ dataset:
 train:
   image_size: [512, 512] #[128, 128]
   batch_size: 32
-  accumulate_grad_batches: 2 # number of batches we do before doing backward pass
+  accumulate_grad_batches: #2 # number of batches we do before doing backward pass
   epochs: 400
   n_workers: 8
   n_metrics:  # compute metrics on train set every n_metric epochs
@@ -90,6 +90,6 @@ optimizer:
 scheduler:
   name: CosineAnnealingLR
   params:
-    T_max: 120000
+    T_max: 400 #120000
     eta_min: 0
   

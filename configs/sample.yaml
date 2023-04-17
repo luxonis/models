@@ -26,16 +26,16 @@ model:
         params:
 
 dataset:
-  local_path: demo
+  local_path: ../coco-people-small
 
 train:
   image_size: [128, 128]
-  batch_size: 4
+  batch_size: 32
   accumulate_grad_batches: 2 
   epochs: 20
   n_workers: 2
-  n_metrics: 1
-  eval_interval: 1  
+  n_metrics: 10
+  eval_interval: 10 
   
   freeze_modules:
     backbone: False

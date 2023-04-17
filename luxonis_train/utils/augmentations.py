@@ -92,7 +92,7 @@ class ValAugmentations:
         augmentations = [A.Resize(self.image_size[0], self.image_size[1])]
 
         if self.normalize: augmentations.append(A.Normalize())
-        if self.to_tensor: augmentations.append(A.pytorch.ToTensorV2())
+        if self.to_tensor: augmentations.append(ToTensorV2())
         
         return A.Compose(
             augmentations, 

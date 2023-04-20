@@ -2,6 +2,7 @@ import os
 import yaml
 import warnings
 from functools import reduce
+import json
 
 DB_PATH = "./configs/db" # probably a nicer way to do this
 
@@ -9,25 +10,38 @@ class Config:
     _db_path = "./configs/db"
 
     def __new__(cls, cfg_path):
+        assert cfg_path, "Config path must be provided"
         if not hasattr(cls, 'instance'):
             cls.instance = super(Config, cls).__new__(cls)
             cls.instance.load(cfg_path)
         return cls.instance
 
     def load(self, cfg_path):
-        with open(cfg_path, "r") as f:
-            user_config = yaml.load(f, Loader=yaml.SafeLoader)
         with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
-            db_config = yaml.load(f, Loader=yaml.SafeLoader)
+            base_config = yaml.load(f, Loader=yaml.SafeLoader)
+        with open(cfg_path, "r") as f:
+            override_config = yaml.load(f, Loader=yaml.SafeLoader)
         
-        self._data = self._merge_configs(user_config, db_config)
+        self._data = self._merge_configs(override_config, base_config)
         print("Config loaded.")
 
-    def _merge_configs(user_config, db_config):
-        new_config = {}
-        for key in db_config:
-            pass
-        pass
+    def _merge_configs(self, base_config, override_config):
+        for key, value in override_config.items():
+            if isinstance(value, dict):
+                # If the value is a dictionary, recurse
+                base_config[key] = self._merge_configs(base_config.get(key, {}), value)
+            elif isinstance(value, list):
+                # If the value is a list, extend or replace the value in the base dictionary
+                # base_value = base_config.get(key, [])
+                base_config[key] = value
+                # if isinstance(base_value, list):
+                #     base_config[key] = base_value + value
+                # else:
+                #     base_config[key] = value
+            else:
+                # Otherwise, overwrite the value in the base dictionary
+                base_config[key] = value
+        return base_config
 
     def get(self, key):
         if "." not in key:
@@ -36,6 +50,8 @@ class Config:
             keys = key.split(".")
             return reduce(lambda data, key: data[key], keys, self._data)
 
+    def __repr__(self):
+        return json.dumps(self._data, indent=4)
 
 def cfg_override(cfg, args):
     items = args.split(" ")

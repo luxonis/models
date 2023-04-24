@@ -1,0 +1,42 @@
+augmentations: null
+dataset:
+  local_path: repo
+logger:
+  is_mlflow: false
+  is_tensorboard: true
+  is_wandb: false
+  project_name: test
+  save_directory: test_output
+model:
+  name: YoloV6-n
+  type: YoloV6-n # uncomment this to use predefined model
+  pretrained:
+  params: # only take into account if using predefined model
+    n_classes: 1
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+    weight_decay: 0.01
+scheduler:
+  name: LinearLR
+  params:
+    start_factor: 0.33
+train:
+  accumulate_grad_batches: 2
+  batch_size: 50
+  early_stopping:
+    mode: min
+    monitor: val_loss
+    patience: 3
+  epochs: 15
+  eval_interval: 1
+  freeze_modules:
+    backbone: false
+    heads:
+    - false
+  image_size:
+  - 256
+  - 256
+  n_metrics: 1
+  n_workers: 2

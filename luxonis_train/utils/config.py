@@ -63,6 +63,11 @@ def check_cfg(cfg):
         warnings.warn("Image size not specified (under 'train'). Using default size [256, 256].")
         cfg["train"]["image_size"] = [256,256]
     
+    # set default skip_last_batch to True
+    if "skip_last_batch" not in cfg["train"]:
+        cfg["train"]["skip_last_batch"] = True
+
+
 def check_cfg_export(cfg):
     if "export" not in cfg:
         raise RuntimeError("No 'export' section found in config file.")

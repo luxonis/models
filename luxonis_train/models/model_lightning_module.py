@@ -133,6 +133,10 @@ class ModelLightningModule(pl.LightningModule):
 
     def training_step(self, train_batch, batch_idx):
         inputs = train_batch[0].float()
+        if self.cfg["train"]["skip_last_batch"] and \
+            inputs.shape[0] != self.cfg["train"]["batch_size"]:
+            return None
+        
         labels = train_batch[1]
         outputs = self.forward(inputs)
 

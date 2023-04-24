@@ -134,9 +134,9 @@ class ModelLightningModule(pl.LightningModule):
 
     def training_step(self, train_batch, batch_idx):
         inputs = train_batch[0].float()
-        
-        if inputs.shape[0] != 32:
-            print(f"Train batch size {inputs.shape[0]}. Skipped")
+
+        if self.cfg["train"]["skip_last_batch"] and \
+            inputs.shape[0] != self.cfg["train"]["batch_size"]:
             return None
         
         labels = train_batch[1]

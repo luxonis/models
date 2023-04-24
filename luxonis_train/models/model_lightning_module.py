@@ -54,9 +54,6 @@ class ModelLightningModule(pl.LightningModule):
         else:
             self.save_top_k = 3
 
-        self.last_loss_train = None
-        self.last_loss_val = None
-
     def freeze_modules(self, freeze_info):
         modules_to_freeze = []
         for key, value in freeze_info.items():
@@ -137,6 +134,11 @@ class ModelLightningModule(pl.LightningModule):
 
     def training_step(self, train_batch, batch_idx):
         inputs = train_batch[0].float()
+        
+        if inputs.shape[0] != 32:
+            print(f"Train batch size {inputs.shape[0]}. Skipped")
+            return None
+        
         labels = train_batch[1]
         outputs = self.forward(inputs)
 
@@ -151,11 +153,7 @@ class ModelLightningModule(pl.LightningModule):
             if isinstance(curr_head.type, ObjectDetection):
                 curr_loss, additional_loss = curr_loss
                 additional_loss=additional_loss.detach().cpu().numpy()
-                self.log("train/iou", additional_loss[0])
-                self.log("train/dfl", additional_loss[1])
-                self.log("train/class", additional_loss[2])
                 curr_loss *= 0.1
-                self.log("train/det", curr_loss.item())
             else:
                 self.log("train/seg", curr_loss.item())
                 
@@ -167,23 +165,6 @@ class ModelLightningModule(pl.LightningModule):
                     output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
                     curr_metrics.update(output_processed, curr_label_processed)
-
-        if self.last_loss_train is None:
-            self.last_loss_train = loss.item()
-        
-        if self.current_epoch > 3 and loss.item() / self.last_loss_train > 1.5:
-            print("ERROR: Found bad train batch. Saving it.")
-            import json
-            with open("temp_output/bad_train_batch.json", "w+") as f:
-                label_save = {key: value.detach().cpu().numpy().tolist() if not isinstance(value, list) else value for key, value in labels.items()}
-                json.dump({
-                    "inputs": inputs.detach().cpu().numpy().tolist(),
-                    "labels": label_save,
-                    "batch_size": inputs.shape[0],
-                    "loss": loss.item(),
-                    "epoch": self.current_epoch,
-                }, f)
-            self.trainer.save_checkpoint("temp_output/train_checkpoint.ckpt")
 
         # loss required in step output by pl
         step_output = {
@@ -208,11 +189,7 @@ class ModelLightningModule(pl.LightningModule):
             if isinstance(curr_head.type, ObjectDetection):
                 curr_loss, additional_loss = curr_loss
                 additional_loss=additional_loss.detach().cpu().numpy()
-                self.log("val/iou", additional_loss[0])
-                self.log("val/dfl", additional_loss[1])
-                self.log("val/class", additional_loss[2])
                 curr_loss *= 0.1
-                self.log("val/det", curr_loss.item())
             else:
                 self.log("val/seg", curr_loss.item())
                 
@@ -221,24 +198,7 @@ class ModelLightningModule(pl.LightningModule):
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
-
-        if self.last_loss_val is None:
-            self.last_loss_val = loss.item()
         
-        if self.current_epoch > 1 and loss.item() / self.last_loss_val > 1.5:
-            print("ERROR: Found bad val batch. Saving it.")
-            import json
-            with open("temp_output/bad_val_batch.json", "w+") as f:
-                label_save = {key: value.detach().cpu().numpy().tolist() if not isinstance(value, list) else value for key, value in labels.items()}
-                json.dump({
-                    "inputs": inputs.detach().cpu().numpy().tolist(),
-                    "labels": label_save,
-                    "batch_size": inputs.shape[0],
-                    "loss": loss.item(),
-                    "epoch": self.current_epoch,
-                }, f)
-            self.trainer.save_checkpoint("temp_output/val_checkpoint.ckpt")
-
         if batch_idx == 0:
             img = unnormalize(inputs[0], to_uint8=True)
             out_imgs = []
@@ -300,7 +260,12 @@ class ModelLightningModule(pl.LightningModule):
             curr_head_name = get_head_name(curr_head, i)
             curr_label = get_current_label(curr_head.type, labels)
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
-                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
+                step=self.global_step, original_in_shape=self.cfg["train"]["image_size"], logger=self, stage="val")
+                
+            if isinstance(curr_head.type, ObjectDetection):
+                curr_loss, additional_loss = curr_loss
+                additional_loss=additional_loss.detach().cpu().numpy()
+                curr_loss *= 0.1
                 
             loss += curr_loss
             

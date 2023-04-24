@@ -102,7 +102,7 @@ def unnormalize(img, original_mean=(0.485, 0.456, 0.406),
     return out_img
 
 def seg_output_to_bool(data):
-    masks = torch.empty_like(data, dtype=torch.bool)
+    masks = torch.empty_like(data, dtype=torch.bool, device=data.device)
     if data.shape[0] == 1:
         classes = torch.sigmoid(data)
         masks[0] = classes > 0.5

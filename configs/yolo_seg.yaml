@@ -1,3 +1,8 @@
+export:
+  weights: /home/paperspace/models/output/scarlet-booby-68/best_val_metric/val_map=0.4617_val_loss=2.0274_epoch=399_YoloV6-n.ckpt
+  save_directory: output_export
+  image_size: [512, 512]
+
 logger:
   project_name: ml-ops-train
   save_directory: output
@@ -9,13 +14,13 @@ logger:
 model:
   name: YoloV6-n
   type: YoloV6-n # uncomment this to use predefined model
-  pretrained: #/home/paperspace/models/output/brown-pheasant-25/best_val_metric/val_map=0.3097_val_loss=0.1417_epoch=109_YoloV6-n.ckpt
+  pretrained: /home/paperspace/models/output/scarlet-booby-68/best_val_metric/val_map=0.4617_val_loss=2.0274_epoch=399_YoloV6-n.ckpt
   params: # only take into account if using predefined model
     n_classes: 1
 
   backbone:
     name: EfficientRep
-    pretrained:
+    pretrained: 
     params:
       channels_list: [64, 128, 256, 512, 1024]
       num_repeats: [1, 6, 12, 18, 6]
@@ -51,15 +56,15 @@ model:
         params:
 
 dataset:
-  local_path: /home/klemen/luxonis/model_debug/datasets/coco-2017-person
+  local_path: /home/paperspace/coco-people
   s3_path: #s3://luxonis/datasets/demo
 
 train:
-  image_size: [128,128] #[128, 128]
-  batch_size: 8 #32
+  image_size: [512,512] #[128, 128]
+  batch_size: 32 #32
   accumulate_grad_batches: #2 # number of batches we do before doing backward pass
   epochs: 400
-  n_workers: 4
+  n_workers: 8
   n_metrics:  # compute metrics on train set every n_metric epochs
   eval_interval: 10
   

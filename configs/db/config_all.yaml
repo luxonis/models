@@ -1,28 +1,29 @@
 trainer:
-  accelerator: cuda
+  accelerator: gpu
   devices: null #(int or [])
   strategy: ddp
-  num_sanity_cal_steps: 2
+  num_sanity_val_steps: 2
   profiler: null #(string)
   verbose: True # print validation results in console
 
 inferer:
+  dataset_view: val
 
 exporter:
   export_weights: null #(string)
-  export_save_directory: null #(string)
-  export_image_size: [224, 224]
+  export_save_directory: output #(string)
+  export_image_size: [256, 256]
   export_model_name: null #(string)
   onnx:
     opset_version: 12
     dynamic_axes: null #(dict)
   openvino:
-    data_type: "FP16"
+    data_type: FP16
     reverse_input_channels: True
     scale_values: [58.395, 57.120, 57.375]
     mean_values: [123.675, 116.28, 103.53]
   blobconverter:
-    data_type: "FP16"
+    data_type: FP16
     shaves: 6
     openvino_version: 2022.1
 
@@ -36,29 +37,30 @@ logger:
   is_mlflow: False
   mlflow_tracking_uri: null #(string)
   is_sweep: False
-  loged_hyperparams: ["train.epochs", "train.batch_size"]
+  logged_hyperparams: ["train.epochs", "train.batch_size"]
 
 dataset:
   local_path: null #(string)
   s3_path: null #(string)
-  train_view: "train"
-  val_view: "val"
+  train_view: train
+  val_view: val
+  test_view: test
 
 train:
   preprocessing:
-    train_image_size: [224, 224]
+    train_image_size: [256, 256] # [height, width]
     train_rgb: True
     normalize:
       use_normalize: True
       params:
     augmentations:
-      - name: Rotate
-        params:
-         - limit: 15
-      - name: Rotate2
-        params:
-          - limit2: 10
-          - limit22: 10
+      # - name: Rotate
+      #   params:
+      #    - limit: 15
+      # - name: Rotate2
+      #   params:
+      #     - limit2: 10
+      #     - limit22: 10
 
   batch_size: 32
   accumulate_grad_batches: 2
@@ -66,12 +68,14 @@ train:
   num_workers: 2
   train_metrics_interval: 2
   validation_interval: 1
+  skip_last_batch: True
 
   callbacks:
     use_device_stats_monitor: False
     model_checkpoint:
       save_top_k: 3
     early_stopping:
+      active: True
       monitor: val_loss
       mode: min
       patience: 3
@@ -94,8 +98,8 @@ train:
     heads: [False]
 
   losses:
-    learn_weights: False
     weights: [1,1]
+    #learn_weights: False # not implemented yet
 
 # model should be always defined by the user
 # model:

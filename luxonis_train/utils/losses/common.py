@@ -5,7 +5,12 @@ import torch.nn.functional as F
 class CrossEntropyLoss(nn.Module):
     def __init__(self, **kwargs):
         super(CrossEntropyLoss, self).__init__()
-        self.criterion = nn.CrossEntropyLoss(**kwargs)
+        self.n_classes = kwargs.get("n_classes")
+        loss_dict = kwargs
+        loss_dict.pop("n_classes")
+        self.criterion = nn.CrossEntropyLoss(
+            **loss_dict
+        )
     
     def forward(self, preds, labels, **kwargs):
         if labels.ndim == 4:
@@ -16,8 +21,13 @@ class CrossEntropyLoss(nn.Module):
 class BCEWithLogitsLoss(nn.Module):
     def __init__(self, **kwargs):
         super(BCEWithLogitsLoss, self).__init__()
-        self.criterion = nn.BCEWithLogitsLoss(**kwargs)
-
+        self.n_classes = kwargs.get("n_classes")
+        loss_dict = kwargs
+        loss_dict.pop("n_classes")
+        self.criterion = nn.BCEWithLogitsLoss(
+            **loss_dict
+        )
+    
     def forward(self, preds, labels, **kwargs):
         return self.criterion(preds, labels)
     

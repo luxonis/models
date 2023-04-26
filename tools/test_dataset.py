@@ -3,6 +3,7 @@ import torch
 import yaml
 
 from luxonis_ml import *
+from luxonis_train.utils.config import Config
 from luxonis_train.utils.augmentations import ValAugmentations
 from luxonis_train.utils.visualization import *
 import matplotlib.pyplot as plt
@@ -15,16 +16,15 @@ if __name__ == "__main__":
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
     
-    image_size = cfg["train"].get("image_size", [244, 244])
+    cfg = Config(cfg)
+    image_size = cfg.get("train.preprocessing.train_image_size")
 
     with LuxonisDataset(
-        local_path=cfg["dataset"].get("local_path", None),
-        s3_path=cfg["dataset"].get("s3_path", None)
+        local_path=cfg.get("dataset.local_path"),
+        s3_path=cfg.get("dataset.s3_path")
     ) as dataset:
         
-        train_augmentations = ValAugmentations(
-            image_size=image_size
-        )
+        train_augmentations = ValAugmentations()
         
         loader_train = LuxonisLoader(dataset, view='val')
         loader_train.map(loader_train.auto_preprocess)
@@ -70,7 +70,7 @@ if __name__ == "__main__":
                         bboxs[:, 1::2] *= ih
                         img = draw_bounding_boxes(img, bboxs)
 
-                img_output = torch_to_cv2(img, to_rgb=True)
+                img_output = torch_to_cv2(img)
                 plt.imshow(img_output)
                 plt.title(f"{i}")
                 plt.show()

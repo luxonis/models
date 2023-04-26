@@ -2,10 +2,11 @@ import torch
 import cv2
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
+from typing import Union
 from luxonis_ml import *
 
+from luxonis_train.utils.config import Config
 from luxonis_train.utils.augmentations import ValAugmentations
-from luxonis_train.utils.config import *
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.head_type import *
@@ -14,23 +15,23 @@ from luxonis_train.utils.visualization import *
 
 
 class Inferer(pl.LightningModule):
-    def __init__(self, cfg: dict):
+    def __init__(self, args: dict, cfg: Union[str, dict]):
         """Main API which is used for inference/visualization on the dataset
 
         Args:
-            cfg (dict): Configs dict used to setup inference.
+            args (dict): argument dict provided through command line, used for config overriding
+            cfg (Union[str, dict]): path to config file or config dict used to setup training
         """
         super().__init__()
-        self.cfg = cfg
 
-        # check if model is predefined
-        if self.cfg["model"]["type"]:
-            load_predefined_cfg(self.cfg)
+        self.cfg = Config(cfg)
+        if args["override"]:
+            self.cfg.override_config(args["override"])
         
         self.model = Model()
-        self.model.build_model(self.cfg["model"], self.cfg["train"]["image_size"])
+        self.model.build_model()
 
-        self.load_checkpoint(self.cfg["model"]["pretrained"])
+        self.load_checkpoint(self.cfg.get("model.pretrained"))
         self.model.eval()
         
         self.val_augmentations = None
@@ -63,19 +64,21 @@ class Inferer(pl.LightningModule):
             save (bool, optional): Save output image. Defaults to False.
         """
         with LuxonisDataset(
-            local_path=self.cfg["dataset"]["local_path"] if "local_path" in self.cfg["dataset"] else None,
-            s3_path=self.cfg["dataset"]["s3_path"] if "s3_path" in self.cfg["dataset"] else None
+            local_path=self._data["dataset"]["local_path"],
+            s3_path=self._data["dataset"]["s3_path"]
         ) as dataset:
             
             if self.val_augmentations == None:
-                self.val_augmentations = ValAugmentations(image_size=self.cfg["train"]["image_size"])
+                self.val_augmentations = ValAugmentations()
 
-            loader_val = LuxonisLoader(dataset, view="val")
+            loader_val = LuxonisLoader(dataset, 
+                view=self.cfg.get("inferer.dataset_view")
+            )
             loader_val.map(loader_val.auto_preprocess)
             loader_val.map(self.val_augmentations)
+            # TODO: Do we want this configurable?
             pytorch_loader_val = loader_val.to_pytorch(
-                batch_size=1,
-                num_workers=self.cfg["train"]["n_workers"]
+                batch_size=1, num_workers=1
             )
             
             with torch.no_grad():
@@ -91,9 +94,9 @@ class Inferer(pl.LightningModule):
                         curr_label = get_current_label(curr_head.type, labels)
 
                         img_labels = draw_on_image(img, curr_label, curr_head, is_label=True)
-                        img_labels = torch_to_cv2(img_labels, to_rgb=True)
+                        img_labels = torch_to_cv2(img_labels)
                         img_outputs = draw_on_image(img, output, curr_head)
-                        img_outputs = torch_to_cv2(img_outputs, to_rgb=True)
+                        img_outputs = torch_to_cv2(img_outputs)
                         
                         out_img = cv2.hconcat([img_labels, img_outputs])
                         if display:

@@ -10,33 +10,40 @@ import math
 import numpy as np
 import torch.nn.functional as F
 
+from luxonis_train.utils.config import Config
 from luxonis_train.utils.assigners import ATSSAssigner, TaskAlignedAssigner, generate_anchors
 from luxonis_train.utils.boxutils import dist2bbox, bbox2dist, xywh2xyxy_coco
 
 class YoloV6Loss(nn.Module):
     '''Loss computation func.'''
     def __init__(self,
-                 n_classes,
-                #  image_size,
-                 fpn_strides=[8, 16, 32],
-                 grid_cell_size=5.0,
-                 grid_cell_offset=0.5,
-                 warmup_epoch=4,
-                 use_dfl=False,
-                 reg_max=0,
-                 iou_type='giou',
-                 loss_weight={
-                     'class': 1.0,
-                     'iou': 2.5,
-                     'dfl': 0.5}
-                 ):
+            n_classes,
+            image_size=None,
+            fpn_strides=[8, 16, 32],
+            grid_cell_size=5.0,
+            grid_cell_offset=0.5,
+            warmup_epoch=4,
+            use_dfl=False,
+            reg_max=0,
+            iou_type='giou',
+            loss_weight={
+                'class': 1.0,
+                'iou': 2.5,
+                'dfl': 0.5},
+            **kwargs
+        ):
         super(YoloV6Loss, self).__init__()
 
         self.fpn_strides = fpn_strides
         self.grid_cell_size = grid_cell_size
         self.grid_cell_offset = grid_cell_offset
         self.num_classes = n_classes
-        # self.ori_img_shape = image_size
+        
+        # if no image size provided get it from config
+        if image_size is None: 
+            cfg = Config()
+            image_size = cfg.get("train.preprocessing.train_image_size")
+        self.original_img_size = image_size
 
         self.warmup_epoch = warmup_epoch
         self.warmup_assigner = ATSSAssigner(9, num_classes=self.num_classes)
@@ -59,7 +66,6 @@ class YoloV6Loss(nn.Module):
 
         epoch_num = kwargs["epoch"]
         step_num = kwargs["step"]
-        original_in_shape = kwargs["original_in_shape"]
 
         feats, pred_scores, pred_distri = outputs
         anchors, anchor_points, n_anchors_list, stride_tensor = \
@@ -68,7 +74,8 @@ class YoloV6Loss(nn.Module):
         
         # gt_bboxes_scale = torch.full((1,4), img_size).type_as(pred_scores)
         # supports rectangular original images
-        gt_bboxes_scale = torch.tensor([original_in_shape[1], original_in_shape[0], original_in_shape[1], original_in_shape[0]], device=targets.device) # use if bboxes normalized
+        gt_bboxes_scale = torch.tensor([self.original_img_size[1], self.original_img_size[0], 
+            self.original_img_size[1], self.original_img_size[0]], device=targets.device) # use if bboxes normalized
         batch_size = pred_scores.shape[0]
 
         # targets

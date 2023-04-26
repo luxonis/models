@@ -5,25 +5,24 @@ import numpy as np
 import cv2
 import torch
 
-class TrainAugmentations:
-    def __init__(self, cfg=None, image_size=[256, 256], normalize=True, to_tensor=True):
-        self.cfg = cfg
-        self.image_size = image_size
-        self.normalize = normalize
-        self.to_tensor = to_tensor
-        self.transform = self.parse_cfg()
+from luxonis_train.utils.config import Config
 
-    def parse_cfg(self):
+class Augmentations:
+    def __init__(self):
+        cfg_all = Config()
+        self.cfg = cfg_all.get("train.preprocessing")
+
+    def _parse_cfg(self, cfg_aug):
+        image_size = self.cfg["train_image_size"]
+        
         # Always perform Resize
-        augmentations = [A.Resize(self.image_size[0], self.image_size[1])]
-        if self.cfg:
-            for aug in self.cfg:
+        augmentations = [A.Resize(image_size[0], image_size[1])]
+        if cfg_aug:
+            for aug in cfg_aug:
                 augmentations.append(
                     eval(aug["name"])(**aug.get("params", {}))
                 )
-
-        if self.normalize: augmentations.append(A.Normalize())
-        if self.to_tensor: augmentations.append(ToTensorV2())
+        augmentations.append(ToTensorV2())
         
         return A.Compose(
             augmentations, 
@@ -31,7 +30,7 @@ class TrainAugmentations:
             keypoint_params=A.KeypointParams(format="xy", label_fields=["keypoints_classes"], remove_invisible=False),
         )
 
-    def __call__(self, data):
+    def __call__(self, data: tuple):
         img, anno_dict = data
         present_annotations = anno_dict.keys()
         img_in = img.numpy()
@@ -72,85 +71,34 @@ class TrainAugmentations:
             keypoints_classes = keypoints_visibility, # not object class, but per-kp class
         )
 
-        transformed_image, out_bboxes, transformed_mask, final_keypoints = post_augment_process(transformed, keypoints, keypoints_classes)
+        transformed_image, out_bboxes, transformed_mask, final_keypoints = \
+            post_augment_process(transformed, keypoints, 
+                keypoints_classes, to_rgb=self.cfg["preprocessing"])
 
         out_annotations = create_out_annotations(present_annotations, classes=classes, bboxes=out_bboxes,
             masks=transformed_mask, keypoints=final_keypoints)
 
         return transformed_image, out_annotations
 
-
-class ValAugmentations:
-    def __init__(self, image_size, normalize=True, to_tensor=True):
-        self.image_size = image_size
-        self.normalize = normalize
-        self.to_tensor = to_tensor
-        self.transform = self.parse_cfg()
-    
-    def parse_cfg(self):
-        # Only Resize (and optional Normalize/ToTensor) in validation
-        augmentations = [A.Resize(self.image_size[0], self.image_size[1])]
-
-        if self.normalize: augmentations.append(A.Normalize())
-        if self.to_tensor: augmentations.append(A.pytorch.ToTensorV2())
-        
-        return A.Compose(
-            augmentations, 
-            bbox_params=A.BboxParams(format="coco", label_fields=["bbox_classes"]),
-            keypoint_params=A.KeypointParams(format="xy", label_fields=["keypoints_classes"], remove_invisible=False),
+class TrainAugmentations(Augmentations):
+    def __init__(self):
+        super().__init__()
+        self.transform = self._parse_cfg(
+            cfg_aug=self.cfg["augmentations"]
         )
 
-    def __call__(self, data):
-        img, anno_dict = data
-        present_annotations = anno_dict.keys()
-        img_in = img.numpy()
-
-        # albumentations expects with RGB image with HWC format
-        img_in = np.transpose(img_in, (1,2,0))
-        img_in = cv2.cvtColor(img_in, cv2.COLOR_BGR2RGB)
-
-        classes = anno_dict.get("class", torch.zeros(1))
-
-        seg = anno_dict.get("segmentation", torch.zeros((1, *img_in.shape[1:])))
-        masks = [m.numpy() for m in seg]
-
-        # COCO format in albumentations is [x,y,w,h] non-normalized
-        bboxes = anno_dict.get("bbox", torch.zeros((0,5)))
-        ih, iw, _ = img_in.shape
-        bboxes_points = bboxes[:,1:]
-        bboxes_points[:,0::2] *= iw
-        bboxes_points[:,1::2] *= ih
-        bboxes_points = check_bboxes(bboxes_points)
-        bbox_classes = bboxes[:,0]
-
-        # albumentations expects "list" of keypoints e.g. [(x,y),(x,y),(x,y),(x,y)]
-        keypoints = anno_dict.get("keypoints", torch.zeros((1,3+1)))
-        keypoints_classes = keypoints[:,0]
-        keypoints_flat = torch.reshape(keypoints[:,1:], (-1,3))
-        keypoints_points = keypoints_flat[:,:2]
-        keypoints_points[:,0] *= iw
-        keypoints_points[:,1] *= ih
-        keypoints_visibility = keypoints_flat[:,2]
-
-        transformed = self.transform(
-            image = img_in,
-            masks = masks,
-            bboxes = bboxes_points,
-            bbox_classes = bbox_classes,
-            keypoints = keypoints_points,
-            keypoints_classes = keypoints_visibility, # not object class, but per-kp class
+class ValAugmentations(Augmentations):
+    def __init__(self):
+        super().__init__()
+        self.transform = self._parse_cfg(
+            cfg_aug={k:v for k,v in self.cfg["augmentations"].items() if k == "Normalize"}
         )
 
-        transformed_image, out_bboxes, transformed_mask, final_keypoints = post_augment_process(transformed, keypoints, keypoints_classes)
-
-        out_annotations = create_out_annotations(present_annotations, classes=classes, bboxes=out_bboxes,
-            masks=transformed_mask, keypoints=final_keypoints)
-
-        return transformed_image, out_annotations
-
-
-def post_augment_process(transformed, keypoints, keypoints_classes):
+def post_augment_process(transformed, keypoints, keypoints_classes, to_rgb=False):
+    """ Post process augmentation outputs to prepare for training """
     transformed_image = transformed["image"]
+    if to_rgb:
+        transformed_image = transformed_image.flip(-3)
 
     transformed_mask = torch.stack(transformed["masks"]) # stack list of masks
 

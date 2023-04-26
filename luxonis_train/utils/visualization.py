@@ -81,12 +81,12 @@ def draw_on_image(img, data, head, is_label=False, **kwargs):
             # probably have to do something very similar than for labels
             return img
         
-def torch_to_cv2(img, to_rgb=False):
+def torch_to_cv2(img, cvt_color=False):
     if img.is_floating_point():
         img = img.mul(255).int()
     img = torch.clamp(img, 0, 255)
     img = np.transpose(img.cpu().numpy().astype(np.uint8), (1, 2, 0))
-    if to_rgb:
+    if cvt_color:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
 

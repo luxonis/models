@@ -17,7 +17,7 @@ class ConvModule(nn.Sequential):
 
 class Up(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size=2, stride=2):
-        """ Upsampling with ConvTranpose2D (simillar to U-Net Up block) """
+        """ Upsampling with ConvTranpose2D (similar to U-Net Up block) """
         super().__init__(
             nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride),
             ConvModule(out_channels, out_channels, kernel_size=3, padding=1)

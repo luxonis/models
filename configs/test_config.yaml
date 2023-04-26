@@ -2,16 +2,16 @@ trainer:
   accelerator: cuda
   devices: null #(int or [])
   strategy: ddp
-  num_sanity_cal_steps: 2
+  num_sanity_val_steps: 2
   profiler: null #(string)
   verbose: True # print validation results in console
 
 inferer:
 
 exporter:
-  export_weights: null #(string)
-  export_save_directory: null #(string)
-  export_image_size: [224, 224]
+  export_weights: "test" #(string)
+  # export_save_directory: null #(string)
+  export_image_size: [256, 256]
   export_model_name: null #(string)
   onnx:
     opset_version: 12
@@ -36,21 +36,21 @@ logger:
   is_mlflow: False
   mlflow_tracking_uri: null #(string)
   is_sweep: False
-  loged_hyperparams: ["train.epochs", "train.batch_size"]
+  logged_hyperparams: ["train.epochs", "train.batch_size"]
 
 dataset:
-  local_path: null #(string)
+  local_path: /home/klemen/fiftyone/coco-oid/ #(string)
   s3_path: null #(string)
   train_view: "train"
   val_view: "val"
 
 train:
   preprocessing:
-    train_image_size: [224, 224]
+    train_image_size: [256, 256]
     train_rgb: True
-    normalize:
-      use_normalize: True
-      params:
+    # normalize:
+    #   use_normalize: True
+    #   params:
     augmentations:
       - name: Rotate
         params:
@@ -66,6 +66,7 @@ train:
   num_workers: 2
   train_metrics_interval: 2
   validation_interval: 1
+  skip_last_batch: True
 
   callbacks:
     use_device_stats_monitor: False
@@ -88,14 +89,13 @@ train:
       params:
         start_factor: 0.33
   
-  freeze_modules:
-    backbone: False
-    neck: False
-    heads: [False]
+  # freeze_modules:
+  #   backbone: False
+  #   neck: False
+  #   heads: [False]
 
-  losses:
-    learn_weights: False
-    weights: [1,1]
+  # losses:
+  #   weights: [1,1]
 
 
 model:
@@ -103,7 +103,7 @@ model:
   type: #YoloV6-n # uncomment this to use predefined model
   pretrained:
   params: # only take into account if using predefined model
-    n_classes: 1
+    n_classes: 10
 
   backbone:
     name: EfficientRep
@@ -131,13 +131,23 @@ model:
       loss: 
         name: YoloV6Loss
         params:
+         n_classes: 1
+         iou_type: siou
+    - name: YoloV6Head
+      params:
+        n_classes: 1
+        n_layers: 3
+        reg_max: 0
+      loss: 
+        name: YoloV6Loss
+        params:
           n_classes: 1
           iou_type: siou
 
-  # additional_heads:
-    # - name: SegmentationHead
-      # params:
-        # n_classes: 2
-      # loss: 
-        # name: CrossEntropyLoss
-        # params: 
+  additional_heads:
+    - name: SegmentationHead
+      params:
+        n_classes: 2
+      loss: 
+        name: CrossEntropyLoss
+        params: 

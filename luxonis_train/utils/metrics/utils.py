@@ -18,12 +18,17 @@ JaccardIndex: macro
 """
 
 def init_metrics(head):
+    is_binary = head.n_classes == 1
     if isinstance(head.type, Classification):
         collection = torchmetrics.MetricCollection({
-            "accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=head.n_classes),
-            "precision": torchmetrics.Precision(task="multiclass", num_classes=head.n_classes),
-            "recall": torchmetrics.Recall(task="multiclass", num_classes=head.n_classes),
-            "f1": torchmetrics.F1Score(task="multiclass", num_classes=head.n_classes)
+            "accuracy": torchmetrics.Accuracy(task="binary" if is_binary else "multiclass",
+                num_classes=head.n_classes),
+            "precision": torchmetrics.Precision(task="binary" if is_binary else "multiclass",
+                num_classes=head.n_classes),
+            "recall": torchmetrics.Recall(task="binary" if is_binary else "multiclass",
+                num_classes=head.n_classes),
+            "f1": torchmetrics.F1Score(task="binary" if is_binary else "multiclass",
+                num_classes=head.n_classes)
         })
     elif isinstance(head.type, MultiLabelClassification):
         collection = torchmetrics.MetricCollection({
@@ -33,7 +38,6 @@ def init_metrics(head):
             "f1": torchmetrics.F1Score(task="multilabel", num_labels=head.n_classes)   
         })
     elif isinstance(head.type, SemanticSegmentation):
-        is_binary = head.n_classes == 1
         collection = torchmetrics.MetricCollection({
             "accuracy": torchmetrics.Accuracy(task="binary" if is_binary else "multiclass", 
                 num_classes=head.n_classes, ignore_index=0 if is_binary else None),
@@ -55,7 +59,8 @@ def init_metrics(head):
 
 def postprocess_for_metrics(output, labels, head):
     if isinstance(head.type, Classification):
-        labels = torch.argmax(labels, dim=1)
+        if head.n_classes != 1:
+            labels = torch.argmax(labels, dim=1)
         return output, labels
     elif isinstance(head.type, MultiLabelClassification):
         return output, labels

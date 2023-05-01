@@ -28,6 +28,7 @@ class Exporter(pl.LightningModule):
         self.cfg = Config(cfg)
         if args["override"]:
             self.cfg.override_config(args["override"])
+        self.cfg.validate_config_exporter()
 
         # ensure save directory
         Path(self.cfg.get("exporter.export_save_directory")).mkdir(parents=True, exist_ok=True)
@@ -72,7 +73,7 @@ class Exporter(pl.LightningModule):
         output_names = self._get_output_names()
 
         print("Converting PyTorch model to ONNX")
-        onnx_path = os.path.join(base_path, f"{self.cfg.get('model.name')}.onnx") 
+        onnx_path = os.path.join(base_path, f"{self.cfg.get('exporter.export_model_name')}.onnx") 
         self.to_onnx(
             onnx_path,
             dummy_input,
@@ -92,7 +93,7 @@ class Exporter(pl.LightningModule):
 
         cmd = f"mo --input_model {onnx_path} " \
         f"--output_dir {base_path} " \
-        f"--model_name {self.cfg.get('model.name')} " \
+        f"--model_name {self.cfg.get('exporter.export_model_name')} " \
         "--reverse_input_channels " \
         "--data_type FP16 " \
         "--scale_values '[58.395, 57.120, 57.375]' " \
@@ -102,8 +103,8 @@ class Exporter(pl.LightningModule):
         subprocess.check_output(cmd, shell=True)
     
         print("Converting IR to blob")
-        xmlfile = f"{os.path.join(base_path, self.cfg.get('model.name'))}.xml"
-        binfile = f"{os.path.join(base_path, self.cfg.get('model.name'))}.bin"
+        xmlfile = f"{os.path.join(base_path, self.cfg.get('exporter.export_model_name'))}.xml"
+        binfile = f"{os.path.join(base_path, self.cfg.get('exporter.export_model_name'))}.bin"
         blob_path = blobconverter.from_openvino(
             xml=xmlfile,
             bin=binfile,
@@ -123,7 +124,7 @@ class Exporter(pl.LightningModule):
         output_names = self._get_output_names()
 
         print("Converting PyTorch model to ONNX")
-        onnx_path = os.path.join(base_path, f"{self.cfg.get('model.name')}.onnx") 
+        onnx_path = os.path.join(base_path, f"{self.cfg.get('exporter.export_model_name')}.onnx") 
         self.to_onnx(
             onnx_path,
             dummy_input,

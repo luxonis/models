@@ -31,8 +31,8 @@ class BCEWithLogitsLoss(nn.Module):
     def forward(self, preds, labels, **kwargs):
         return self.criterion(preds, labels)
     
-# Source: https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch/notebook
 class FocalLoss(nn.Module):
+    # Source: https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch/notebook
     def __init__(self, **kwargs):
         super(FocalLoss, self).__init__()
 

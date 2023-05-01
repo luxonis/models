@@ -1,5 +1,5 @@
 #
-# Soure: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/loss.py
+# Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/loss.py
 # License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
 #
 

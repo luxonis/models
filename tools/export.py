@@ -12,5 +12,5 @@ if __name__ == "__main__":
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
-    exporter = Exporter(cfg, args_dict)
+    exporter = Exporter(args_dict, cfg)
     exporter.export()

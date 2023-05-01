@@ -1,0 +1,12 @@
+model:
+  name: SimpleDetection
+  type: yolov6-n
+  pretrained:
+  params:
+    n_classes: 1
+
+dataset:
+  local_path: /home/klemen/test_datasets/coco_person_keypoints/ #(string)
+
+train:
+  batch_size: 4

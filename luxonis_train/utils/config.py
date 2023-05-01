@@ -2,12 +2,13 @@ import os
 import yaml
 import warnings
 import json
+import torch
 from luxonis_ml import LuxonisDataset
 
 class Config:
     _db_path = "configs/db"
 
-    def __new__(cls, cfg):
+    def __new__(cls, cfg=None):
         if not hasattr(cls, 'instance'):
             if cfg is None:
                 raise ValueError("Provide either config path or config dictionary.")
@@ -55,7 +56,7 @@ class Config:
 
         if not self._data["exporter"]["export_weights"]:
             raise KeyError("No 'export_weights' speficied in config file.")
-
+        
     def _config_iterate(self, key_merged):
         sub_keys = key_merged.split(".")
         sub_dict = self._data
@@ -128,8 +129,8 @@ class Config:
         self._data["model"] = model_cfg
 
     def _load_predefined_model(self, model_cfg):
-        model_type = model_cfg["type"]
-        if model_type.startswith("YoloV6"):
+        model_type = model_cfg["type"].lower()
+        if model_type.startswith("yolov6"):
             return self._load_yolov6_cfg(model_cfg)
         else:
             raise RuntimeError(f"{model_type} not supported")
@@ -210,19 +211,21 @@ class Config:
             warnings.warn("Weights of the backbone will be overridden by whole model weights.")
 
         n_heads = len(model_cfg["heads"])
-        # handle freeze_modules section
-        # if freeze_modules used in user cfg than 'heads' must match number of heads
-        if "freeze_modules" in self._user_cfg["train"] and self._user_cfg["train"]["freeze_modules"]:
-            if len(self._user_cfg["train"]["freeze_modules"]["heads"]) != n_heads:
-                raise KeyError("Number of heads in the model doesn't match number of heads in 'freeze_modules.heads'.")
-        # if freeze_modules not specified by user than match 'heads' to number of heads
+        # handle freeze_modules and losses sections
+        if "train" in self._user_cfg and self._user_cfg["train"]:
+            # if freeze_modules used in user cfg than 'heads' must match number of heads
+            if "freeze_modules" in self._user_cfg["train"] and self._user_cfg["train"]["freeze_modules"]:
+                if len(self._user_cfg["train"]["freeze_modules"]["heads"]) != n_heads:
+                    raise KeyError("Number of heads in the model doesn't match number of heads in 'freeze_modules.heads'.")
+            # handle loss weights (similar as freeze_modules)
+            if "losses" in self._user_cfg["train"] and self._user_cfg["train"]["losses"]:
+                if len(self._user_cfg["train"]["losses"]["weights"]) != n_heads:
+                    raise KeyError("Number of losses in the model doesn't match number of losses in 'losses.weights'.")
+        
+        # check if heads in freeze_modules and losses matches number of heads of the model
         if len(self._data["train"]["freeze_modules"]["heads"]) != n_heads:
             self._data["train"]["freeze_modules"]["heads"] = [False]*n_heads
 
-        # handle loss weights (similar as freeze_modules)
-        if "losses" in self._user_cfg["train"] and self._user_cfg["train"]["losses"]:
-            if len(self._user_cfg["train"]["losses"]["weights"]) != n_heads:
-                raise KeyError("Number of losses in the model doesn't match number of losses in 'losses.weights'.")
         if len(self._data["train"]["losses"]["weights"]) != n_heads:
             self._data["train"]["losses"]["weights"] = [1]*n_heads
 
@@ -237,3 +240,9 @@ class Config:
                     if "params" in self._data["train"]["preprocessing"]["normalize"] and \
                         self._data["train"]["preprocessing"]["normalize"]["params"] else {}
             })
+
+        # handle accelerator
+        if self._data["trainer"]["accelerator"] == "auto":
+            accelerator = "gpu" if torch.cuda.is_available() else "cpu"
+            self._data["trainer"]["accelerator"] = accelerator
+            warnings.warn(f"Setting accelerator to '{accelerator}'.")

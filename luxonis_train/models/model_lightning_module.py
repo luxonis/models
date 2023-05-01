@@ -34,7 +34,6 @@ class ModelLightningModule(pl.LightningModule):
         # for each head get its loss
         self.losses = nn.ModuleList()
         for head in self.cfg.get("model.heads"):
-            # TODO: FIX LOSSES TO INCLUDE n_classes
             self.losses.append(
                 get_loss(head["loss"]["name"], **head["loss"]["params"])
             )
@@ -49,7 +48,7 @@ class ModelLightningModule(pl.LightningModule):
             self.load_checkpoint(self.cfg.get("model.pretrained"))
 
         # freeze modules if defined
-        self.freeze_modules(self.cfg("train.freeze_modules"))
+        self.freeze_modules(self.cfg.get("train.freeze_modules"))
 
     def freeze_modules(self, freeze_info: dict):
         modules_to_freeze = []
@@ -163,8 +162,8 @@ class ModelLightningModule(pl.LightningModule):
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
             with torch.no_grad():         
-                if self.cfg("train.train_metrics_interval") and \
-                    self.current_epoch % self.cfg("train.train_metrics_interval") == 0:
+                if self.cfg.get("train.train_metrics_interval") and \
+                    self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0:
                     output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
                     curr_metrics.update(output_processed, curr_label_processed)
@@ -196,29 +195,29 @@ class ModelLightningModule(pl.LightningModule):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
 
-            if batch_idx == 0: # log images of the first batch
-                labels = torch.argmax(curr_label, dim=1)
-                predictions = torch.argmax(output, dim=1)
-                # TODO: also read-in and draw on images class names instead of indexes
-                images_to_log = []
-                for i, (img, label, prediction) in enumerate(zip(inputs, labels, predictions)):
-                    label = int(label)
-                    prediction = int(prediction)
-                    img = unnormalize(img, to_uint8=True)
-                    img = torch_to_cv2(img)
-                    img_data = {"label":f"{label}", "prediction":f"{prediction}"}
-                    images_to_log.append(draw_on_image(img, img_data, curr_head))
-                    if i>=2: # only log a few images
-                        break
+            # if batch_idx == 0: # log images of the first batch
+            #     labels = torch.argmax(curr_label, dim=1)
+            #     predictions = torch.argmax(output, dim=1)
+            #     # TODO: also read-in and draw on images class names instead of indexes
+            #     images_to_log = []
+            #     for i, (img, label, prediction) in enumerate(zip(inputs, labels, predictions)):
+            #         label = int(label)
+            #         prediction = int(prediction)
+            #         img = unnormalize(img, to_uint8=True)
+            #         img = torch_to_cv2(img)
+            #         img_data = {"label":f"{label}", "prediction":f"{prediction}"}
+            #         images_to_log.append(draw_on_image(img, img_data, curr_head))
+            #         if i>=2: # only log a few images
+            #             break
 
-                # use log_images()
-                #self.logger.log_images(curr_head_name, np.array(images_to_log), step=self.current_epoch)
+            #     # use log_images()
+            #     #self.logger.log_images(curr_head_name, np.array(images_to_log), step=self.current_epoch)
 
-                # use log_image()
-                concatenate = images_to_log.pop(0)
-                while images_to_log != []:
-                    concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
-                self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
+            #     # use log_image()
+            #     concatenate = images_to_log.pop(0)
+            #     while images_to_log != []:
+            #         concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
+            #     self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
         
         step_output = {
             "loss": loss,
@@ -255,8 +254,8 @@ class ModelLightningModule(pl.LightningModule):
         epoch_train_loss = np.mean([step_output["loss"] for step_output in outputs])
         self.log("train_loss", epoch_train_loss, sync_dist=True)
 
-        if self.cfg("train.train_metrics_interval") and \
-            self.current_epoch % self.cfg("train.train_metrics_interval") == 0:
+        if self.cfg.get("train.train_metrics_interval") and \
+            self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0:
             for curr_head_name in self.metrics:
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
                 for metric_name in curr_metrics:
@@ -300,18 +299,18 @@ class ModelLightningModule(pl.LightningModule):
     
     def get_status(self):
         """ Return current epoch and number of all epochs """
-        return self.current_epoch, self.cfg["train"]["epochs"]
+        return self.current_epoch, self.cfg.get("train.epochs")
     
     def get_status_percentage(self):
         """ Return percentage of current training, takes into account early stopping """
         if self.early_stopping:
              # model didn't yet stop from early stopping callback
             if self.early_stopping.stopped_epoch == 0:
-                return (self.current_epoch / self.cfg["train"]["epochs"])*100
+                return (self.current_epoch / self.cfg.get("train.epochs"))*100
             else:
                 return 100.0
         else:    
-            return (self.current_epoch / self.cfg["train"]["epochs"])*100      
+            return (self.current_epoch / self.cfg.get("train.epochs"))*100      
 
     @rank_zero_only
     def _print_results(self, loss: float, metrics: dict):

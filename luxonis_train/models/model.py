@@ -28,7 +28,7 @@ class Model(nn.Module):
 
         self.backbone_out_shapes = dummy_input_run(self.backbone, dummy_input_shape) 
         
-        if modules_cfg["neck"]:
+        if "neck" in modules_cfg and modules_cfg["neck"]:
             self.neck = eval(modules_cfg["neck"]["name"])(
                     prev_out_shape = self.backbone_out_shapes,
                     **modules_cfg["neck"].get("params", {})

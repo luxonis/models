@@ -73,7 +73,7 @@ class Augmentations:
 
         transformed_image, out_bboxes, transformed_mask, final_keypoints = \
             post_augment_process(transformed, keypoints, 
-                keypoints_classes, to_rgb=self.cfg["preprocessing"])
+                keypoints_classes, use_rgb=self.cfg["train_rgb"])
 
         out_annotations = create_out_annotations(present_annotations, classes=classes, bboxes=out_bboxes,
             masks=transformed_mask, keypoints=final_keypoints)
@@ -91,13 +91,13 @@ class ValAugmentations(Augmentations):
     def __init__(self):
         super().__init__()
         self.transform = self._parse_cfg(
-            cfg_aug={k:v for k,v in self.cfg["augmentations"].items() if k == "Normalize"}
+            cfg_aug=[k for k in self.cfg["augmentations"] if k["name"] == "Normalize"]
         )
 
-def post_augment_process(transformed, keypoints, keypoints_classes, to_rgb=False):
+def post_augment_process(transformed, keypoints, keypoints_classes, use_rgb=True):
     """ Post process augmentation outputs to prepare for training """
     transformed_image = transformed["image"]
-    if to_rgb:
+    if not use_rgb:
         transformed_image = transformed_image.flip(-3)
 
     transformed_mask = torch.stack(transformed["masks"]) # stack list of masks

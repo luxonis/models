@@ -1,59 +1,38 @@
 trainer:
-  accelerator: gpu
-  devices: null #(int or [])
-  strategy: ddp
-  num_sanity_val_steps: 2
-  profiler: null #(string)
-  verbose: True # print validation results in console
-
-inferer:
-  dataset_view: val
-
-exporter:
-  export_weights: null #(string)
-  export_save_directory: output #(string)
-  export_image_size: [256, 256]
-  export_model_name: null #(string)
-  onnx:
-    opset_version: 12
-    dynamic_axes: null #(dict)
-  openvino:
-    data_type: FP16
-    reverse_input_channels: True
-    scale_values: [58.395, 57.120, 57.375]
-    mean_values: [123.675, 116.28, 103.53]
-  blobconverter:
-    data_type: FP16
-    shaves: 6
-    openvino_version: 2022.1
+  accelerator: auto # either "cpu" or "gpu, if "auto" then we check which is available (string)
+  devices: null # either specify how many devices (int) or which specific devices (list) to use. If null then use all available. (string|null)
+  strategy: ddp # if null then no distributed learning is used else ddp (strin|null)
+  num_sanity_val_steps: 2 # number of sanity validation steps performed before training (int)
+  profiler: null # use PL profiler for GPU/CPU/RAM utilization analysis (string|null)
+  verbose: True # print validation results in console (bool)
 
 logger:
-  project_name: null #(string)
-  run_name: null #(string)
-  save_directory: null #(string)
-  is_tensorboard: True 
-  is_wandb: False
-  wandb_entity: null #(string)
-  is_mlflow: False
-  mlflow_tracking_uri: null #(string)
-  is_sweep: False
-  logged_hyperparams: ["train.epochs", "train.batch_size"]
+  project_name: null # name of the project used for logging (string)
+  run_name: null # name of the run, if empty then auto-generate (string|null)
+  save_directory: output # path to the save directory (string)
+  is_tensorboard: True # bool if use tensorboard (bool)
+  is_wandb: False # bool if use WanDB (bool)
+  wandb_entity: null # name of WanDB entity (string|null)
+  is_mlflow: False # bool if use MLFlow (bool)
+  mlflow_tracking_uri: null # name of MLFlow tracking uri (string|null)
+  # is_sweep: False # bool if is sweep (not implemented) (bool)
+  logged_hyperparams: ["train.epochs", "train.batch_size", "train.optimizers.optimizer.params.lr"] # list of hyperparameters to log (list)
 
 dataset:
-  local_path: null #(string)
-  s3_path: null #(string)
-  train_view: train
-  val_view: val
-  test_view: test
+  local_path: null # path to local dataset (string|null)
+  s3_path: null # path to s3 bucket (string|null)
+  train_view: train # view to use for training (string)
+  val_view: val # view to use for validation (string)
+  test_view: test # view to use for testing (string)
 
 train:
   preprocessing:
-    train_image_size: [256, 256] # [height, width]
-    train_rgb: True
+    train_image_size: [256, 256] # image size used for training [height, width] (list)
+    train_rgb: True # bool if train on rgb or bgr (bool)
     normalize:
-      use_normalize: True
-      params:
-    augmentations:
+      use_normalize: True # bool if use normalization (bool)
+      params: # params for normalization (dict|null)
+    augmentations: # list of Albumentations augmentations
       # - name: Rotate
       #   params:
       #    - limit: 15
@@ -62,15 +41,15 @@ train:
       #     - limit2: 10
       #     - limit22: 10
 
-  batch_size: 32
-  accumulate_grad_batches: 2
-  epochs: 100
-  num_workers: 2
-  train_metrics_interval: 2
-  validation_interval: 1
-  skip_last_batch: True
+  batch_size: 32 # batch size used for trainig (int)
+  accumulate_grad_batches: 2 # number of batches for gradient accumulation (int)
+  epochs: 100 # number of training epochs (int)
+  num_workers: 2 # number of workers for data loading (int)
+  train_metrics_interval: 2 # frequency of computing metrics on train data (int)
+  validation_interval: 1 # frequency of computing metrics on validation data (int)
+  skip_last_batch: True # bool if skip last batch while training (bool)
 
-  callbacks:
+  callbacks: # callback specific parameters (check PL docs)
     use_device_stats_monitor: False
     model_checkpoint:
       save_top_k: 3
@@ -81,67 +60,43 @@ train:
       patience: 3
       verbose: True
 
-  optimizers:
+  optimizers: # optimizers specific parameters (check Pytorch docs)
     optimizer:
       name: Adam
       params:
         lr: 0.001
         weight_decay: 0.01
     scheduler:
-      name: LinearLR
+      name: ConstantLR
       params:
-        start_factor: 0.33
+        factor: 1
   
-  freeze_modules:
-    backbone: False
-    neck: False
-    heads: [False]
+  freeze_modules: # defines which modules you want to freeze (not train)
+    backbone: False # bool if freeze backbone (bool)
+    neck: False # bool if freeze neck (bool)
+    heads: [False] # list of bools for specific head freeeze (list[bool])
 
-  losses:
-    weights: [1,1]
-    #learn_weights: False # not implemented yet
+  losses: # defines weights for losses in multi-head architecture
+    weights: [1,1] # list of ints for specific loss weight (list[int])
+    # learn_weights: False # bool if weights should be learned (not implemented yet) (bool)
 
-# model should be always defined by the user
-# model:
-#   name: YoloV6-n
-#   type: #YoloV6-n # uncomment this to use predefined model
-#   pretrained:
-#   params: # only take into account if using predefined model
-#     n_classes: 1
+inferer:
+  dataset_view: val # view to use for inference (string)
 
-#   backbone:
-#     name: EfficientRep
-#     pretrained:
-#     params:
-#       channels_list: [64, 128, 256, 512, 1024]
-#       num_repeats: [1, 6, 12, 18, 6]
-#       depth_mul: 0.33
-#       width_mul: 0.25
-
-#   neck:
-#     name: RepPANNeck
-#     params:
-#       channels_list: [256, 128, 128, 256, 256, 512]
-#       num_repeats: [12, 12, 12, 12]
-#       depth_mul: 0.33
-#       width_mul: 0.25
-
-#   heads:
-#     - name: YoloV6Head
-#       params:
-#         n_classes: 1
-#         n_layers: 3
-#         reg_max: 0
-#       loss: 
-#         name: YoloV6Loss
-#         params:
-#           n_classes: 1
-#           iou_type: siou
-
-#   # additional_heads:
-#     # - name: SegmentationHead
-#       # params:
-#         # n_classes: 2
-#       # loss: 
-#         # name: CrossEntropyLoss
-#         # params: 
+exporter:
+  export_weights: null # path to local weights used for export (string)
+  export_save_directory: output_export # path to save directory of exported models (string)
+  export_image_size: [256, 256] # image size used for export [height, width] (list)
+  export_model_name: model # name of the exported model (string)
+  onnx: 
+    opset_version: 12 # opset version of onnx used (int)
+    dynamic_axes: null # define if dynamic input shapes are used (dict)
+  openvino:
+    data_type: FP16 # data type used for openVino conversion (string)
+    reverse_input_channels: True # bool if reverse input shapes (bool)
+    scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
+    mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
+  blobconverter:
+    data_type: FP16 # data type used for blob conversion (string)
+    shaves: 6 # number of shaves used (int)
+    openvino_version: 2022.1 # openvino version (string)

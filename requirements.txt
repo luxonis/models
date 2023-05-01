@@ -13,4 +13,5 @@ onnx>=1.12.0
 onnxsim>=0.4.10
 onnxruntime>=1.13.1
 pandas >= 1.5.3
+openvino-dev==2022.1.0
 luxonis-ml @ git+https://github.com/luxonis/luxonis-ml.git@dev

@@ -1,5 +1,5 @@
 #
-# Soure: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py
+# Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py
 # License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
 #
 
@@ -47,7 +47,6 @@ class YoloV6Head(nn.Module):
             self.head.append(curr_head)
 
     def forward(self, x):
-        # TODO: fix this so it's compatible with blobconverter
         cls_score_list = []
         reg_distri_list = []
         

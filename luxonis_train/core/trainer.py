@@ -27,8 +27,8 @@ class Trainer:
         
         self.rank = rank_zero_only.rank    
 
-        cfg_logger = cfg.get("logger")
-        hparams = {key: cfg.get(key) for key in cfg_logger["logged_hyperparams"]}
+        cfg_logger = self.cfg.get("logger")
+        hparams = {key: self.cfg.get(key) for key in cfg_logger["logged_hyperparams"]}
         
         load_dotenv() # loads env variables for mlflow logging
         logger_params = cfg_logger.copy()
@@ -37,14 +37,10 @@ class Trainer:
         logger.log_hyperparams(hparams)
 
         self.run_save_dir = os.path.join(cfg_logger["save_directory"], logger.run_name)
-        
-        # use_ddp = True if (args["devices"] == None or \
-        #     isinstance(args["devices"], list) and len(args["devices"]) > 1 or \
-        #     isinstance(args["devices"], int) and args["devices"]>1) \
-        #     else False
 
         self.train_augmentations = None
         self.val_augmentations = None
+        self.test_augmentations = None
         
         self.lightning_module = ModelLightningModule(self.run_save_dir)
         self.pl_trainer = pl.Trainer(
@@ -74,6 +70,10 @@ class Trainer:
     def override_val_augmentations(self, aug):
         """ Overrides augmentations used for validation dataset """
         self.val_augmentations = aug
+
+    def override_test_augmentations(self, aug):
+        """ Overrides augmentations used for test dataset """
+        self.test_augmentations = aug
 
     def run(self, new_thread: bool = False):
         """ Runs training
@@ -140,9 +140,8 @@ class Trainer:
             s3_path=self.cfg.get("dataset.s3_path")
         ) as dataset:
 
-            self.test_augmentations = ValAugmentations(
-                image_size=self.cfg.get("train.preprocessing.train_image_size")
-            )
+            if self.test_augmentations == None:
+                self.test_augmentations = ValAugmentations()
 
             loader_test = LuxonisLoader(dataset, view=self.cfg.get("dataset.test_view"))
             loader_test.map(loader_test.auto_preprocess)

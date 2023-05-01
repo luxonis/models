@@ -1,0 +1,22 @@
+model:
+  name: SimpleClassification
+  type:
+  pretrained:
+
+  backbone:
+    name: MicroNet
+    pretrained:
+
+  heads:
+    - name: ClassificationHead
+      params:
+        n_classes: 80
+      loss: 
+        name: CrossEntropyLoss
+        params:
+
+dataset:
+  local_path: /home/klemen/test_datasets/coco_person_keypoints/ #../coco-2017 #(string)
+
+train:
+  batch_size: 4

@@ -1,0 +1,75 @@
+augmentations: null
+dataset:
+  local_path: repo
+logger:
+  is_mlflow: false
+  is_tensorboard: true
+  is_wandb: false
+  project_name: test
+  save_directory: test_output
+model:
+  name: YoloV6-n
+  type: YoloV6-n # uncomment this to use predefined model
+  pretrained:
+  params: # only take into account if using predefined model
+    n_classes: 1
+
+  backbone:
+    name: EfficientRep
+    pretrained: 
+    params:
+      channels_list: [64, 128, 256, 512, 1024]
+      num_repeats: [1, 6, 12, 18, 6]
+      depth_mul: 0.33
+      width_mul: 0.25
+
+  neck:
+    name: RepPANNeck
+    params:
+      channels_list: [256, 128, 128, 256, 256, 512]
+      num_repeats: [12, 12, 12, 12]
+      depth_mul: 0.33
+      width_mul: 0.25
+
+  heads:
+    - name: YoloV6Head
+      params:
+        n_classes: 1
+        n_layers: 3
+        reg_max: 0
+      loss: 
+        name: YoloV6Loss
+        params:
+          n_classes: 1
+          iou_type: siou
+
+optimizer:
+  name: SGD
+  params:
+    lr: 0.02
+    momentum: 0.937
+    nesterov: True
+    weight_decay: 0.0005
+scheduler:
+  name: CosineAnnealingLR
+  params:
+    T_max: 400 #120000
+    eta_min: 0
+train:
+  accumulate_grad_batches: 2
+  batch_size: 32
+  early_stopping:
+    monitor: val_loss
+    mode: min
+    patience: 10
+  epochs: 15
+  eval_interval: 5
+  freeze_modules:
+    backbone: false
+    heads:
+    - false
+  image_size:
+  - 256
+  - 256
+  n_metrics: 1
+  n_workers: 8

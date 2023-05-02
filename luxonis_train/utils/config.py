@@ -2,7 +2,8 @@ import os
 import yaml
 import warnings
 
-DB_PATH = "./configs/db" # probably a nicer way to do this
+#DB_PATH = "./configs/db" # probably a nicer way to do this
+DB_PATH = "models/configs/db"
 
 def cfg_override(cfg, args):
     items = args.split(" ")

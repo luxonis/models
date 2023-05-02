@@ -18,6 +18,9 @@ from luxonis_train.utils.general import *
 
 from luxonis_train.utils.visualization import *
 
+import torch.nn.functional as F
+from luxonis_train.utils.head_utils import yolov6_out2box
+
 
 class ModelLightningModule(pl.LightningModule):
     def __init__(self, cfg, save_dir):
@@ -161,7 +164,7 @@ class ModelLightningModule(pl.LightningModule):
         inputs = val_batch[0].float()
         labels = val_batch[1]
         outputs = self.forward(inputs)
-
+        
         loss = 0
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
@@ -174,30 +177,71 @@ class ModelLightningModule(pl.LightningModule):
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
-
+            
             if batch_idx == 0: # log images of the first batch
-                labels = torch.argmax(curr_label, dim=1)
-                predictions = torch.argmax(output, dim=1)
-                # TODO: also read-in and draw on images class names instead of indexes
-                images_to_log = []
-                for i, (img, label, prediction) in enumerate(zip(inputs, labels, predictions)):
-                    label = int(label)
-                    prediction = int(prediction)
-                    img = unnormalize(img, to_uint8=True)
-                    img = torch_to_cv2(img, to_rgb=True)
-                    img_data = {"label":f"{label}", "prediction":f"{prediction}"}
-                    images_to_log.append(draw_on_image(img, img_data, curr_head))
-                    if i>=2: # only log a few images
-                        break
+                if isinstance(curr_head.type, Classification):
+                    labels = torch.argmax(curr_label, dim=1)
+                    predictions = torch.argmax(output, dim=1)
+                    # TODO: also read-in and draw on images class names instead of indexes
+                    images_to_log = []
+                    for i, (img, label, prediction) in enumerate(zip(inputs, labels, predictions)):
+                        label = int(label)
+                        prediction = int(prediction)
+                        img = unnormalize(img, to_uint8=True)
+                        img = torch_to_cv2(img, to_rgb=True)
+                        img_data = {"label":f"{label}", "prediction":f"{prediction}"}
+                        images_to_log.append(draw_on_image(img, img_data, curr_head))
+                        if i>=2: # only log a few images
+                            break
 
-                # use log_images()
-                #self.logger.log_images(curr_head_name, np.array(images_to_log), step=self.current_epoch)
+                    ## logging
+                    concatenate = images_to_log.pop(0)
+                    while images_to_log != []:
+                        concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
+                    self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
+                    # could also use:
+                    #self.logger.log_images(curr_head_name, np.array(images_to_log), step=self.current_epoch)
 
-                # use log_image()
-                concatenate = images_to_log.pop(0)
-                while images_to_log != []:
-                    concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
-                self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
+                    
+                elif isinstance(curr_head.type, ObjectDetection):
+                    
+                    images_to_log = []
+
+                    output_nms = yolov6_out2box(output, curr_head) # TODO: add conf_thres= and iout_thres arguments as e.g. yolov6_out2box(output, curr_head, conf_thres=0.3, iout_thres=0.6)
+
+                    for i, img in enumerate(inputs):
+                        
+                        img = unnormalize(img, to_uint8=True)
+                        
+                        ## labeled bboxes
+                        bboxes = None
+                        for bbox in labels["bbox"]:
+                            if bbox[0] == i: ## check if bbox belongs to img
+                                if bboxes == None:
+                                    bboxes = bbox.unsqueeze(0)
+                                else:
+                                    bboxes = torch.cat((bboxes, bbox.unsqueeze(0)), 0)
+
+                        img1 = draw_on_image(img, bboxes, curr_head, is_label=True) if bboxes != None else img.detach().clone()
+                        img1 = torch_to_cv2(img1, to_rgb=True)
+
+                        ## predicted bboxes
+                        pred_bboxs = output_nms[i][:,:4]
+                        pred_labels = output_nms[i][:,5].int()
+                        ##look into visualisations.py draw on image to also draw labels!
+                        img2 = draw_bounding_boxes(img, pred_bboxs, labels=None)
+                        img2 = torch_to_cv2(img2, to_rgb=True)
+                        
+                        images_to_log.append(np.concatenate((img1, img2), axis=0))
+                        
+                        if i>=2: # only log a few images
+                            break
+
+                    ## logging
+                    concatenate = images_to_log.pop(0)
+                    while images_to_log != []:
+                        concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
+                    self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
         
         step_output = {
             "loss": loss,

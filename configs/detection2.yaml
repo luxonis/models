@@ -32,16 +32,16 @@ model:
       width_mul: 0.25
 
   heads:
-    - name: YoloV6Head
+    name: YoloV6Head
+    params:
+      n_classes: 1
+      n_layers: 3
+      reg_max: 0
+    loss: 
+      name: YoloV6Loss
       params:
         n_classes: 1
-        n_layers: 3
-        reg_max: 0
-      loss: 
-        name: YoloV6Loss
-        params:
-          n_classes: 1
-          iou_type: siou
+        iou_type: siou
 
 optimizer:
   name: SGD

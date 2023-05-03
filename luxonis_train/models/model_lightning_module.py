@@ -6,6 +6,7 @@ import warnings
 from pprint import pprint
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor, DeviceStatsMonitor
 from pytorch_lightning.utilities import rank_zero_only
+from torchvision.utils import draw_bounding_boxes
 
 from .model import Model
 from luxonis_train.utils.losses import get_loss
@@ -149,7 +150,7 @@ class ModelLightningModule(pl.LightningModule):
             loss += curr_loss
 
             with torch.no_grad():         
-                if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0:
+                if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0 and self.current_epoch != 0:
                     output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
                     curr_metrics.update(output_processed, curr_label_processed)

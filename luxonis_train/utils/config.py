@@ -2,11 +2,13 @@ import os
 import yaml
 import warnings
 import json
-import torch
+from typing import Union
 from luxonis_ml import LuxonisDataset
 
 class Config:
-    _db_path = "configs/db"
+    """ Singleton class which checks and merges user config with default one and provides access to its values"""
+    
+    _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../configs/db"))
 
     def __new__(cls, cfg=None):
         if not hasattr(cls, 'instance'):
@@ -21,7 +23,8 @@ class Config:
     def __repr__(self):
         return json.dumps(self._data, indent=4)
 
-    def override_config(self, args):
+    def override_config(self, args: str):
+        """ Overrides config values with ones specifid by --override string """
         if len(args) == 0:
             return 
         items = args.split(" ")
@@ -40,7 +43,8 @@ class Config:
                 continue
             last_sub_dict[last_key] = int(value) if value.isdigit() else value
 
-    def get(self, key_merged):
+    def get(self, key_merged: str):
+        """ Returns value from config based on the key """
         (iter_success, key), last_key, last_sub_dict = self._config_iterate(key_merged)
         last_matched = (isinstance(last_sub_dict, dict) and last_key in last_sub_dict) or \
             (isinstance(last_sub_dict, list) and 0<=last_key<len(last_sub_dict))
@@ -51,33 +55,15 @@ class Config:
         return last_sub_dict[last_key]
 
     def validate_config_exporter(self):
+        """ Validates 'exporter' block in config """
         if not self._data["exporter"]:
             raise KeyError("No 'exporter' section in config specified.")
 
         if not self._data["exporter"]["export_weights"]:
             raise KeyError("No 'export_weights' speficied in config file.")
-        
-    def _config_iterate(self, key_merged):
-        sub_keys = key_merged.split(".")
-        sub_dict = self._data
-        success = True
-        key = sub_keys[0] # needed if only search only one level deep
-        for key in sub_keys[:-1]:
-            if isinstance(sub_dict, list): # check if key should be list index 
-                key = int(key)
-                if key >= len(sub_dict) or key < 0:
-                    success = False
-                    break
-            elif key not in sub_dict:
-                success = False
-                break
-            sub_dict = sub_dict[key]
-
-        last_key = sub_keys[-1] if isinstance(sub_dict, dict) else int(sub_keys[-1])
-        return (success, key), last_key, sub_dict
-
-
-    def _load(self, cfg):
+    
+    def _load(self, cfg: Union[str, dict]):
+        """ Performs complete loading and validation of the config """
         with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
             base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
     
@@ -96,7 +82,8 @@ class Config:
         self._validate_config()
         print("Config loaded.")
 
-    def _merge_configs(self, base_cfg, user_cfg):
+    def _merge_configs(self, base_cfg: dict, user_cfg: dict):
+        """ Merges user config with base config"""
         for key, value in user_cfg.items():
             # Load model config after merge
             if key == "model":
@@ -112,7 +99,8 @@ class Config:
                     warnings.warn(f"Key '{key}' not matched to config. Skipping.")
         return base_cfg
 
-    def _load_model_config(self, cfg):
+    def _load_model_config(self, cfg: dict):
+        """ Loads model config from user config"""
         model_cfg = cfg.get("model")
         if model_cfg is None:
             raise KeyError("Model config must be present in config file.")
@@ -128,14 +116,16 @@ class Config:
 
         self._data["model"] = model_cfg
 
-    def _load_predefined_model(self, model_cfg):
+    def _load_predefined_model(self, model_cfg: dict):
+        """ Loads predefined model config from db"""
         model_type = model_cfg["type"].lower()
         if model_type.startswith("yolov6"):
             return self._load_yolov6_cfg(model_cfg)
         else:
             raise RuntimeError(f"{model_type} not supported")
 
-    def _load_yolov6_cfg(self, model_cfg):
+    def _load_yolov6_cfg(self, model_cfg: dict):
+        """ Loads predefined YoloV6 config from db"""
         predefined_cfg_path = model_cfg["type"].lower() +".yaml"
         with open(os.path.join(self._db_path, predefined_cfg_path), "r") as f:
             predefined_cfg = yaml.load(f, Loader=yaml.SafeLoader)
@@ -159,7 +149,28 @@ class Config:
         
         return model_cfg
 
+    def _config_iterate(self, key_merged: str):
+        """ Iterates over config and returns the value if exists, otherwise returns success=False """
+        sub_keys = key_merged.split(".")
+        sub_dict = self._data
+        success = True
+        key = sub_keys[0] # needed if only search only one level deep
+        for key in sub_keys[:-1]:
+            if isinstance(sub_dict, list): # check if key should be list index 
+                key = int(key)
+                if key >= len(sub_dict) or key < 0:
+                    success = False
+                    break
+            elif key not in sub_dict:
+                success = False
+                break
+            sub_dict = sub_dict[key]
+
+        last_key = sub_keys[-1] if isinstance(sub_dict, dict) else int(sub_keys[-1])
+        return (success, key), last_key, sub_dict
+
     def _validate_dataset_classes(self):
+        """ Validates config to used datasets, overrides n_classes if needed """
         with LuxonisDataset(
             local_path=self._data["dataset"]["local_path"],
             s3_path=self._data["dataset"]["s3_path"]
@@ -188,6 +199,7 @@ class Config:
                 head["loss"]["params"]["n_classes"] = dataset_n_classes
 
     def _validate_config(self):
+        """ Validates whole config based on specified rules"""
         model_cfg = self._data["model"]
         model_predefined = model_cfg["type"] != None
         backbone_specified = "backbone" in model_cfg and model_cfg["backbone"]
@@ -211,6 +223,11 @@ class Config:
             warnings.warn("Weights of the backbone will be overridden by whole model weights.")
 
         n_heads = len(model_cfg["heads"])
+        
+        # handle main_head_index
+        if not (0 <= self._data["train"]["main_head_index"] < n_heads):
+            raise KeyError("Specified index of main head ('main_head_index') is out of range.")
+
         # handle freeze_modules and losses sections
         if "train" in self._user_cfg and self._user_cfg["train"]:
             # if freeze_modules used in user cfg than 'heads' must match number of heads
@@ -240,9 +257,3 @@ class Config:
                     if "params" in self._data["train"]["preprocessing"]["normalize"] and \
                         self._data["train"]["preprocessing"]["normalize"]["params"] else {}
             })
-
-        # handle accelerator
-        if self._data["trainer"]["accelerator"] == "auto":
-            accelerator = "gpu" if torch.cuda.is_available() else "cpu"
-            self._data["trainer"]["accelerator"] = accelerator
-            warnings.warn(f"Setting accelerator to '{accelerator}'.")

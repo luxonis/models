@@ -9,10 +9,12 @@ from luxonis_train.utils.config import Config
 
 class Augmentations:
     def __init__(self):
+        """ Base class for creating Augmentations object """
         cfg_all = Config()
         self.cfg = cfg_all.get("train.preprocessing")
 
-    def _parse_cfg(self, cfg_aug):
+    def _parse_cfg(self, cfg_aug: dict):
+        """ Parses provided config and returns Albumentations Compose object"""
         image_size = self.cfg["train_image_size"]
         
         # Always perform Resize
@@ -31,6 +33,7 @@ class Augmentations:
         )
 
     def __call__(self, data: tuple):
+        """ Performs augmentations on provided data"""
         img, anno_dict = data
         present_annotations = anno_dict.keys()
         img_in = img.numpy()
@@ -82,6 +85,7 @@ class Augmentations:
 
 class TrainAugmentations(Augmentations):
     def __init__(self):
+        """ Class for train augmentations"""
         super().__init__()
         self.transform = self._parse_cfg(
             cfg_aug=self.cfg["augmentations"]
@@ -89,12 +93,13 @@ class TrainAugmentations(Augmentations):
 
 class ValAugmentations(Augmentations):
     def __init__(self):
+        """ Class for val augmentations"""
         super().__init__()
         self.transform = self._parse_cfg(
             cfg_aug=[k for k in self.cfg["augmentations"] if k["name"] == "Normalize"]
         )
 
-def post_augment_process(transformed, keypoints, keypoints_classes, use_rgb=True):
+def post_augment_process(transformed: dict, keypoints: torch.Tensor, keypoints_classes: np.array, use_rgb: bool = True):
     """ Post process augmentation outputs to prepare for training """
     transformed_image = transformed["image"]
     if not use_rgb:
@@ -129,7 +134,7 @@ def post_augment_process(transformed, keypoints, keypoints_classes, use_rgb=True
 
     return transformed_image, out_bboxes, transformed_mask, final_keypoints
 
-def mark_invisible_keypoints(keypoints, image):
+def mark_invisible_keypoints(keypoints: torch.Tensor, image: np.array):
     """ Mark invisible keypoints with label == 0 """
     _, h, w = image.shape
     for kp in keypoints:
@@ -137,7 +142,7 @@ def mark_invisible_keypoints(keypoints, image):
             kp[2] = 0
     return keypoints
 
-def check_bboxes(bboxes):
+def check_bboxes(bboxes: torch.Tensor):
     """ Check bbox annotations and correct those with widht or height 0 """
     for i in range(bboxes.shape[0]):
         if bboxes[i, 2] == 0:
@@ -146,7 +151,8 @@ def check_bboxes(bboxes):
             bboxes[i, 3] = 1
     return bboxes
 
-def create_out_annotations(present_annotations, classes, bboxes, masks, keypoints):
+def create_out_annotations(present_annotations: list, classes: torch.Tensor, bboxes: torch.Tensor,
+    masks: torch.Tensor, keypoints: torch.Tensor):
     """ Create dictionary of output annotations """
     out_annotations = {}
     if "class" in present_annotations:

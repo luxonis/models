@@ -1,0 +1,20 @@
+model:
+  name: SimpleDetection
+  type: yolov6-n
+  pretrained:
+  params:
+    n_classes: 1
+
+  additional_heads:
+    - name: SegmentationHead
+      params:
+        n_classes: 1
+      loss: 
+        name: FocalLoss
+        params:
+
+dataset:
+  local_path: /home/klemen/test_datasets/coco_person_keypoints/ #(string)
+
+train:
+  batch_size: 4

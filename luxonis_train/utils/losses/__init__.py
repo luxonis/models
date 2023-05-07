@@ -1,5 +1,5 @@
-from .utils import get_loss
+from .utils import init_loss
 
 __all__ = [
-    "get_loss",
+    "init_loss",
 ]

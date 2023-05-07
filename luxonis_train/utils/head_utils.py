@@ -4,7 +4,8 @@ from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression
 
 # utils specific to some head (preprocessing or postprocessing functions)
 
-def yolov6_out2box(output, head, **kwargs):
+def yolov6_out2box(output: tuple, head: torch.nn.Module, **kwargs):
+    """ Performs post-processing of the YoloV6 output and returns bboxs after NMS"""
     x, cls_score_list, reg_dist_list = output
     anchor_points, stride_tensor = generate_anchors(x, head.stride, 
         head.grid_cell_size, head.grid_cell_offset, is_eval=True)

@@ -1,10 +1,10 @@
 trainer:
-  accelerator: auto # either "cpu" or "gpu, if "auto" then we check which is available (string)
-  devices: null # either specify how many devices (int) or which specific devices (list) to use. If null then use all available. (string|null)
-  strategy: ddp # if null then no distributed learning is used else ddp (strin|null)
+  accelerator: auto # either "cpu" or "gpu, if "auto" then we cauto-selects best available (string)
+  devices: auto # either specify how many devices (int) or which specific devices (list) to use. If auto then automatic selection (int|[int]|string)
+  strategy: auto # either one of PL stategies or auto (string)
   num_sanity_val_steps: 2 # number of sanity validation steps performed before training (int)
   profiler: null # use PL profiler for GPU/CPU/RAM utilization analysis (string|null)
-  verbose: True # print validation results in console (bool)
+  verbose: True # print all intermidiate results in console (bool)
 
 logger:
   project_name: null # name of the project used for logging (string)
@@ -36,18 +36,16 @@ train:
       # - name: Rotate
       #   params:
       #    - limit: 15
-      # - name: Rotate2
-      #   params:
-      #     - limit2: 10
-      #     - limit22: 10
 
   batch_size: 32 # batch size used for trainig (int)
-  accumulate_grad_batches: 2 # number of batches for gradient accumulation (int)
+  accumulate_grad_batches: 1 # number of batches for gradient accumulation (int)
   epochs: 100 # number of training epochs (int)
   num_workers: 2 # number of workers for data loading (int)
   train_metrics_interval: 2 # frequency of computing metrics on train data (int)
   validation_interval: 1 # frequency of computing metrics on validation data (int)
   skip_last_batch: True # bool if skip last batch while training (bool)
+  main_head_index: 0 # index of the head which is used for checkpointing based on best metric (int)
+  use_rich_text: True # bool if use rich text for console printing
 
   callbacks: # callback specific parameters (check PL docs)
     use_device_stats_monitor: False
@@ -55,9 +53,9 @@ train:
       save_top_k: 3
     early_stopping:
       active: True
-      monitor: val_loss
+      monitor: val_loss/loss
       mode: min
-      patience: 3
+      patience: 5
       verbose: True
 
   optimizers: # optimizers specific parameters (check Pytorch docs)
@@ -77,6 +75,7 @@ train:
     heads: [False] # list of bools for specific head freeeze (list[bool])
 
   losses: # defines weights for losses in multi-head architecture
+    log_sub_losses: False # bool if should also log sub-losses (bool)
     weights: [1,1] # list of ints for specific loss weight (list[int])
     # learn_weights: False # bool if weights should be learned (not implemented yet) (bool)
 

@@ -1,15 +1,14 @@
 import math
 import torch
-import warnings
 from luxonis_train.utils.head_type import *
 from luxonis_ml import *
 
-def make_divisible(x, divisor):
+def make_divisible(x: int, divisor: int):
     """ Upward revision the value x to make it evenly divisible by the divisor. """
     return math.ceil(x / divisor) * divisor
 
-def dummy_input_run(module, input_shape, multi_input=False):
-    """ Run dummy input through the module"""
+def dummy_input_run(module: torch.nn.Module, input_shape: list, multi_input: bool = False):
+    """ Runs dummy input through the module"""
     module.eval()
     if multi_input:
         input = [torch.zeros(i) for i in input_shape]
@@ -26,12 +25,12 @@ def dummy_input_run(module, input_shape, multi_input=False):
     else:
         return [list(out.shape)]
     
-def get_head_name(head, idx):
-    " Return generated head name based on its class and id """
+def get_head_name(head: torch.nn.Module, idx: int):
+    " Returns generated head name based on its class and id """
     return head.__class__.__name__ + f"_{idx}"
 
-def get_current_label(head_type, labels):
-    """ Return the right type of labels depending on head type """
+def get_current_label(head_type: object, labels: dict):
+    """ Returns the right type of labels depending on head type """
     present_annotations = labels.keys()
     if isinstance(head_type, Classification) or isinstance(head_type, MultiLabelClassification):
         if "class" not in present_annotations:

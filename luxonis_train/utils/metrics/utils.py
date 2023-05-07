@@ -17,7 +17,9 @@ F1Score: micro
 JaccardIndex: macro
 """
 
-def init_metrics(head):
+def init_metrics(head: nn.Module):
+    """ Initializes specific metrics depending on the head type and returns nn.ModuleDict """
+
     is_binary = head.n_classes == 1
     if isinstance(head.type, Classification):
         collection = torchmetrics.MetricCollection({
@@ -57,7 +59,8 @@ def init_metrics(head):
     })
 
 
-def postprocess_for_metrics(output, labels, head):
+def postprocess_for_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Module):
+    """ Performs post-processing on output and labels for specific metrics"""
     if isinstance(head.type, Classification):
         if head.n_classes != 1:
             labels = torch.argmax(labels, dim=1)
@@ -65,7 +68,8 @@ def postprocess_for_metrics(output, labels, head):
     elif isinstance(head.type, MultiLabelClassification):
         return output, labels
     elif isinstance(head.type, SemanticSegmentation):
-        labels = torch.argmax(labels, dim=1, keepdim=True)
+        if head.n_classes != 1:
+            labels = torch.argmax(labels, dim=1, keepdim=True)
         return output, labels
     elif isinstance(head.type, ObjectDetection):
         if isinstance(head, YoloV6Head):
@@ -73,7 +77,8 @@ def postprocess_for_metrics(output, labels, head):
             return output, labels
 
 
-def yolov6_to_metrics(output, labels, head):
+def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Module):
+    """ Performs post-processing on ouptut and labels for YoloV6 output"""
     kwargs = {"conf_thres":0.001, "iou_thres": 0.6}
     output_nms = yolov6_out2box(output, head, **kwargs)
     img_shape = head.original_in_shape[2:]

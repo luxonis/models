@@ -36,8 +36,8 @@ class Inferer(pl.LightningModule):
         
         self.val_augmentations = None
 
-    def load_checkpoint(self, path):
-        """ Load checkpoint weights from provided path """
+    def load_checkpoint(self, path: str):
+        """ Loads checkpoint weights from provided path """
         print(f"Loading weights from: {path}")
         state_dict = torch.load(path)["state_dict"]
         # remove weights that are not part of the model
@@ -51,12 +51,12 @@ class Inferer(pl.LightningModule):
 
         self.load_state_dict(state_dict)
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """ Forward function used in inference """
         outputs = self.model(inputs)
         return outputs
     
-    def infer(self, display:bool = True, save:bool = False):
+    def infer(self, display: bool = True, save: bool = False):
         """Runs inference on all images in the dataset
 
         Args:
@@ -94,23 +94,20 @@ class Inferer(pl.LightningModule):
                         curr_label = get_current_label(curr_head.type, labels)
 
                         img_labels = draw_on_image(img, curr_label, curr_head, is_label=True)
-                        img_labels = torch_to_cv2(img_labels)
+                        img_labels = torch_img_to_numpy(img_labels)
                         img_outputs = draw_on_image(img, output, curr_head)
-                        img_outputs = torch_to_cv2(img_outputs)
+                        img_outputs = torch_img_to_numpy(img_outputs)
                         
                         out_img = cv2.hconcat([img_labels, img_outputs])
                         if display:
                             plt.imshow(out_img)
                             plt.title(curr_head_name+f"\n(labels left, outputs right)")
                             plt.show()
-                            # TODO: this freezes for loop, needs to be fixed and then set to_rgb=False 
-                            # cv2.imshow(curr_head_name, out_img)
-                            # key = cv2.waitKey(0)
                         if save:
                             # TODO: What do we want to save?
                             pass
 
-    def infer_image(self, img:torch.tensor, display:bool = True, save:bool = False):
+    def infer_image(self, img: torch.Tensor, display: bool = True, save: bool = False):
         """Runs inference on a single image
 
         Args:

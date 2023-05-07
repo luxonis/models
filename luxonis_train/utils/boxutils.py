@@ -1,7 +1,6 @@
 import torch
 import torchvision
 import time
-import numpy as np
 
 def dist2bbox(distance, anchor_points, box_format='xyxy'):
     '''Transform distance(ltrb) to box(xywh or xyxy).'''

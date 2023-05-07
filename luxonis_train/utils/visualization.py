@@ -11,7 +11,8 @@ from luxonis_train.utils.head_utils import yolov6_out2box
 
 
 # TODO: find better colormap for colors and put it into torchvision draw functions
-def draw_on_image(img, data, head, is_label=False, **kwargs):
+def draw_on_image(img: np.array, data: torch.Tensor, head: torch.nn.Module, is_label: bool = False, **kwargs):
+    """ Draws model output/labels on the image based on head type """
     img_shape = head.original_in_shape[2:]
 
     if isinstance(head.type, Classification):
@@ -80,8 +81,33 @@ def draw_on_image(img, data, head, is_label=False, **kwargs):
             # TODO: need to implement this but don't have a keypoint yet to check what is the output from it
             # probably have to do something very similar than for labels
             return img
-        
-def torch_to_cv2(img, cvt_color=False):
+
+def seg_output_to_bool(data: torch.Tensor, binary_threshold: float = 0.5):
+    """ Converts seg head output to 2D boolean mask for visualization"""
+    masks = torch.empty_like(data, dtype=torch.bool)
+    if data.shape[0] == 1:
+        classes = torch.sigmoid(data)
+        masks[0] = classes >= binary_threshold
+    else:
+        classes = torch.argmax(data, dim=0)
+        for i in range(masks.shape[0]):
+            masks[i] = classes == i
+    return masks
+
+def unnormalize(img: torch.Tensor, original_mean: tuple = (0.485, 0.456, 0.406), 
+        original_std: tuple = (0.229, 0.224, 0.225), to_uint8: bool = False):
+    """ Unnormalizes image back to original values, optionally converts it to uin8"""
+    mean = np.array(original_mean)
+    std = np.array(original_std)
+    new_mean = -mean/std
+    new_std = 1/std
+    out_img = F.normalize(img, mean=new_mean,std=new_std)
+    if to_uint8:
+        out_img = torch.clamp(out_img.mul(255), 0, 255).to(torch.uint8)
+    return out_img    
+
+def torch_img_to_numpy(img: torch.Tensor, cvt_color: bool = False):
+    """ Converts torch image (CHW) to numpy array (HWC). Optionally also converts colors. """
     if img.is_floating_point():
         img = img.mul(255).int()
     img = torch.clamp(img, 0, 255)
@@ -90,24 +116,3 @@ def torch_to_cv2(img, cvt_color=False):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
 
-def unnormalize(img, original_mean=(0.485, 0.456, 0.406), 
-        original_std=(0.229, 0.224, 0.225), to_uint8=False):
-    mean = np.array(original_mean)
-    std = np.array(original_std)
-    new_mean = -mean/std
-    new_std = 1/std
-    out_img = F.normalize(img, mean=new_mean,std=new_std)
-    if to_uint8:
-        out_img = torch.clamp(out_img.mul(255), 0, 255).to(torch.uint8)
-    return out_img
-
-def seg_output_to_bool(data):
-    masks = torch.empty_like(data, dtype=torch.bool)
-    if data.shape[0] == 1:
-        classes = torch.sigmoid(data)
-        masks[0] = classes > 0.4
-    else:
-        classes = torch.argmax(data, dim=0)
-        for i in range(masks.shape[0]):
-            masks[i] = classes == i
-    return masks

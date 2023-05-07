@@ -183,12 +183,13 @@ class YoloV6Loss(nn.Module):
                self.loss_weight['iou'] * loss_iou + \
                self.loss_weight['dfl'] * loss_dfl
 
-        # TODO: what to do with additional outputs
-        additional_output = torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0),
-            (self.loss_weight['dfl'] * loss_dfl).unsqueeze(0),
-            (self.loss_weight['class'] * loss_cls).unsqueeze(0))).detach()
+        sub_losses = {
+            "class": loss_cls.detach(),
+            "dfl": loss_dfl.detach(),
+            "iou": loss_iou.detach()
+        }
 
-        return loss
+        return loss, sub_losses
             
 
     def preprocess(self, targets, batch_size, scale_tensor):

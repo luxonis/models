@@ -7,11 +7,9 @@
 import torch
 import torch.nn as nn
 from typing import Optional, List, Tuple
-
 import copy
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from luxonis_train.models.modules import SEBlock, conv_bn
 

@@ -1,5 +1,4 @@
 import argparse
-import torch
 import yaml
 from luxonis_train.core import Trainer
 
@@ -14,11 +13,11 @@ if __name__ == "__main__":
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
     trainer = Trainer(args_dict, cfg)
-    trainer.run()
+    trainer.train()
 
-    # Example: run in new thread
+    # Example: train in new thread
     # import time
-    # trainer.run(new_thread=True)
+    # trainer.train(new_thread=True)
     # while True:
     #     time.sleep(5)
     #     print(trainer.get_status())

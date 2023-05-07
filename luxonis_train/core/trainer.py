@@ -4,6 +4,8 @@ import threading
 from typing import Union
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.callbacks import RichProgressBar
+from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_ml import *
 
 from luxonis_train.models import ModelLightningModule
@@ -52,30 +54,13 @@ class Trainer:
             accumulate_grad_batches=self.cfg.get("train.accumulate_grad_batches"),
             check_val_every_n_epoch=self.cfg.get("train.validation_interval"),
             num_sanity_val_steps=self.cfg.get("trainer.num_sanity_val_steps"),
-            profiler=self.cfg.get("trainer.profiler") # for debugging purposes
+            profiler=self.cfg.get("trainer.profiler"), # for debugging purposes,
+            callbacks=LuxonisProgressBar() if self.cfg.get("train.use_rich_text") else None # NOTE: this is likely PL bug, should be configurable inside configure_callbacks()
         )
 
         self.error_message = None
 
-    def override_loss(self, custom_loss: object, head_id: int):
-        """ Overrides loss function for specific head_id with custom loss """
-        if not 0 <= head_id < len(self.lightning_module.model.heads):
-            raise ValueError("Provided 'head_id' outside of range.")
-        self.lightning_module.losses[head_id] = custom_loss
-
-    def override_train_augmentations(self, aug: object):
-        """ Overrides augmentations used for trainig dataset """
-        self.train_augmentations = aug
-
-    def override_val_augmentations(self, aug):
-        """ Overrides augmentations used for validation dataset """
-        self.val_augmentations = aug
-
-    def override_test_augmentations(self, aug):
-        """ Overrides augmentations used for test dataset """
-        self.test_augmentations = aug
-
-    def run(self, new_thread: bool = False):
+    def train(self, new_thread: bool = False):
         """ Runs training
 
         Args:
@@ -161,6 +146,24 @@ class Trainer:
                 )
                 self.thread.start()
 
+    def override_loss(self, custom_loss: object, head_id: int):
+        """ Overrides loss function for specific head_id with custom loss """
+        if not 0 <= head_id < len(self.lightning_module.model.heads):
+            raise ValueError("Provided 'head_id' outside of range.")
+        self.lightning_module.losses[head_id] = custom_loss
+
+    def override_train_augmentations(self, aug: object):
+        """ Overrides augmentations used for trainig dataset """
+        self.train_augmentations = aug
+
+    def override_val_augmentations(self, aug: object):
+        """ Overrides augmentations used for validation dataset """
+        self.val_augmentations = aug
+
+    def override_test_augmentations(self, aug: object):
+        """ Overrides augmentations used for test dataset """
+        self.test_augmentations = aug
+
     @rank_zero_only
     def get_status(self):
         """Get current status of training
@@ -198,13 +201,19 @@ class Trainer:
         return self.error_message
     
     @rank_zero_only
-    def get_min_val_checkpoint_path(self):
-        """ Return best min_val checkpoint path
+    def get_min_loss_checkpoint_path(self):
+        """ Return best checkpoint path with respect to minimal validation loss 
+        
+        Returns:
+            str: Path to best checkpoint with respect to minimal validation loss 
         """
         return self.pl_trainer.checkpoint_callbacks[0].best_model_path
     
     @rank_zero_only
     def get_best_metric_checkpoint_path(self):
-        """ Return best best_metric checkpoint path
+        """ Return best checkpoint path with respect to best validation metric 
+        
+        Returns:
+            str: Path to best checkpoint with respect to best validation loss 
         """
         return self.pl_trainer.checkpoint_callbacks[1].best_model_path

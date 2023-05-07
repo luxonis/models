@@ -5,6 +5,7 @@ The work on this project is in an MVP state, so it may be missing some critical 
 
 **Table of contents:**
 - [Installation](#installation)
+  - [Install as a package](#install-as-a-package)
 - [Configuration](#configuration)
   - [Model](#model)
   - [Trainer](#trainer)
@@ -15,11 +16,16 @@ The work on this project is in an MVP state, so it may be missing some critical 
 - [Inference](#inference)
 - [Exporting](#exporting)
 - [Test Dataset](#test-dataset)
-- [Install as a package](#install-as-a-package)
 
 
 ## Installation:
 Since this package relys on `luxonis-ml` library you should first install this as specified [here](https://github.com/luxonis/luxonis-ml/tree/main#installation-and-setup).
+
+### Install as a package
+If you want to use classes from this library anywhere you can install `luxonis-train` as a package like this:
+```
+python3 -m pip install -e .
+```
 
 ## Configuration:
 Most of the work is done through a `config.yaml` file, which you must pass as an argument to the Trainer. Config file consists of a few major blocks that are described below. You can create your own config or use/edit one of the already made ones.
@@ -84,12 +90,12 @@ You can see the list of all currently supported loss functions and their paramet
 This block configures everything connected to PytrochLightning Trainer object. 
 ```yaml
 trainer:
-  accelerator: auto # either "cpu" or "gpu, if "auto" then we check which is available (string)
-  devices: null # either specify how many devices (int) or which specific devices (list) to use. If null then use all available. (string|null)
-  strategy: ddp # if null then no distributed learning is used else ddp (strin|null)
+  accelerator: auto # either "cpu" or "gpu, if "auto" then we cauto-selects best available (string)
+  devices: auto # either specify how many devices (int) or which specific devices (list) to use. If auto then automatic selection (int|[int]|string)
+  strategy: auto # either one of PL stategies or auto (string)
   num_sanity_val_steps: 2 # number of sanity validation steps performed before training (int)
   profiler: null # use PL profiler for GPU/CPU/RAM utilization analysis (string|null)
-  verbose: True # print validation results in console (bool)
+  verbose: True # print all intermidiate results in console (bool)
 ```
 
 ### Logger:
@@ -143,18 +149,16 @@ train:
       # - name: Rotate
       #   params:
       #    - limit: 15
-      # - name: Rotate2
-      #   params:
-      #     - limit2: 10
-      #     - limit22: 10
 
   batch_size: 32 # batch size used for trainig (int)
-  accumulate_grad_batches: 2 # number of batches for gradient accumulation (int)
+  accumulate_grad_batches: 1 # number of batches for gradient accumulation (int)
   epochs: 100 # number of training epochs (int)
   num_workers: 2 # number of workers for data loading (int)
   train_metrics_interval: 2 # frequency of computing metrics on train data (int)
   validation_interval: 1 # frequency of computing metrics on validation data (int)
   skip_last_batch: True # bool if skip last batch while training (bool)
+  main_head_index: 0 # index of the head which is used for checkpointing based on best metric (int)
+  use_rich_text: False # bool if use rich text for console printing
 
   callbacks: # callback specific parameters (check PL docs)
     use_device_stats_monitor: False
@@ -184,6 +188,7 @@ train:
     heads: [False] # list of bools for specific head freeeze (list[bool])
 
   losses: # defines weights for losses in multi-head architecture
+    log_sub_losses: True # bool if should also log sub-losses (bool)
     weights: [1,1] # list of ints for specific loss weight (list[int])
     # learn_weights: False # bool if weights should be learned (not implemented yet) (bool)
 ```
@@ -270,11 +275,4 @@ python3 tools/export.py -cfg configs/custom.yaml
 There is a helper script avaliable used to quickly test the dataset and examine if labels are correct. The script will go over the images in the dataset (validation part) and display them together with all annotations that are present for this particular sample. You must first define `dataset` block in the config and then use it like this:
 ```
 python3 tools/test_dataset.py -cfg configs/custom.yaml 
-```
-
-
-## Install as a package
-If you want to use classes from this library anywhere you can install `luxonis-train` as a package like this:
-```
-python3 -m pip install -e .
 ```

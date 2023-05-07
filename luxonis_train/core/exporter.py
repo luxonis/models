@@ -1,7 +1,6 @@
 import torch
 import os
 import blobconverter
-import torch.nn as nn
 import pytorch_lightning as pl
 import subprocess
 import onnx
@@ -40,8 +39,8 @@ class Exporter(pl.LightningModule):
         self.model.eval()
         self.to_deploy()
 
-    def load_checkpoint(self, path):
-        """ Load checkpoint weights from provided path """
+    def load_checkpoint(self, path: str):
+        """ Loads checkpoint weights from provided path """
         print(f"Loading weights from: {path}")
         state_dict = torch.load(path)["state_dict"]
         # remove weights that are not part of the model
@@ -61,13 +60,13 @@ class Exporter(pl.LightningModule):
             if hasattr(module, "to_deploy"):
                 module.to_deploy()
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """ Forward function used in export """
         outputs = self.model(inputs)
         return outputs
     
     def export(self):
-        """ Export model to onnx, openVINO and .blob format """
+        """ Exports model to onnx, openVINO and .blob format """
         dummy_input = torch.rand(1,3,*self.cfg.get("exporter.export_image_size"))
         base_path = self.cfg.get("exporter.export_save_directory")
         output_names = self._get_output_names()
@@ -117,8 +116,8 @@ class Exporter(pl.LightningModule):
 
         print(f"Finished exporting. Files saved in: {base_path}")
 
-    def to_blob(self, remove_onnx = True):
-        """ Export model from onnx to blob directly """
+    def to_blob(self, remove_onnx: bool = True):
+        """ Exports model from onnx to blob directly """
         dummy_input = torch.rand(1,3,*self.cfg.get("exporter.export_image_size"))
         base_path = self.cfg.get("exporter.export_save_directory")
         output_names = self._get_output_names()
@@ -140,6 +139,7 @@ class Exporter(pl.LightningModule):
         onnx.save(onnx_model, onnx_path)
         
         print("Converting ONNX to blob")
+        # TODO: check if this export is correct, might be missing revert channels, mean scale,...
         blob_path = blobconverter.from_onnx(
             model=onnx_path,
             data_type="FP16",
@@ -152,7 +152,7 @@ class Exporter(pl.LightningModule):
         print(f"Finished exporting. File saved in: {blob_path}")
 
     def _get_output_names(self):
-        """ Get output names for each head"""
+        """ Gets output names for each head """
         output_names = []
         for i, head in enumerate(self.model.heads):
             if isinstance(head, YoloV6Head):

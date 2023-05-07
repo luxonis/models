@@ -3,14 +3,14 @@ import torch
 import torch.nn as nn
 import warnings
 from pprint import pprint
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor, DeviceStatsMonitor
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_train.models import Model
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.losses import get_loss
-from luxonis_train.utils.optimizers import get_optimizer
-from luxonis_train.utils.schedulers import get_scheduler
+from luxonis_train.utils.losses import init_loss
+from luxonis_train.utils.optimizers import init_optimizer
+from luxonis_train.utils.schedulers import init_scheduler
 from luxonis_train.utils.losses import *
 from luxonis_train.utils.metrics import init_metrics, postprocess_for_metrics
 from luxonis_train.utils.head_type import *
@@ -21,6 +21,7 @@ from luxonis_train.utils.visualization import *
 
 class ModelLightningModule(pl.LightningModule):
     def __init__(self, save_dir: str):
+        """ Main class used to build and train the model using Pytorch Lightning """
         super().__init__()
 
         self.cfg = Config()
@@ -35,7 +36,7 @@ class ModelLightningModule(pl.LightningModule):
         self.losses = nn.ModuleList()
         for head in self.cfg.get("model.heads"):
             self.losses.append(
-                get_loss(head["loss"]["name"], **head["loss"]["params"])
+                init_loss(head["loss"]["name"], **head["loss"]["params"])
             )
 
         # for each head initialize its metrics
@@ -50,7 +51,17 @@ class ModelLightningModule(pl.LightningModule):
         # freeze modules if defined
         self.freeze_modules(self.cfg.get("train.freeze_modules"))
 
+        # lists for storing intermediate step outputs
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
+
     def freeze_modules(self, freeze_info: dict):
+        """ Selectively freezes models modules from the training
+
+        Args:
+            freeze_info (dict): Dictionary of model parts (backbone|neck|heads) with boolean values set to True if the part should be frozen
+        """
         modules_to_freeze = []
         for key, value in freeze_info.items():
             if key == "backbone" and value:
@@ -67,13 +78,14 @@ class ModelLightningModule(pl.LightningModule):
             for param in module.parameters():
                 param.requires_grad = False
 
-    def configure_callbacks(self):    
+    def configure_callbacks(self):
+        """ Configures Pytorch Lightning callbacks """  
         self.min_val_loss_checkpoints_path = f"{self.save_dir}/min_val_loss"
         self.best_val_metric_checkpoints_path = f"{self.save_dir}/best_val_metric"
         self.main_metric = self.model.heads[0].type.main_metric
         
         loss_checkpoint = ModelCheckpoint(
-            monitor = "val_loss",
+            monitor = "val_loss/loss",
             dirpath = self.min_val_loss_checkpoints_path,
             filename = "{val_loss:.4f}_{val_"+self.main_metric+":.4f}_{epoch:02d}_" + self.model_name,
             save_top_k = self.cfg.get("train.callbacks.model_checkpoint.save_top_k"),
@@ -81,7 +93,7 @@ class ModelLightningModule(pl.LightningModule):
         )
 
         metric_checkpoint = ModelCheckpoint(
-            monitor = f"val_{self.main_metric}",
+            monitor = f"val_metric/{self.main_metric}",
             dirpath = self.best_val_metric_checkpoints_path,
             filename = "{val_"+self.main_metric+":.4f}_{val_loss:.4f}_{epoch:02d}_" + self.model_name,
             save_top_k = self.cfg.get("train.callbacks.model_checkpoint.save_top_k"),
@@ -93,18 +105,43 @@ class ModelLightningModule(pl.LightningModule):
 
         # used if we want to perform fine-grained debugging
         if self.cfg.get("train.callbacks.use_device_stats_monitor"):
+            from pytorch_lightning.callbacks import DeviceStatsMonitor
             device_stats = DeviceStatsMonitor()
             callbacks.append(device_stats)
 
         if self.cfg.get("train.callbacks.early_stopping.active"):
+            from pytorch_lightning.callbacks import EarlyStopping
             cfg_early_stopping = self.cfg.get("train.callbacks.early_stopping")
             cfg_early_stopping.pop("active")
-            self.early_stopping = EarlyStopping(**cfg_early_stopping)
-            callbacks.append(self.early_stopping)
+            early_stopping = EarlyStopping(**cfg_early_stopping)
+            callbacks.append(early_stopping)
+
+        if self.cfg.get("train.use_rich_text"):
+            from pytorch_lightning.callbacks import RichModelSummary
+            callbacks.append(RichModelSummary())
 
         return callbacks
 
+    def configure_optimizers(self):
+        """ Configures model optimizers and schedulers """
+        cfg_optimizer = self.cfg.get("train.optimizers")
+        optimizer_name = cfg_optimizer["optimizer"]["name"]
+        optimizer = init_optimizer(
+            model_params=self.model.parameters(), 
+            name=optimizer_name, 
+            **cfg_optimizer["optimizer"]["params"] if cfg_optimizer["optimizer"]["params"] else {}
+        )
+        
+        scheduler_name = cfg_optimizer["scheduler"]["name"]
+        scheduler = init_scheduler(
+            optimizer=optimizer,
+            name=scheduler_name,
+            **cfg_optimizer["scheduler"]["params"] if cfg_optimizer["scheduler"]["params"] else {}
+        )
+        return [optimizer], [scheduler]
+
     def load_checkpoint(self, path: str):
+        """ Loads checkpoint weights from provided path """
         print(f"Loading weights from: {path}")
         state_dict = torch.load(path)["state_dict"]
         # remove weights that are not part of the model
@@ -119,28 +156,13 @@ class ModelLightningModule(pl.LightningModule):
         self.load_state_dict(state_dict)
 
     def forward(self, inputs: torch.Tensor):
+        """ Calls forward method of the model and returns its output """
         outputs = self.model(inputs)
         return outputs
 
-    def configure_optimizers(self):
-        cfg_optimizer = self.cfg.get("train.optimizers")
-        optimizer_name = cfg_optimizer["optimizer"]["name"]
-        optimizer = get_optimizer(
-            model_params=self.model.parameters(), 
-            name=optimizer_name, 
-            **cfg_optimizer["optimizer"]["params"] if cfg_optimizer["optimizer"]["params"] else {}
-        )
-        
-        scheduler_name = cfg_optimizer["scheduler"]["name"]
-        scheduler = get_scheduler(
-            optimizer=optimizer,
-            name=scheduler_name,
-            **cfg_optimizer["scheduler"]["params"] if cfg_optimizer["scheduler"]["params"] else {}
-        )
-        return [optimizer], [scheduler]
-
     def training_step(self, train_batch: tuple, batch_idx: int):
-        inputs = train_batch[0].float()
+        """ Performs one step of training with provided batch """
+        inputs = train_batch[0]
         labels = train_batch[1]
         
         if self.cfg.get("train.skip_last_batch"):
@@ -150,6 +172,7 @@ class ModelLightningModule(pl.LightningModule):
         outputs = self.forward(inputs)
 
         loss = 0
+        sub_losses = [] # list of Tuple(loss_name, value)
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
             curr_head_name = get_head_name(curr_head, i)
@@ -159,27 +182,39 @@ class ModelLightningModule(pl.LightningModule):
                 epoch=self.current_epoch,
                 step=self.global_step,
             )
+            # if returned loss is tuple
+            if isinstance(curr_loss, tuple):
+                curr_loss, curr_sub_losses = curr_loss
+                # change curr_sub_losses names to be more descriptive and save into joined list
+                sub_losses.extend([(f"{curr_head_name}_{k}",v) for k,v in curr_sub_losses.items()])
+            sub_losses.append((curr_head_name, curr_loss.detach()))
+
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
             with torch.no_grad():         
-                if self.cfg.get("train.train_metrics_interval") and \
-                    self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0:
+                if self.cfg.get("train.train_metrics_interval") and self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0 and \
+                    self.current_epoch != 0:
                     output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
                     curr_metrics.update(output_processed, curr_label_processed)
 
-        # loss required in step output by pl
         step_output = {
-            "loss": loss
+            "loss": loss.detach(),
         }
-        return step_output
+        if self.cfg.get("train.losses.log_sub_losses"):
+            step_output.update({i[0]:i[1] for i in sub_losses})
+        self.training_step_outputs.append(step_output)
+
+        return loss
 
     def validation_step(self, val_batch: tuple, batch_idx: int):
-        inputs = val_batch[0].float()
+        """ Performs one step of validation with provided batch """
+        inputs = val_batch[0]
         labels = val_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
+        sub_losses = []
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
             curr_head_name = get_head_name(curr_head, i)
@@ -189,6 +224,13 @@ class ModelLightningModule(pl.LightningModule):
                 epoch=self.current_epoch,
                 step=self.global_step
             )
+            # if returned loss is tuple
+            if isinstance(curr_loss, tuple):
+                curr_loss, curr_sub_losses = curr_loss
+                # change curr_sub_losses names to be more descriptive and save into joined list
+                sub_losses.extend([(f"{curr_head_name}_{k}",v) for k,v in curr_sub_losses.items()])
+            sub_losses.append((curr_head_name, curr_loss.detach()))
+            
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
@@ -220,16 +262,21 @@ class ModelLightningModule(pl.LightningModule):
             #     self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
         
         step_output = {
-            "loss": loss,
+            "loss": loss.detach(),
         }
+        if self.cfg.get("train.losses.log_sub_losses"):
+            step_output.update({i[0]:i[1] for i in sub_losses})
+        self.validation_step_outputs.append(step_output)
+        
         return step_output
 
     def test_step(self, test_batch: tuple, batch_idx: int):
-        inputs = test_batch[0].float()
+        inputs = test_batch[0]
         labels = test_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
+        sub_losses = []
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
             curr_head_name = get_head_name(curr_head, i)
@@ -239,6 +286,13 @@ class ModelLightningModule(pl.LightningModule):
                 epoch=self.current_epoch,
                 step=self.global_step
             )
+            # if returned loss is tuple
+            if isinstance(curr_loss, tuple):
+                curr_loss, curr_sub_losses = curr_loss
+                # change curr_sub_losses names to be more descriptive and save into joined list
+                sub_losses.extend([(f"{curr_head_name}_{k}",v) for k,v in curr_sub_losses.items()])
+            sub_losses.append((curr_head_name, curr_loss.detach()))
+            
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
             
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
@@ -246,74 +300,119 @@ class ModelLightningModule(pl.LightningModule):
             curr_metrics.update(output_processed, curr_label_processed)
         
         step_output = {
-            "loss": loss,
+            "loss": loss.detach(),
         }
+        if self.cfg.get("train.losses.log_sub_losses"):
+            step_output.update({i[0]:i[1] for i in sub_losses})
+        self.test_step_outputs.append(step_output)
+        
         return step_output
 
-    def training_epoch_end(self, outputs: list):
-        epoch_train_loss = np.mean([step_output["loss"] for step_output in outputs])
-        self.log("train_loss", epoch_train_loss, sync_dist=True)
+    def on_train_epoch_end(self):
+        """ Performs train epoch end operations """
+        epoch_train_loss = np.mean([step_output["loss"] for step_output in self.training_step_outputs])
+        self.log("train_loss/loss", epoch_train_loss, sync_dist=True)
 
-        if self.cfg.get("train.train_metrics_interval") and \
-            self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0:
+        if self.cfg.get("train.losses.log_sub_losses"):
+            for key in self.training_step_outputs[0]:
+                if key == "loss":
+                    continue
+                epoch_sub_loss = np.mean([step_output[key] for step_output in self.training_step_outputs])
+                self.log(f"train_loss/{key}", epoch_sub_loss, sync_dist=True)
+
+        metric_results = {} # used for printing to console
+        if self.cfg.get("train.train_metrics_interval") and self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0 and \
+            self.current_epoch != 0:
             for curr_head_name in self.metrics:
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
+                metric_results[curr_head_name] = curr_metrics
                 for metric_name in curr_metrics:
-                    self.log(f"train/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
+                    self.log(f"train_metric/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
                 self.metrics[curr_head_name]["train_metrics"].reset() 
 
-    def validation_epoch_end(self, outputs: list):
-        epoch_val_loss = np.mean([step_output["loss"] for step_output in outputs])
-        self.log("val_loss", epoch_val_loss, sync_dist=True)
+            if self.cfg.get("trainer.verbose"):
+                self._print_results(stage="Train", loss=epoch_train_loss, metrics=metric_results)
+
+        self.training_step_outputs.clear()
+
+    def on_validation_epoch_end(self):
+        """ Performs validation epoch end operations """
+        epoch_val_loss = np.mean([step_output["loss"] for step_output in self.validation_step_outputs])
+        self.log("val_loss/loss", epoch_val_loss, sync_dist=True)
         
-        results = {} # used for printing to console
+        if self.cfg.get("train.losses.log_sub_losses"):
+            for key in self.validation_step_outputs[0]:
+                if key == "loss":
+                    continue
+                epoch_sub_loss = np.mean([step_output[key] for step_output in self.validation_step_outputs])
+                self.log(f"val_loss/{key}", epoch_sub_loss, sync_dist=True)
+
+        metric_results = {} # used for printing to console
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"].compute()
-            results[curr_head_name] = curr_metrics
+            metric_results[curr_head_name] = curr_metrics
             for metric_name in curr_metrics:
-                self.log(f"val/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
+                self.log(f"val_metric/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
             # log main metrics separately (used in callback)
             if i == 0:
-                self.log(f"val_{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)
+                self.log(f"val_metric/{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)
             self.metrics[curr_head_name]["val_metrics"].reset()
 
         if self.cfg.get("trainer.verbose"):
-            self._print_results(epoch_val_loss, results)
+            self._print_results(stage="Validation", loss=epoch_val_loss, metrics=metric_results)
+        
+        self.validation_step_outputs.clear()
 
     def test_epoch_end(self, outputs: list):
-        epoch_test_loss = np.mean([step_output["loss"] for step_output in outputs])
-        self.log("test_loss", epoch_test_loss, sync_dist=True)
+        epoch_test_loss = np.mean([step_output["loss"] for step_output in self.test_step_outputs])
+        self.log("test_loss/loss", epoch_test_loss, sync_dist=True)
 
-        results = {} # used for printing to console
+        if self.cfg.get("train.losses.log_sub_losses"):
+            for key in self.test_step_outputs[0]:
+                if key == "loss":
+                    continue
+                epoch_sub_loss = np.mean([step_output[key] for step_output in self.test_step_outputs])
+                self.log(f"test_loss/{key}", epoch_sub_loss, sync_dist=True)
+
+        metric_results = {} # used for printing to console
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["test_metrics"].compute()
-            results[curr_head_name] = curr_metrics
+            metric_results[curr_head_name] = curr_metrics
             for metric_name in curr_metrics:
-                self.log(f"test/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
+                self.log(f"test_metric/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
             # log main metrics separately (used in callback)
             if i == 0:
-                self.log(f"test_{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)
+                self.log(f"test_metric/{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)
             self.metrics[curr_head_name]["test_metrics"].reset()
 
-        self._print_results(epoch_test_loss, results)
+        if self.cfg.get("trainer.verbose"):
+            self._print_results(stage="Test", loss=epoch_test_loss, metrics=metric_results)
+
+        self.test_step_outputs.clear()
     
     def get_status(self):
-        """ Return current epoch and number of all epochs """
+        """ Returns current epoch and number of all epochs """
         return self.current_epoch, self.cfg.get("train.epochs")
     
     def get_status_percentage(self):
-        """ Return percentage of current training, takes into account early stopping """
-        if self.early_stopping:
+        """ Returns percentage of current training, takes into account early stopping """
+        if self._trainer.early_stopping_callback:
              # model didn't yet stop from early stopping callback
-            if self.early_stopping.stopped_epoch == 0:
+            if self._trainer.early_stopping_callback.stopped_epoch == 0:
                 return (self.current_epoch / self.cfg.get("train.epochs"))*100
             else:
                 return 100.0
         else:    
-            return (self.current_epoch / self.cfg.get("train.epochs"))*100      
+            return (self.current_epoch / self.cfg.get("train.epochs"))*100 
 
     @rank_zero_only
-    def _print_results(self, loss: float, metrics: dict):
-        print("\nValidation metrics:")
-        print(f"Val_loss: {loss}")
-        pprint(metrics)  
+    def _print_results(self, stage: str, loss: float, metrics: dict):
+        """ Prints validation metrics in the console """
+        if self.cfg.get("train.use_rich_text"):
+            self._trainer.progress_bar_callback.print_results(stage=stage, loss=loss, metrics=metrics)
+        else:
+            print(f"\n----- {stage} -----")
+            print(f"Loss: {loss}")
+            print(f"Metrics:")
+            pprint(metrics)
+            print("----------")

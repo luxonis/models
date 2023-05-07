@@ -70,7 +70,7 @@ if __name__ == "__main__":
                         bboxs[:, 1::2] *= ih
                         img = draw_bounding_boxes(img, bboxs)
 
-                img_output = torch_to_cv2(img)
+                img_output = torch_img_to_numpy(img)
                 plt.imshow(img_output)
                 plt.title(f"{i}")
                 plt.show()

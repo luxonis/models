@@ -10,15 +10,17 @@ from luxonis_train.utils.general import dummy_input_run
 
 class Model(nn.Module):
     def __init__(self):
+        """ Model class for [backbone, Optional(neck), heads] architectures """
         super(Model, self).__init__()
         self.backbone = None
         self.neck = None
         self.heads = nn.ModuleList()
 
     def build_model(self):
+        """ Builds the model from defined config """
         cfg = Config()
         modules_cfg = cfg.get("model")
-        dummy_input_shape = [1,3,]+cfg.get("train.preprocessing.train_image_size") # TODO: we assume 3 dimensional input shape
+        dummy_input_shape = [1,3,]+cfg.get("train.preprocessing.train_image_size") # NOTE: we assume 3 dimensional input shape
 
         self.backbone = eval(modules_cfg["backbone"]["name"]) \
             (**modules_cfg["backbone"].get("params", {}))
@@ -43,7 +45,15 @@ class Model(nn.Module):
                 )
             self.heads.append(curr_head)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """ Models forward method
+
+        Args:
+            x (torch.Tensor): Input batch
+
+        Returns:
+            outs (list): List of outputs for each models head
+        """
         out = self.backbone(x)
         if self.neck != None:
             out = self.neck(out)

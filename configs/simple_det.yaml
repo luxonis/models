@@ -6,7 +6,7 @@ model:
     n_classes: 1
 
 dataset:
-  local_path: /home/klemen/test_datasets/coco_person_keypoints/ #(string)
+  local_path: /home/klemen/luxonis/model_debug/datasets/coco-2017-person #(string)
 
 train:
   batch_size: 4

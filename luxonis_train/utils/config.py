@@ -41,7 +41,14 @@ class Config:
                 warnings.warn(f"Key '{key_merged}' not matched to config "+
                     f"(at level '{key if not iter_success else last_key}'). Skipping.")
                 continue
-            last_sub_dict[last_key] = int(value) if value.isdigit() else value
+            # check if value represents something other than string
+            if value.isdigit():
+                value = int(value)
+            elif value.lower() == "true":
+                value = True
+            elif value.lower() == "false":
+                value = False
+            last_sub_dict[last_key] = value
 
     def get(self, key_merged: str):
         """ Returns value from config based on the key """

@@ -199,7 +199,7 @@ class ModelLightningModule(pl.LightningModule):
                     curr_metrics.update(output_processed, curr_label_processed)
 
         step_output = {
-            "loss": loss.detach(),
+            "loss": loss.detach().cpu(),
         }
         if self.cfg.get("train.losses.log_sub_losses"):
             step_output.update({i[0]:i[1] for i in sub_losses})
@@ -262,7 +262,7 @@ class ModelLightningModule(pl.LightningModule):
             #     self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
         
         step_output = {
-            "loss": loss.detach(),
+            "loss": loss.detach().cpu(),
         }
         if self.cfg.get("train.losses.log_sub_losses"):
             step_output.update({i[0]:i[1] for i in sub_losses})
@@ -300,7 +300,7 @@ class ModelLightningModule(pl.LightningModule):
             curr_metrics.update(output_processed, curr_label_processed)
         
         step_output = {
-            "loss": loss.detach(),
+            "loss": loss.detach().cpu(),
         }
         if self.cfg.get("train.losses.log_sub_losses"):
             step_output.update({i[0]:i[1] for i in sub_losses})

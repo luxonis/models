@@ -33,10 +33,12 @@ class BCEWithLogitsLoss(nn.Module):
     
 class FocalLoss(nn.Module):
     # Source: https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch/notebook
-    def __init__(self, **kwargs):
+    def __init__(self, alpha=0.8, gamma=2, **kwargs):
         super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
 
-    def forward(self, inputs, targets, alpha=0.8, gamma=2, **kwargs):
+    def forward(self, inputs, targets, **kwargs):
 
         #comment out if your model contains a sigmoid or equivalent activation layer
         inputs = torch.sigmoid(inputs)       
@@ -48,6 +50,6 @@ class FocalLoss(nn.Module):
         #first compute binary cross-entropy 
         BCE = F.binary_cross_entropy(inputs, targets, reduction='mean')
         BCE_EXP = torch.exp(-BCE)
-        focal_loss = alpha * (1-BCE_EXP)**gamma * BCE
+        focal_loss = self.alpha * (1-BCE_EXP)**self.gamma * BCE
                        
         return focal_loss

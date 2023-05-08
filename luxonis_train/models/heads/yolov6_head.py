@@ -15,7 +15,7 @@ class YoloV6Head(nn.Module):
     With hardware-aware degisn, the decoupled head is optimized with
     hybridchannels methods.
     '''
-    def __init__(self, prev_out_shape, n_classes, num_layers=3, reg_max=0, **kwargs):
+    def __init__(self, prev_out_shape, n_classes, num_layers=3, **kwargs):
         super(YoloV6Head, self).__init__()
         self.n_classes = n_classes  # number of classes
         self.type = ObjectDetection()
@@ -26,7 +26,6 @@ class YoloV6Head(nn.Module):
         self.nl = num_layers  # number of detection layers
 
         self.prior_prob = 1e-2
-        self.reg_max = reg_max
 
         self.n_anchors = 1
         stride = [8, 16, 32]  # strides computed during build
@@ -41,7 +40,6 @@ class YoloV6Head(nn.Module):
                 prev_out_shape=[prev_out_shape[i]],
                 original_in_shape=self.original_in_shape,
                 n_classes=self.n_classes,
-                reg_max=self.reg_max,
                 n_anchors=self.n_anchors
             )
             self.head.append(curr_head)

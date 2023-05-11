@@ -13,14 +13,14 @@ from luxonis_train.utils.head_type import *
 
 class Trainer:
     def __init__(self, args: dict, cfg: dict):
-        """Main API which is used to create the model, setup pytorch lightning environment 
+        """Main API which is used to create the model, setup pytorch lightning environment
         and perform training based on provided arguments and config.
 
         Args:
             args (dict): argument dict provided through command line, control devices used to train and type of accelerator
             cfg (dict): configs dict used to setup training
         """
-        
+
         self.args = args
         self.cfg = cfg
         if self.args["override"]:
@@ -29,11 +29,11 @@ class Trainer:
         # check if model is predefined
         if self.cfg["model"]["type"]:
             load_predefined_cfg(self.cfg)
-        
+
         self._validate_dataset()
         check_cfg(self.cfg)
-        
-        self.rank = rank_zero_only.rank    
+
+        self.rank = rank_zero_only.rank
 
         train_cfg = cfg["train"]
         logger_cfg = cfg["logger"]
@@ -43,7 +43,7 @@ class Trainer:
         logger = LuxonisTrackerPL(rank=self.rank, **logger_cfg)
         logger.log_hyperparams({"epochs": epochs, "batch_size": batch_size, "accumulate_grad_batches": train_cfg["accumulate_grad_batches"]})
         self.run_save_dir = os.path.join(logger_cfg["save_directory"], logger.run_name)
-        
+
         use_ddp = True if (args["devices"] == None or \
             isinstance(args["devices"], list) and len(args["devices"]) > 1 or \
             isinstance(args["devices"], int) and args["devices"]>1) \
@@ -51,7 +51,7 @@ class Trainer:
 
         self.train_augmentations = None
         self.val_augmentations = None
-        
+
         self.lightning_module = ModelLightningModule(self.cfg, self.run_save_dir)
         self.pl_trainer = pl.Trainer(
             accelerator=args["accelerator"],
@@ -88,8 +88,8 @@ class Trainer:
         """
 
         with LuxonisDataset(
-            local_path=self.cfg["dataset"]["local_path"] if "local_path" in self.cfg["dataset"] else None,
-            s3_path=self.cfg["dataset"]["s3_path"] if "s3_path" in self.cfg["dataset"] else None
+            team_name=self.cfg["dataset"]["team_name"],
+            dataset_name=self.cfg["dataset"]["dataset_name"]
         ) as dataset:
 
             if self.train_augmentations == None:
@@ -97,11 +97,10 @@ class Trainer:
                     cfg=self.cfg["augmentations"] if self.cfg["augmentations"] else None,
                     image_size=self.cfg["train"]["image_size"]
                 )
-            
+
             loader_train = LuxonisLoader(dataset, view='train')
-            loader_train.map(loader_train.auto_preprocess)
-            loader_train.map(self.train_augmentations)
-            pytorch_loader_train = loader_train.to_pytorch(
+            pytorch_loader_train = torch.utils.data.DataLoader(
+                loader_train,
                 batch_size=self.cfg["train"]["batch_size"],
                 num_workers=self.cfg["train"]["n_workers"]
             )
@@ -110,9 +109,8 @@ class Trainer:
                 self.val_augmentations = ValAugmentations(image_size=self.cfg["train"]["image_size"])
 
             loader_val = LuxonisLoader(dataset, view="val")
-            loader_val.map(loader_val.auto_preprocess)
-            loader_val.map(self.val_augmentations)
-            pytorch_loader_val = loader_val.to_pytorch(
+            pytorch_loader_val = torch.utils.data.DataLoader(
+                loader_val,
                 batch_size=self.cfg["train"]["batch_size"],
                 num_workers=self.cfg["train"]["n_workers"]
             )
@@ -132,7 +130,7 @@ class Trainer:
                     daemon=True
                 )
                 self.thread.start()
-            
+
     @rank_zero_only
     def get_status(self):
         """Get current status of training
@@ -141,7 +139,7 @@ class Trainer:
             Tuple(int, int): First element is current epoch, second element is total number of epochs
         """
         return self.lightning_module.get_status()
-    
+
     @rank_zero_only
     def get_status_percentage(self):
         """ Return percentage of current training, takes into account early stopping
@@ -149,7 +147,7 @@ class Trainer:
         Returns:
             float: Percentage of current training in range 0-100
         """
-        return self.lightning_module.get_status_percentage()       
+        return self.lightning_module.get_status_percentage()
 
     @rank_zero_only
     def get_save_dir(self):
@@ -159,7 +157,7 @@ class Trainer:
             str: Save directory path
         """
         return self.run_save_dir
-    
+
     @rank_zero_only
     def get_error_message(self):
         """ Return error message if one occures while running in thread, otherwise None
@@ -168,19 +166,19 @@ class Trainer:
             str or None: Error message
         """
         return self.error_message
-    
+
     @rank_zero_only
     def get_min_val_checkpoint_path(self):
         """ Return best min_val checkpoint path
         """
         return self.pl_trainer.checkpoint_callbacks[0].best_model_path
-    
+
     @rank_zero_only
     def get_best_metric_checkpoint_path(self):
         """ Return best best_metric checkpoint path
         """
         return self.pl_trainer.checkpoint_callbacks[1].best_model_path
-    
+
     def test(self, new_thread: bool = False):
         """ Runs testing
         Args:
@@ -188,16 +186,15 @@ class Trainer:
         """
 
         with LuxonisDataset(
-            local_path=self.cfg["dataset"]["local_path"] if "local_path" in self.cfg["dataset"] else None,
-            s3_path=self.cfg["dataset"]["s3_path"] if "s3_path" in self.cfg["dataset"] else None
+            team_name=self.cfg["dataset"]["team_name"],
+            dataset_name=self.cfg["dataset"]["dataset_name"]
         ) as dataset:
 
             self.test_augmentations = ValAugmentations(image_size=self.cfg["train"]["image_size"])
 
             loader_test = LuxonisLoader(dataset, view="test")
-            loader_test.map(loader_test.auto_preprocess)
-            loader_test.map(self.test_augmentations)
-            pytorch_loader_test = loader_test.to_pytorch(
+            pytorch_loader_test = torch.utils.data.DataLoader(
+                loader_test,
                 batch_size=self.cfg["train"]["batch_size"],
                 num_workers=self.cfg["train"]["n_workers"]
             )
@@ -217,11 +214,11 @@ class Trainer:
         If it doesn't match we adopt value from dataset and override the config.
         """
         with LuxonisDataset(
-            local_path=self.cfg["dataset"]["local_path"] if "local_path" in self.cfg["dataset"] else None,
-            s3_path=self.cfg["dataset"]["s3_path"] if "s3_path" in self.cfg["dataset"] else None
+            team_name=self.cfg["dataset"]["team_name"],
+            dataset_name=self.cfg["dataset"]["dataset_name"]
         ) as dataset:
             dataset_n_classes = len(dataset.classes)
-            
+
             # TODO: implement per task number of classes
             # for key in dataset.classes_by_task:
             #     print(key, len(dataset.classes_by_task[key]))
@@ -239,7 +236,7 @@ class Trainer:
                         classes in dataset ({dataset_n_classes}). Setting it to {dataset_n_classes}")
                 head["params"]["n_classes"] = dataset_n_classes
 
-                # also set n_classes to loss params (for now only if it's YoloV6 loss) 
+                # also set n_classes to loss params (for now only if it's YoloV6 loss)
                 # TODO: avoid hardcoding, make the loss classes general so they can accept n_classes even if not used
                 if head["loss"]["name"] == "YoloV6Loss":
                     if head["loss"]["params"] is None:
@@ -269,4 +266,3 @@ class Trainer:
             if n_classes_anno != n_classes_dict["segmentation"]:
                 raise RuntimeError(f"Number of classes in 'segmentation' anotations ({n_classes_anno}) doesn't match" +
                     f"'n_classes' specified in config file ({n_classes_dict['segmentation']})")
-

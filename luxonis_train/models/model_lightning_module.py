@@ -48,7 +48,7 @@ class ModelLightningModule(pl.LightningModule):
         # freeze modules if defined
         if "freeze_modules" in self.cfg["train"] and self.cfg["train"]["freeze_modules"]:
             self.freeze_modules(self.cfg["train"]["freeze_modules"])
-        
+
         if "model_checkpoint" in self.cfg["train"] and "save_top_k" in self.cfg["train"]["model_checkpoint"] and self.cfg["train"]["model_checkpoint"]["save_top_k"]:
             self.save_top_k = self.cfg["train"]["model_checkpoint"]["save_top_k"]
         else:
@@ -73,11 +73,11 @@ class ModelLightningModule(pl.LightningModule):
             for param in module.parameters():
                 param.requires_grad = False
 
-    def configure_callbacks(self):    
+    def configure_callbacks(self):
         self.min_val_loss_checkpoints_path = f"{self.save_dir}/min_val_loss"
         self.best_val_metric_checkpoints_path = f"{self.save_dir}/best_val_metric"
         self.main_metric = self.model.heads[0].type.main_metric
-        
+
         loss_checkpoint = ModelCheckpoint(
             monitor = "val_loss",
             dirpath = self.min_val_loss_checkpoints_path,
@@ -93,7 +93,7 @@ class ModelLightningModule(pl.LightningModule):
             save_top_k = self.save_top_k,
             mode = "max"
         )
-        
+
         lr_monitor = LearningRateMonitor(logging_interval="step")
         callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor]
 
@@ -118,11 +118,11 @@ class ModelLightningModule(pl.LightningModule):
     def configure_optimizers(self):
         optimizer_name = self.cfg["optimizer"]["name"]
         optimizer = get_optimizer(
-            model_params=self.model.parameters(), 
-            name=optimizer_name, 
+            model_params=self.model.parameters(),
+            name=optimizer_name,
             **self.cfg["optimizer"]["params"] if self.cfg["optimizer"]["params"] else {}
         )
-        
+
         scheduler_name = self.cfg["scheduler"]["name"]
         scheduler = get_scheduler(
             optimizer=optimizer,
@@ -136,7 +136,7 @@ class ModelLightningModule(pl.LightningModule):
         if self.cfg["train"]["skip_last_batch"] and \
             inputs.shape[0] != self.cfg["train"]["batch_size"]:
             return None
-        
+
         labels = train_batch[1]
         outputs = self.forward(inputs)
 
@@ -149,7 +149,7 @@ class ModelLightningModule(pl.LightningModule):
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
 
-            with torch.no_grad():         
+            with torch.no_grad():
                 if self.cfg["train"]["n_metrics"] and self.current_epoch % self.cfg["train"]["n_metrics"] == 0:
                     output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
@@ -179,30 +179,30 @@ class ModelLightningModule(pl.LightningModule):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
 
-            if batch_idx == 0: # log images of the first batch
-                labels = torch.argmax(curr_label, dim=1)
-                predictions = torch.argmax(output, dim=1)
-                # TODO: also read-in and draw on images class names instead of indexes
-                images_to_log = []
-                for i, (img, label, prediction) in enumerate(zip(inputs, labels, predictions)):
-                    label = int(label)
-                    prediction = int(prediction)
-                    img = unnormalize(img, to_uint8=True)
-                    img = torch_to_cv2(img, to_rgb=True)
-                    img_data = {"label":f"{label}", "prediction":f"{prediction}"}
-                    images_to_log.append(draw_on_image(img, img_data, curr_head))
-                    if i>=2: # only log a few images
-                        break
+            # if batch_idx == 0: # log images of the first batch
+            #     labels = torch.argmax(curr_label, dim=1)
+            #     predictions = torch.argmax(output, dim=1)
+            #     # TODO: also read-in and draw on images class names instead of indexes
+            #     images_to_log = []
+            #     for i, (img, label, prediction) in enumerate(zip(inputs, labels, predictions)):
+            #         label = int(label)
+            #         prediction = int(prediction)
+            #         img = unnormalize(img, to_uint8=True)
+            #         img = torch_to_cv2(img, to_rgb=True)
+            #         img_data = {"label":f"{label}", "prediction":f"{prediction}"}
+            #         images_to_log.append(draw_on_image(img, img_data, curr_head))
+            #         if i>=2: # only log a few images
+            #             break
+            #
+            #     # use log_images()
+            #     #self.logger.log_images(curr_head_name, np.array(images_to_log), step=self.current_epoch)
+            #
+            #     # use log_image()
+            #     concatenate = images_to_log.pop(0)
+            #     while images_to_log != []:
+            #         concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
+            #     self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
 
-                # use log_images()
-                #self.logger.log_images(curr_head_name, np.array(images_to_log), step=self.current_epoch)
-
-                # use log_image()
-                concatenate = images_to_log.pop(0)
-                while images_to_log != []:
-                    concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
-                self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
-        
         step_output = {
             "loss": loss,
         }
@@ -221,11 +221,11 @@ class ModelLightningModule(pl.LightningModule):
             curr_loss = self.losses[i](output, curr_label, epoch=self.current_epoch,
                 step=self.global_step, original_in_shape=self.cfg["train"]["image_size"])
             loss += curr_loss
-            
+
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["test_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
-        
+
         step_output = {
             "loss": loss,
         }
@@ -240,12 +240,12 @@ class ModelLightningModule(pl.LightningModule):
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
                 for metric_name in curr_metrics:
                     self.log(f"train/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
-                self.metrics[curr_head_name]["train_metrics"].reset() 
+                self.metrics[curr_head_name]["train_metrics"].reset()
 
     def validation_epoch_end(self, outputs):
         epoch_val_loss = self._avg([step_output["loss"] for step_output in outputs])
         self.log("val_loss", epoch_val_loss, sync_dist=True)
-        
+
         results = {} # used for printing to console
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"].compute()
@@ -275,11 +275,11 @@ class ModelLightningModule(pl.LightningModule):
             self.metrics[curr_head_name]["test_metrics"].reset()
 
         self._print_results(epoch_test_loss, results)
-    
+
     def get_status(self):
         """ Return current epoch and number of all epochs """
         return self.current_epoch, self.cfg["train"]["epochs"]
-    
+
     def get_status_percentage(self):
         """ Return percentage of current training, takes into account early stopping """
         if self.early_stopping:
@@ -288,7 +288,7 @@ class ModelLightningModule(pl.LightningModule):
                 return (self.current_epoch / self.cfg["train"]["epochs"])*100
             else:
                 return 100.0
-        else:    
+        else:
             return (self.current_epoch / self.cfg["train"]["epochs"])*100
 
     def get_n_classes(self):
@@ -300,7 +300,7 @@ class ModelLightningModule(pl.LightningModule):
             elif isinstance(head.type, SemanticSegmentation) or isinstance(head.type, InstanceSegmentation):
                 out_dict["segmentation"] = head.n_classes
             # TODO: do we need the same for object detection and keypoint detection?
-        return out_dict            
+        return out_dict
 
     def _avg(self, running_metric):
         return sum(running_metric) / len(running_metric)
@@ -309,4 +309,4 @@ class ModelLightningModule(pl.LightningModule):
     def _print_results(self, loss, metrics):
         print("\nValidation metrics:")
         print(f"Val_loss: {loss}")
-        pprint(metrics)  
+        pprint(metrics)

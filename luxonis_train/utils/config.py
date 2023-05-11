@@ -15,7 +15,7 @@ def cfg_override(cfg, args):
         subkeys = keys.split(".")
         sub_dict = cfg
         for key in subkeys[:-1]:
-            if isinstance(sub_dict, list): # check if key should be list index 
+            if isinstance(sub_dict, list): # check if key should be list index
                 key = int(key)
             sub_dict = sub_dict[key]
 
@@ -33,7 +33,7 @@ def check_cfg(cfg):
     backbone_specified = "backbone" in model_cfg and model_cfg["backbone"]
     neck_specified = "neck" in model_cfg and model_cfg["neck"]
     heads_specified = "heads" in model_cfg and isinstance(model_cfg["heads"], list)
-    
+
     if model_predefined:
         if backbone_specified or neck_specified or heads_specified:
             warnings.warn("Settings of backbone/neck/heads will be overridden by predefined model.", SyntaxWarning)
@@ -45,12 +45,13 @@ def check_cfg(cfg):
             raise RuntimeError("Backbone and at least 1 head must be specified.")
 
         for head in model_cfg["heads"]:
+            print('here', head['params'])
             if not("n_classes" in head["params"] and head["params"]["n_classes"]):
                 raise RuntimeError("Head 'n_classes' param must be defined for every head.")
 
         if "params" in model_cfg and model_cfg["params"]:
             warnings.warn("Model-wise parameters won't be taken into account if you don't specify model type.", SyntaxWarning)
-        
+
         if "additional_heads" in model_cfg and model_cfg["additional_heads"]:
             warnings.warn("Additional heads won't be taken into account if you don't specify model type. \
                 Move them to 'heads' if you want to use them.", SyntaxWarning)
@@ -62,7 +63,7 @@ def check_cfg(cfg):
     if not("image_size" in cfg["train"] and cfg["train"]["image_size"]):
         warnings.warn("Image size not specified (under 'train'). Using default size [256, 256].")
         cfg["train"]["image_size"] = [256,256]
-    
+
     # set default skip_last_batch to True
     if "skip_last_batch" not in cfg["train"]:
         cfg["train"]["skip_last_batch"] = True
@@ -74,7 +75,7 @@ def check_cfg_export(cfg):
 
     if not("weights" in cfg["export"] and cfg["export"]["weights"]):
         raise RuntimeError("No 'weights' speficied in config file.")
-    
+
     if not("save_directory" in cfg["export"] and cfg["export"]["save_directory"]):
         warnings.warn("No save directory specified. Using default location 'output'")
         cfg["export"]["save_directory"] = cfg["export"]["source_directory"]
@@ -94,11 +95,11 @@ def load_yolov6_cfg(cfg):
     predefined_cfg_path = cfg["model"]["type"].lower() +".yaml"
     with open(os.path.join(DB_PATH, predefined_cfg_path), "r") as f:
         predefined_cfg = yaml.load(f, Loader=yaml.SafeLoader)
-    
+
     cfg["model"]["backbone"] = predefined_cfg["backbone"]
     cfg["model"]["neck"] = predefined_cfg["neck"]
     cfg["model"]["heads"] = predefined_cfg["heads"]
-    
+
     model_params = cfg["model"]["params"] if "params" in cfg["model"]  and cfg["model"]["params"] else {}
     for key, value in model_params.items():
         if value is None:

@@ -1,4 +1,5 @@
 import os
+import torch
 import pytorch_lightning as pl
 import threading
 from dotenv import load_dotenv
@@ -98,21 +99,31 @@ class Trainer:
                     image_size=self.cfg["train"]["image_size"]
                 )
 
-            loader_train = LuxonisLoader(dataset, view='train')
+            loader_train = LuxonisLoader(
+                dataset,
+                view='train',
+                augmentations=self.train_augmentations
+            )
             pytorch_loader_train = torch.utils.data.DataLoader(
                 loader_train,
                 batch_size=self.cfg["train"]["batch_size"],
-                num_workers=self.cfg["train"]["n_workers"]
+                num_workers=self.cfg["train"]["n_workers"],
+                collate_fn=loader_train.collate_fn
             )
 
             if self.val_augmentations == None:
                 self.val_augmentations = ValAugmentations(image_size=self.cfg["train"]["image_size"])
 
-            loader_val = LuxonisLoader(dataset, view="val")
+            loader_val = LuxonisLoader(
+                dataset,
+                view="val",
+                augmentations=self.val_augmentations
+            )
             pytorch_loader_val = torch.utils.data.DataLoader(
                 loader_val,
                 batch_size=self.cfg["train"]["batch_size"],
-                num_workers=self.cfg["train"]["n_workers"]
+                num_workers=self.cfg["train"]["n_workers"],
+                collate_fn=loader_val.collate_fn
             )
 
             if not new_thread:
@@ -192,11 +203,16 @@ class Trainer:
 
             self.test_augmentations = ValAugmentations(image_size=self.cfg["train"]["image_size"])
 
-            loader_test = LuxonisLoader(dataset, view="test")
+            loader_test = LuxonisLoader(
+                dataset,
+                view="test",
+                augmentations=self.test_augmentations
+            )
             pytorch_loader_test = torch.utils.data.DataLoader(
                 loader_test,
                 batch_size=self.cfg["train"]["batch_size"],
-                num_workers=self.cfg["train"]["n_workers"]
+                num_workers=self.cfg["train"]["n_workers"],
+                collate_fn=loader_test.collate_fn
             )
 
             if not new_thread:
@@ -217,7 +233,8 @@ class Trainer:
             team_name=self.cfg["dataset"]["team_name"],
             dataset_name=self.cfg["dataset"]["dataset_name"]
         ) as dataset:
-            dataset_n_classes = len(dataset.classes)
+            self.classes, self.classes_by_task = dataset.get_classes()
+            dataset_n_classes = len(self.classes)
 
             # TODO: implement per task number of classes
             # for key in dataset.classes_by_task:

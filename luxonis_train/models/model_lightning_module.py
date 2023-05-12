@@ -364,7 +364,7 @@ class ModelLightningModule(pl.LightningModule):
         
         self.validation_step_outputs.clear()
 
-    def test_epoch_end(self, outputs: list):
+    def on_test_epoch_end(self):
         epoch_test_loss = np.mean([step_output["loss"] for step_output in self.test_step_outputs])
         self.log("test_loss/loss", epoch_test_loss, sync_dist=True)
 

@@ -52,7 +52,7 @@ class Trainer:
             devices=self.cfg.get("trainer.devices"),
             strategy=self.cfg.get("trainer.strategy"),
             logger=logger,
-            max_epochs=1,#self.cfg.get("train.epochs"),
+            max_epochs=self.cfg.get("train.epochs"),
             accumulate_grad_batches=self.cfg.get("train.accumulate_grad_batches"),
             check_val_every_n_epoch=self.cfg.get("train.validation_interval"),
             num_sanity_val_steps=self.cfg.get("trainer.num_sanity_val_steps"),

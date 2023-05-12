@@ -1,6 +1,7 @@
 import os
 import pytorch_lightning as pl
 import threading
+from copy import deepcopy
 from typing import Union
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
@@ -34,7 +35,7 @@ class Trainer:
         hparams = {key: self.cfg.get(key) for key in cfg_logger["logged_hyperparams"]}
         
         load_dotenv() # loads env variables for mlflow logging
-        logger_params = cfg_logger.copy()
+        logger_params = deepcopy(cfg_logger.copy())
         logger_params.pop("logged_hyperparams")
         logger = LuxonisTrackerPL(rank=self.rank, **logger_params)
         logger.log_hyperparams(hparams)

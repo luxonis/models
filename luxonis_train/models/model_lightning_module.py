@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import warnings
+from copy import deepcopy
 from pprint import pprint
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.utilities import rank_zero_only
@@ -111,7 +112,7 @@ class ModelLightningModule(pl.LightningModule):
 
         if self.cfg.get("train.callbacks.early_stopping.active"):
             from pytorch_lightning.callbacks import EarlyStopping
-            cfg_early_stopping = self.cfg.get("train.callbacks.early_stopping")
+            cfg_early_stopping = deepcopy(self.cfg.get("train.callbacks.early_stopping"))
             cfg_early_stopping.pop("active")
             early_stopping = EarlyStopping(**cfg_early_stopping)
             callbacks.append(early_stopping)

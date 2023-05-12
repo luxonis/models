@@ -14,17 +14,18 @@ from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentatio
 from luxonis_train.utils.head_type import *
 
 class Trainer:
-    def __init__(self, args: dict, cfg: Union[str, dict]):
+    def __init__(self, cfg: Union[str, dict], args: dict = None):
         """Main API which is used to create the model, setup pytorch lightning environment 
         and perform training based on provided arguments and config.
 
         Args:
-            args (dict): argument dict provided through command line, used for config overriding
             cfg (Union[str, dict]): path to config file or config dict used to setup training
+            args (dict, optional): argument dict provided through command line, used for config overriding
         """
-        
+
         self.cfg = Config(cfg)
-        if args["override"]:
+
+        if args and args["override"]:
             self.cfg.override_config(args["override"])
         
         self.rank = rank_zero_only.rank    

@@ -196,8 +196,8 @@ class Config:
                 if curr_n_classes is None:
                     warnings.warn(f"Inheriting 'n_classes' parameter from dataset. Setting it to {dataset_n_classes}")
                 elif curr_n_classes != dataset_n_classes:
-                    warnings.warn(f"Number of classes in config ({curr_n_classes}) doesn't match number of"+
-                        f"classes in dataset ({dataset_n_classes}). Setting it to {dataset_n_classes}")
+                    raise KeyError(f"Number of classes in config ({curr_n_classes}) doesn't match number of "+
+                        f"classes in dataset ({dataset_n_classes})")
                 head["params"]["n_classes"] = dataset_n_classes
 
                 # also set n_classes to loss params

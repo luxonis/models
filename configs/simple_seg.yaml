@@ -10,7 +10,7 @@ model:
   heads:
     - name: SegmentationHead
       params:
-        n_classes: 1
+        n_classes: null
       loss: 
         name: FocalLoss
         params:

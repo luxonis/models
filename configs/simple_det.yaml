@@ -3,7 +3,7 @@ model:
   type: yolov6-n
   pretrained:
   params:
-    n_classes: 1
+    n_classes: null
 
 dataset:
   local_path: /home/klemen/luxonis/model_debug/datasets/coco-2017-person #(string)

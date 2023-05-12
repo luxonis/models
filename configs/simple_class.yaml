@@ -10,13 +10,13 @@ model:
   heads:
     - name: ClassificationHead
       params:
-        n_classes: 80
+        n_classes: null
       loss: 
         name: CrossEntropyLoss
         params:
 
 dataset:
-  local_path: /home/klemen/test_datasets/coco_person_keypoints/ #../coco-2017 #(string)
+  local_path: /home/klemen/luxonis/model_debug/datasets/coco-2017-person #../coco-2017 #(string)
 
 train:
   batch_size: 4

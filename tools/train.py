@@ -8,11 +8,11 @@ if __name__ == "__main__":
     parser.add_argument("--override", default=None, type=str, help="Manually override config parameter")
     args = parser.parse_args()
     args_dict = vars(args)
-   
+    
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
-    trainer = Trainer(args_dict, cfg)
+    trainer = Trainer(cfg, args_dict)
     trainer.train()
 
     # Example: train in new thread

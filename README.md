@@ -33,7 +33,7 @@ Most of the work is done through a `config.yaml` file, which you must pass as an
 ### Model:
 This is the most important block, that **must be always defined by the user**. There are two different ways you can create the model. 
 
-In the first one you defined `backbone`, `neck` and list of `heads`, where you choose each module from a list of supported ones (list of all [backbones](./luxonis_train/models/backbones/README.md), [necks](./luxonis_train/models/necks/README.md) and [heads](./luxonis_train/models/heads/README.md)).
+In the first one you defined `backbone`, `neck` and list of `heads`, where you choose each module from a list of supported ones (list of all [backbones](./luxonis_train/models/backbones/README.md), [necks](./luxonis_train/models/necks/README.md) and [heads](./luxonis_train/models/heads/README.md)). If `n_classes` is not set for the head or is set to `null` then this value will be inherited from the dataset.
 
 ***Note**: Every model must have 1 bacbone and at least 1 head (neck is optional).*
 
@@ -214,7 +214,7 @@ my_loss = my_custom_loss() # this should be torch.nn.Module
 trainer = Trainer(args_dict, cfg)
 trainer.override_loss(custom_loss=my_loss, head_id=0)
 ```
-***Note**: Number of classes (`n_classes`) is beaing passed to each loss initialization by default. In addition to output and labels we also pass current epoch (`epcoh`) and current step (`step`) as parameters on every loss function call. If you don't need this use `**kwargs` keyword when defining loss function.*
+***Note**: Number of classes (`n_classes`) is beaing passed to each loss initialization by default. In addition to output and labels we also pass current epoch (`epoch`) and current step (`step`) as parameters on every loss function call. If you don't need this use `**kwargs` keyword when defining loss function.*
 
 You can also override train or validation augmentations like this:
 ```python

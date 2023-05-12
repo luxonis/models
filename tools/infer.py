@@ -12,5 +12,5 @@ if __name__ == "__main__":
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
-    inferer = Inferer(args_dict, cfg)
+    inferer = Inferer(cfg, args_dict)
     inferer.infer()

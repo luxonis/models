@@ -64,8 +64,8 @@ class Inferer(pl.LightningModule):
             save (bool, optional): Save output image. Defaults to False.
         """
         with LuxonisDataset(
-            local_path=self._data["dataset"]["local_path"],
-            s3_path=self._data["dataset"]["s3_path"]
+            local_path=self.cfg.get("dataset.local_path"),
+            s3_path=self.cfg.get("dataset.s3_path")
         ) as dataset:
             
             if self.val_augmentations == None:

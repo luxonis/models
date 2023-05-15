@@ -27,13 +27,13 @@ class Inferer(pl.LightningModule):
         self.cfg = Config(cfg)
         if args and args["override"]:
             self.cfg.override_config(args["override"])
-        
+
         self.model = Model()
         self.model.build_model()
 
         self.load_checkpoint(self.cfg.get("model.pretrained"))
         self.model.eval()
-        
+
         self.val_augmentations = None
 
     def load_checkpoint(self, path: str):
@@ -55,7 +55,7 @@ class Inferer(pl.LightningModule):
         """ Forward function used in inference """
         outputs = self.model(inputs)
         return outputs
-    
+
     def infer(self, display: bool = True, save: bool = False):
         """Runs inference on all images in the dataset
 
@@ -64,23 +64,26 @@ class Inferer(pl.LightningModule):
             save (bool, optional): Save output image. Defaults to False.
         """
         with LuxonisDataset(
-            local_path=self.cfg.get("dataset.local_path"),
-            s3_path=self.cfg.get("dataset.s3_path")
+            team_name=self.cfg.get("dataset.team_name"),
+            dataset_name=self.cfg.get("dataset.dataset_name")
         ) as dataset:
-            
+
             if self.val_augmentations == None:
                 self.val_augmentations = ValAugmentations()
 
-            loader_val = LuxonisLoader(dataset, 
-                view=self.cfg.get("inferer.dataset_view")
+            loader_val = LuxonisLoader(
+                dataset,
+                view=self.cfg.get("inferer.dataset_view"),
+                augmentations=self.val_augmentations
             )
-            loader_val.map(loader_val.auto_preprocess)
-            loader_val.map(self.val_augmentations)
             # TODO: Do we want this configurable?
-            pytorch_loader_val = loader_val.to_pytorch(
-                batch_size=1, num_workers=1
+            pytorch_loader_val = torch.utils.data.DataLoader(
+                loader_val,
+                batch_size=1,
+                num_workers=1,
+                collate_fn=loader_val.collate_fn
             )
-            
+
             with torch.no_grad():
                 for data in pytorch_loader_val:
                     inputs = data[0].float()
@@ -97,7 +100,7 @@ class Inferer(pl.LightningModule):
                         img_labels = torch_img_to_numpy(img_labels)
                         img_outputs = draw_on_image(img, output, curr_head)
                         img_outputs = torch_img_to_numpy(img_outputs)
-                        
+
                         out_img = cv2.hconcat([img_labels, img_outputs])
                         if display:
                             plt.imshow(out_img)

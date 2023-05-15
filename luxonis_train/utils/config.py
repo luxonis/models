@@ -7,14 +7,14 @@ from luxonis_ml import LuxonisDataset
 
 class Config:
     """ Singleton class which checks and merges user config with default one and provides access to its values"""
-    
+
     _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../configs/db"))
 
     def __new__(cls, cfg=None):
         if not hasattr(cls, 'instance'):
             if cfg is None:
                 raise ValueError("Provide either config path or config dictionary.")
-            
+
             cls.instance = super(Config, cls).__new__(cls)
             cls.instance._load(cfg)
 
@@ -26,7 +26,7 @@ class Config:
     def override_config(self, args: str):
         """ Overrides config values with ones specifid by --override string """
         if len(args) == 0:
-            return 
+            return
         items = args.split(" ")
         if len(items) % 2 != 0:
             raise ValueError("Parameters passed by --override should be in 'key value' shape but one value is missing.")
@@ -55,7 +55,7 @@ class Config:
         (iter_success, key), last_key, last_sub_dict = self._config_iterate(key_merged)
         last_matched = (isinstance(last_sub_dict, dict) and last_key in last_sub_dict) or \
             (isinstance(last_sub_dict, list) and 0<=last_key<len(last_sub_dict))
-        
+
         if not(iter_success and last_matched):
             raise KeyError(f"Key '{key_merged}' not matched to config "+
                 f"(at level '{key if not iter_success else last_key}')")
@@ -68,12 +68,12 @@ class Config:
 
         if not self._data["exporter"]["export_weights"]:
             raise KeyError("No 'export_weights' speficied in config file.")
-    
+
     def _load(self, cfg: Union[str, dict]):
         """ Performs complete loading and validation of the config """
         with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
             base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
-    
+
         if isinstance(cfg, str):
             with open(cfg, "r") as f:
                 user_cfg = yaml.load(f, Loader=yaml.SafeLoader)
@@ -136,7 +136,7 @@ class Config:
         predefined_cfg_path = model_cfg["type"].lower() +".yaml"
         with open(os.path.join(self._db_path, predefined_cfg_path), "r") as f:
             predefined_cfg = yaml.load(f, Loader=yaml.SafeLoader)
-        
+
         model_cfg["backbone"] = predefined_cfg["backbone"]
         model_cfg["neck"] = predefined_cfg["neck"]
         model_cfg["heads"] = predefined_cfg["heads"]
@@ -153,7 +153,7 @@ class Config:
         if "additional_heads" in model_cfg and isinstance(model_cfg["additional_heads"], list):
             model_cfg["heads"].extend(model_cfg["additional_heads"])
             model_cfg.pop("additional_heads")
-        
+
         return model_cfg
 
     def _config_iterate(self, key_merged: str):
@@ -163,7 +163,7 @@ class Config:
         success = True
         key = sub_keys[0] # needed if only search only one level deep
         for key in sub_keys[:-1]:
-            if isinstance(sub_dict, list): # check if key should be list index 
+            if isinstance(sub_dict, list): # check if key should be list index
                 key = int(key)
                 if key >= len(sub_dict) or key < 0:
                     success = False
@@ -179,10 +179,11 @@ class Config:
     def _validate_dataset_classes(self):
         """ Validates config to used datasets, overrides n_classes if needed """
         with LuxonisDataset(
-            local_path=self._data["dataset"]["local_path"],
-            s3_path=self._data["dataset"]["s3_path"]
+            team_name=self._data["dataset"]["team_name"],
+            dataset_name=self._data["dataset"]["dataset_name"]
         ) as dataset:
-            dataset_n_classes = len(dataset.classes)
+            classes, classes_by_task = dataset.get_classes()
+            dataset_n_classes = len(classes)
             # TODO: implement per task number of classes
             # for key in dataset.classes_by_task:
             #     print(key, len(dataset.classes_by_task[key]))
@@ -230,7 +231,7 @@ class Config:
             warnings.warn("Weights of the backbone will be overridden by whole model weights.")
 
         n_heads = len(model_cfg["heads"])
-        
+
         # handle main_head_index
         if not (0 <= self._data["train"]["main_head_index"] < n_heads):
             raise KeyError("Specified index of main head ('main_head_index') is out of range.")
@@ -245,7 +246,7 @@ class Config:
             if "losses" in self._user_cfg["train"] and self._user_cfg["train"]["losses"]:
                 if len(self._user_cfg["train"]["losses"]["weights"]) != n_heads:
                     raise KeyError("Number of losses in the model doesn't match number of losses in 'losses.weights'.")
-        
+
         # check if heads in freeze_modules and losses matches number of heads of the model
         if len(self._data["train"]["freeze_modules"]["heads"]) != n_heads:
             self._data["train"]["freeze_modules"]["heads"] = [False]*n_heads
@@ -260,7 +261,7 @@ class Config:
         if self._data["train"]["preprocessing"]["normalize"]["use_normalize"]:
             self._data["train"]["preprocessing"]["augmentations"].append({
                 "name":"Normalize",
-                "params":self._data["train"]["preprocessing"]["normalize"]["params"] 
+                "params":self._data["train"]["preprocessing"]["normalize"]["params"]
                     if "params" in self._data["train"]["preprocessing"]["normalize"] and \
                         self._data["train"]["preprocessing"]["normalize"]["params"] else {}
             })

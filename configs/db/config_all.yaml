@@ -19,8 +19,8 @@ logger:
   logged_hyperparams: ["train.epochs", "train.batch_size", "train.optimizers.optimizer.params.lr"] # list of hyperparameters to log (list)
 
 dataset:
-  local_path: null # path to local dataset (string|null)
-  s3_path: null # path to s3 bucket (string|null)
+  team_name: null # path to local dataset (string|null)
+  dataset_name: null # path to s3 bucket (string|null)
   train_view: train # view to use for training (string)
   val_view: val # view to use for validation (string)
   test_view: test # view to use for testing (string)
@@ -68,7 +68,7 @@ train:
       name: ConstantLR
       params:
         factor: 1
-  
+
   freeze_modules: # defines which modules you want to freeze (not train)
     backbone: False # bool if freeze backbone (bool)
     neck: False # bool if freeze neck (bool)
@@ -87,7 +87,7 @@ exporter:
   export_save_directory: output_export # path to save directory of exported models (string)
   export_image_size: [256, 256] # image size used for export [height, width] (list)
   export_model_name: model # name of the exported model (string)
-  onnx: 
+  onnx:
     opset_version: 12 # opset version of onnx used (int)
     dynamic_axes: null # define if dynamic input shapes are used (dict)
   openvino:

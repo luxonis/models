@@ -1,4 +1,5 @@
 import os
+import torch
 import pytorch_lightning as pl
 import threading
 from copy import deepcopy
@@ -16,7 +17,7 @@ from luxonis_train.utils.head_type import *
 
 class Trainer:
     def __init__(self, cfg: Union[str, dict], args: dict = None):
-        """Main API which is used to create the model, setup pytorch lightning environment 
+        """Main API which is used to create the model, setup pytorch lightning environment
         and perform training based on provided arguments and config.
 
         Args:
@@ -28,12 +29,12 @@ class Trainer:
 
         if args and args["override"]:
             self.cfg.override_config(args["override"])
-        
-        self.rank = rank_zero_only.rank    
+
+        self.rank = rank_zero_only.rank
 
         cfg_logger = self.cfg.get("logger")
         hparams = {key: self.cfg.get(key) for key in cfg_logger["logged_hyperparams"]}
-        
+
         load_dotenv() # loads env variables for mlflow logging
         logger_params = deepcopy(cfg_logger.copy())
         logger_params.pop("logged_hyperparams")
@@ -45,7 +46,7 @@ class Trainer:
         self.train_augmentations = None
         self.val_augmentations = None
         self.test_augmentations = None
-        
+
         self.lightning_module = ModelLightningModule(self.run_save_dir)
         self.pl_trainer = pl.Trainer(
             accelerator=self.cfg.get("trainer.accelerator"),
@@ -69,34 +70,38 @@ class Trainer:
         """
 
         with LuxonisDataset(
-            local_path=self.cfg.get("dataset.local_path"),
-            s3_path=self.cfg.get("dataset.s3_path")
+            team_name=self.cfg.get("dataset.team_name"),
+            dataset_name=self.cfg.get("dataset.dataset_name")
         ) as dataset:
-            
+
             if self.train_augmentations == None:
                 self.train_augmentations = TrainAugmentations()
-            
-            loader_train = LuxonisLoader(dataset, 
-                view=self.cfg.get("dataset.train_view")
+
+            loader_train = LuxonisLoader(
+                dataset,
+                view=self.cfg.get("dataset.train_view"),
+                augmentations=self.train_augmentations
             )
-            loader_train.map(loader_train.auto_preprocess)
-            loader_train.map(self.train_augmentations)
-            pytorch_loader_train = loader_train.to_pytorch(
+            pytorch_loader_train = torch.utils.data.DataLoader(
+                loader_train,
                 batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers")
+                num_workers=self.cfg.get("train.num_workers"),
+                collate_fn=loader_train.collate_fn
             )
 
             if self.val_augmentations == None:
                 self.val_augmentations = ValAugmentations()
 
-            loader_val = LuxonisLoader(dataset, 
-                view=self.cfg.get("dataset.val_view")
+            loader_val = LuxonisLoader(
+                dataset,
+                view=self.cfg.get("dataset.val_view"),
+                augmentations=self.val_augmentations
             )
-            loader_val.map(loader_val.auto_preprocess)
-            loader_val.map(self.val_augmentations)
-            pytorch_loader_val = loader_val.to_pytorch(
+            pytorch_loader_val = torch.utils.data.DataLoader(
+                loader_val,
                 batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers")
+                num_workers=self.cfg.get("train.num_workers"),
+                collate_fn=loader_val.collate_fn
             )
 
             if not new_thread:
@@ -122,19 +127,23 @@ class Trainer:
         """
 
         with LuxonisDataset(
-            local_path=self.cfg.get("dataset.local_path"),
-            s3_path=self.cfg.get("dataset.s3_path")
+            team_name=self.cfg.get("dataset.team_name"),
+            dataset_name=self.cfg.get("dataset.dataset_name")
         ) as dataset:
 
             if self.test_augmentations == None:
                 self.test_augmentations = ValAugmentations()
 
-            loader_test = LuxonisLoader(dataset, view=self.cfg.get("dataset.test_view"))
-            loader_test.map(loader_test.auto_preprocess)
-            loader_test.map(self.test_augmentations)
-            pytorch_loader_test = loader_test.to_pytorch(
+            loader_test = LuxonisLoader(
+                dataset,
+                view=self.cfg.get("dataset.test_view"),
+                augmentations=self.test_augmentations
+            )
+            pytorch_loader_test = torch.utils.data.DataLoader(
+                loader_test,
                 batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers")
+                num_workers=self.cfg.get("train.num_workers"),
+                collate_fn=loader_test.collate_fn
             )
 
             if not new_thread:
@@ -173,7 +182,7 @@ class Trainer:
             Tuple(int, int): First element is current epoch, second element is total number of epochs
         """
         return self.lightning_module.get_status()
-    
+
     @rank_zero_only
     def get_status_percentage(self):
         """ Return percentage of current training, takes into account early stopping
@@ -181,7 +190,7 @@ class Trainer:
         Returns:
             float: Percentage of current training in range 0-100
         """
-        return self.lightning_module.get_status_percentage()       
+        return self.lightning_module.get_status_percentage()
 
     @rank_zero_only
     def get_save_dir(self):
@@ -191,7 +200,7 @@ class Trainer:
             str: Save directory path
         """
         return self.run_save_dir
-    
+
     @rank_zero_only
     def get_error_message(self):
         """ Return error message if one occures while running in thread, otherwise None
@@ -200,21 +209,21 @@ class Trainer:
             str or None: Error message
         """
         return self.error_message
-    
+
     @rank_zero_only
     def get_min_loss_checkpoint_path(self):
-        """ Return best checkpoint path with respect to minimal validation loss 
-        
+        """ Return best checkpoint path with respect to minimal validation loss
+
         Returns:
-            str: Path to best checkpoint with respect to minimal validation loss 
+            str: Path to best checkpoint with respect to minimal validation loss
         """
         return self.pl_trainer.checkpoint_callbacks[0].best_model_path
-    
+
     @rank_zero_only
     def get_best_metric_checkpoint_path(self):
-        """ Return best checkpoint path with respect to best validation metric 
-        
+        """ Return best checkpoint path with respect to best validation metric
+
         Returns:
-            str: Path to best checkpoint with respect to best validation loss 
+            str: Path to best checkpoint with respect to best validation loss
         """
         return self.pl_trainer.checkpoint_callbacks[1].best_model_path

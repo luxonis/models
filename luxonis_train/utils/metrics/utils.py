@@ -37,13 +37,13 @@ def init_metrics(head: nn.Module):
             "accuracy": torchmetrics.Accuracy(task="multilabel", num_labels=head.n_classes),
             "precision": torchmetrics.Precision(task="multilabel", num_labels=head.n_classes),
             "recall": torchmetrics.Recall(task="multilabel", num_labels=head.n_classes),
-            "f1": torchmetrics.F1Score(task="multilabel", num_labels=head.n_classes)   
+            "f1": torchmetrics.F1Score(task="multilabel", num_labels=head.n_classes)
         })
     elif isinstance(head.type, SemanticSegmentation):
         collection = torchmetrics.MetricCollection({
-            "accuracy": torchmetrics.Accuracy(task="binary" if is_binary else "multiclass", 
+            "accuracy": torchmetrics.Accuracy(task="binary" if is_binary else "multiclass",
                 num_classes=head.n_classes, ignore_index=0 if is_binary else None),
-            "mIoU": torchmetrics.JaccardIndex(task="binary" if is_binary else "multiclass", 
+            "mIoU": torchmetrics.JaccardIndex(task="binary" if is_binary else "multiclass",
                 num_classes=head.n_classes, ignore_index=0 if is_binary else None),
 
         })
@@ -64,12 +64,14 @@ def postprocess_for_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn
     if isinstance(head.type, Classification):
         if head.n_classes != 1:
             labels = torch.argmax(labels, dim=1)
+            output = torch.argmax(output, dim=1)
         return output, labels
     elif isinstance(head.type, MultiLabelClassification):
         return output, labels
     elif isinstance(head.type, SemanticSegmentation):
         if head.n_classes != 1:
             labels = torch.argmax(labels, dim=1, keepdim=True)
+            output = torch.argmax(output, dim=1, keepdim=True)
         return output, labels
     elif isinstance(head.type, ObjectDetection):
         if isinstance(head, YoloV6Head):
@@ -91,7 +93,7 @@ def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Modul
             "scores": output_nms[i][:,4],
             "labels": output_nms[i][:,5]
         })
-        
+
         curr_labels = labels[labels[:,0]==i]
         curr_bboxs = xywh2xyxy_coco(curr_labels[:, 2:])
         curr_bboxs[:, 0::2] *= img_shape[1]

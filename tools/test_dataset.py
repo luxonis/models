@@ -4,7 +4,7 @@ import yaml
 
 from luxonis_ml import *
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.augmentations import ValAugmentations
+from luxonis_train.utils.augmentations import TrainAugmentations
 from luxonis_train.utils.visualization import *
 import matplotlib.pyplot as plt
 
@@ -15,23 +15,33 @@ if __name__ == "__main__":
 
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
-    
+
     cfg = Config(cfg)
     image_size = cfg.get("train.preprocessing.train_image_size")
 
     with LuxonisDataset(
-        local_path=cfg.get("dataset.local_path"),
-        s3_path=cfg.get("dataset.s3_path")
+        team_name=cfg.get("dataset.team_name"),
+        dataset_name=cfg.get("dataset.dataset_name")
     ) as dataset:
-        
-        train_augmentations = ValAugmentations()
-        
-        loader_train = LuxonisLoader(dataset, view='val')
-        loader_train.map(loader_train.auto_preprocess)
-        loader_train.map(train_augmentations)
-        pytorch_loader_train = loader_train.to_pytorch(
+
+        classes, classes_by_task = dataset.get_classes()
+        colors = [
+            (np.random.randint(256),np.random.randint(256),np.random.randint(256)) \
+            for _ in range(len(classes))
+        ]
+
+        train_augmentations = TrainAugmentations()
+
+        loader_train = LuxonisLoader(
+            dataset,
+            view='val',
+            augmentations=train_augmentations
+        )
+        pytorch_loader_train = torch.utils.data.DataLoader(
+            loader_train,
             batch_size=4,
-            num_workers=1
+            num_workers=1,
+            collate_fn=loader_train.collate_fn
         )
 
         ih, iw = image_size[0], image_size[1]
@@ -51,7 +61,7 @@ if __name__ == "__main__":
                         keypoints_points[:,0] *= iw
                         keypoints_points[:,1] *= ih
                         keypoints_visibility = keypoints_flat[:,2]
-                        
+
                         # torchvision expects format [num_instances, K, 2]
                         out_keypoints = torch.reshape(keypoints_points, (-1, 17, 2)).int()
                         img = draw_keypoints(img, out_keypoints, colors="red")
@@ -61,7 +71,7 @@ if __name__ == "__main__":
                     if label_type == "segmentation":
                         curr_label = anno_dict[label_type][i]
                         masks = curr_label.bool()
-                        img = draw_segmentation_masks(img, masks, alpha=0.4, colors= ["green"])
+                        img = draw_segmentation_masks(img, masks, alpha=0.4, colors=colors)
                     if label_type == "bbox":
                         curr_label = anno_dict[label_type]
                         curr_label = curr_label[curr_label[:,0]==i]

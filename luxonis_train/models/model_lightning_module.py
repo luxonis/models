@@ -203,7 +203,7 @@ class ModelLightningModule(pl.LightningModule):
             "loss": loss.detach().cpu(),
         }
         if self.cfg.get("train.losses.log_sub_losses"):
-            step_output.update({i[0]:i[1] for i in sub_losses})
+            step_output.update({i[0]:i[1].detach().cpu() for i in sub_losses})
         self.training_step_outputs.append(step_output)
 
         return loss
@@ -266,7 +266,7 @@ class ModelLightningModule(pl.LightningModule):
             "loss": loss.detach().cpu(),
         }
         if self.cfg.get("train.losses.log_sub_losses"):
-            step_output.update({i[0]:i[1] for i in sub_losses})
+            step_output.update({i[0]:i[1].detach().cpu() for i in sub_losses})
         self.validation_step_outputs.append(step_output)
         
         return step_output
@@ -304,7 +304,7 @@ class ModelLightningModule(pl.LightningModule):
             "loss": loss.detach().cpu(),
         }
         if self.cfg.get("train.losses.log_sub_losses"):
-            step_output.update({i[0]:i[1] for i in sub_losses})
+            step_output.update({i[0]:i[1].detach().cpu() for i in sub_losses})
         self.test_step_outputs.append(step_output)
         
         return step_output

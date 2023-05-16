@@ -91,6 +91,9 @@ class Config:
 
     def _merge_configs(self, base_cfg: dict, user_cfg: dict):
         """ Merges user config with base config"""
+        if base_cfg is None:
+            base_cfg = {}
+
         for key, value in user_cfg.items():
             # Load model config after merge
             if key == "model":
@@ -103,7 +106,8 @@ class Config:
                 if key in base_cfg:
                     base_cfg[key] = value
                 else:
-                    warnings.warn(f"Key '{key}' not matched to config. Skipping.")
+                    base_cfg[key] = value
+                    warnings.warn(f"New (key,value) pair added to config: ({key},{value})")
         return base_cfg
 
     def _load_model_config(self, cfg: dict):

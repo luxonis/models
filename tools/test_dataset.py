@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-cfg", "--config", type=str, required=True, help="Configuration file to use")
+    parser.add_arguemnt("-v", "--view", type=str, defualt="val", help="Dataset view to use")
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -26,7 +27,7 @@ if __name__ == "__main__":
         
         train_augmentations = ValAugmentations()
         
-        loader_train = LuxonisLoader(dataset, view='val')
+        loader_train = LuxonisLoader(dataset, view=args.view)
         loader_train.map(loader_train.auto_preprocess)
         loader_train.map(train_augmentations)
         pytorch_loader_train = loader_train.to_pytorch(

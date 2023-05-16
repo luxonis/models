@@ -7,6 +7,6 @@ parser.add_argument("--override", default="", type=str, help="Manually override 
 args = parser.parse_args()
 
 config = Config(args.config)
-# config.override_config(args.override)
+config.override_config(args.override)
 # config.validate_config_exporter()
 print(config)

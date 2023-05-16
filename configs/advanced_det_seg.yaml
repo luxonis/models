@@ -14,7 +14,4 @@ model:
         params:
 
 dataset:
-  local_path: /home/klemen/luxonis/model_debug/datasets/coco-2017-person #(string)
-
-train:
-  batch_size: 4
+  local_path: /home/klemen/luxonis/model_debug/datasets/coco-2017-person

@@ -228,7 +228,7 @@ trainer.override_val_augmentations(aug=my_val_aug)
 To run training in another thread use this:
 ```python
 trainer = Trainer(args_dict, cfg)
-trainer.run(new_thread=True)
+trainer.train(new_thread=True)
 ```
 
 ## Inference

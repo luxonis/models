@@ -14,7 +14,8 @@ model:
         params:
 
 dataset:
-  local_path: /home/paperspace/coco-people-small
+  team_name: # TODO
+  dataset_name: # TODO
   
 train:
   preprocessing:

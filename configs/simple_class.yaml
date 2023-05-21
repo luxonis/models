@@ -16,4 +16,5 @@ model:
         params:
 
 dataset:
-  local_path: /home/klemen/luxonis/model_debug/datasets/coco-2017-person
+  team_name: # TODO
+  dataset_name: # TODO

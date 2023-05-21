@@ -120,8 +120,10 @@ To store and load the data we use LuxonisDataset and LuxonisLoader. For configur
 
 ```yaml
 dataset:
-  local_path: null # path to local dataset (string|null)
-  s3_path: null # path to s3 bucket (string|null)
+  team_name: null # team under which you can find all datasets (string)
+  dataset_name: null # name of the dataset (string)
+  bucket_type: local # underlying storage for images, which can be local or an AWS bucket (local|aws)
+  override_bucket_type: False # option to change underlying storage from saved setting in DB (bool)
   train_view: train # view to use for training (string)
   val_view: val # view to use for validation (string)
   test_view: test # view to use for testing (string)

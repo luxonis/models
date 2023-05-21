@@ -2,7 +2,7 @@ model:
   name: SimpleSegmentation
   type: 
   pretrained:
-
+  
   backbone:
     name: ResNet18
     pretrained:

@@ -70,8 +70,7 @@ def postprocess_for_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn
         return output, labels
     elif isinstance(head.type, SemanticSegmentation):
         if head.n_classes != 1:
-            labels = torch.argmax(labels, dim=1, keepdim=True)
-            output = torch.argmax(output, dim=1, keepdim=True)
+            labels = torch.argmax(labels, dim=1)
         return output, labels
     elif isinstance(head.type, ObjectDetection):
         if isinstance(head, YoloV6Head):
@@ -83,7 +82,7 @@ def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Modul
     """ Performs post-processing on ouptut and labels for YoloV6 output"""
     kwargs = {"conf_thres":0.001, "iou_thres": 0.6}
     output_nms = yolov6_out2box(output, head, **kwargs)
-    img_shape = head.original_in_shape[2:]
+    image_size = head.original_in_shape[2:]
 
     output_list = []
     labels_list = []
@@ -96,8 +95,8 @@ def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Modul
 
         curr_labels = labels[labels[:,0]==i]
         curr_bboxs = xywh2xyxy_coco(curr_labels[:, 2:])
-        curr_bboxs[:, 0::2] *= img_shape[1]
-        curr_bboxs[:, 1::2] *= img_shape[0]
+        curr_bboxs[:, 0::2] *= image_size[1]
+        curr_bboxs[:, 1::2] *= image_size[0]
         labels_list.append({
             "boxes": curr_bboxs,
             "labels": curr_labels[:,1]

@@ -1,7 +1,9 @@
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
 import warnings
+import cv2
+import torch.nn as nn
+import numpy as np
 from copy import deepcopy
 from pprint import pprint
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
@@ -16,7 +18,6 @@ from luxonis_train.utils.losses import *
 from luxonis_train.utils.metrics import init_metrics, postprocess_for_metrics
 from luxonis_train.utils.head_type import *
 from luxonis_train.utils.general import *
-
 from luxonis_train.utils.visualization import *
 
 
@@ -88,17 +89,21 @@ class ModelLightningModule(pl.LightningModule):
         loss_checkpoint = ModelCheckpoint(
             monitor = "val_loss/loss",
             dirpath = self.min_val_loss_checkpoints_path,
-            filename = "{val_loss:.4f}_{val_"+self.main_metric+":.4f}_{epoch:02d}_" + self.model_name,
+            filename = "loss={val_loss/loss:.4f}_"+self.main_metric+"={val_metric/"+ \
+                self.main_metric+":.4f}_{epoch:02d}_" + self.model_name,
+            auto_insert_metric_name=False,
             save_top_k = self.cfg.get("train.callbacks.model_checkpoint.save_top_k"),
-            mode = "min"
+            mode = "min",
         )
 
         metric_checkpoint = ModelCheckpoint(
             monitor = f"val_metric/{self.main_metric}",
             dirpath = self.best_val_metric_checkpoints_path,
-            filename = "{val_"+self.main_metric+":.4f}_{val_loss:.4f}_{epoch:02d}_" + self.model_name,
+            filename = self.main_metric+"={val_metric/"+self.main_metric+ \
+                ":.4f}_loss={val_loss/loss:.4f}_{epoch:02d}_" + self.model_name,
+            auto_insert_metric_name=False,
             save_top_k = self.cfg.get("train.callbacks.model_checkpoint.save_top_k"),
-            mode = "max"
+            mode = "max",
         )
         
         lr_monitor = LearningRateMonitor(logging_interval="step")
@@ -188,12 +193,25 @@ class ModelLightningModule(pl.LightningModule):
 
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
-            with torch.no_grad():         
-                if self.cfg.get("train.train_metrics_interval") and self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0 and \
-                    self.current_epoch != 0:
+            with torch.no_grad(): 
+                train_metric_interval = self.cfg.get("train.train_metrics_interval")
+                if train_metric_interval != -1 and self.current_epoch % train_metric_interval == 0 and \
+                    self.current_epoch != 0:     
                     output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
                     curr_metrics.update(output_processed, curr_label_processed)
+
+                    # images for visualization and logging
+                    if batch_idx == 0:
+                        label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
+                        output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
+                        merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
+                        
+                        num_log_images = self.cfg.get("train.num_log_images")
+                        log_imgs = merged_imgs[:num_log_images]
+
+                        for i, img in enumerate(log_imgs):
+                            self.logger.log_image(f"train/{curr_head_name}_img{i}", img, step=self.current_epoch)
 
         step_output = {
             "loss": loss.detach().cpu(),
@@ -233,30 +251,17 @@ class ModelLightningModule(pl.LightningModule):
             output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
-
-            # if batch_idx == 0: # log images of the first batch
-            #     labels = torch.argmax(curr_label, dim=1)
-            #     predictions = torch.argmax(output, dim=1)
-            #     # TODO: also read-in and draw on images class names instead of indexes
-            #     images_to_log = []
-            #     for i, (img, label, prediction) in enumerate(zip(inputs, labels, predictions)):
-            #         label = int(label)
-            #         prediction = int(prediction)
-            #         img = unnormalize(img, to_uint8=True)
-            #         img = torch_to_cv2(img)
-            #         img_data = {"label":f"{label}", "prediction":f"{prediction}"}
-            #         images_to_log.append(draw_on_image(img, img_data, curr_head))
-            #         if i>=2: # only log a few images
-            #             break
-
-            #     # use log_images()
-            #     #self.logger.log_images(curr_head_name, np.array(images_to_log), step=self.current_epoch)
-
-            #     # use log_image()
-            #     concatenate = images_to_log.pop(0)
-            #     while images_to_log != []:
-            #         concatenate = np.concatenate((concatenate, images_to_log.pop(0)), axis=1)
-            #     self.logger.log_image(curr_head_name, concatenate, step=self.current_epoch)
+            
+            # images for visualization and logging
+            if batch_idx == 0:
+                label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
+                output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
+                merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
+                num_log_images = self.cfg.get("train.num_log_images")
+                log_imgs = merged_imgs[:num_log_images]
+                
+                for i, img in enumerate(log_imgs):
+                    self.logger.log_image(f"val/{curr_head_name}_img{i}", img, step=self.current_epoch)
         
         step_output = {
             "loss": loss.detach().cpu(),
@@ -296,6 +301,18 @@ class ModelLightningModule(pl.LightningModule):
             curr_metrics = self.metrics[curr_head_name]["test_metrics"]
             curr_metrics.update(output_processed, curr_label_processed)
         
+            # images for visualization and logging
+            if batch_idx == 0:
+                label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
+                output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
+                merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
+                
+                num_log_images = self.cfg.get("train.num_log_images")
+                log_imgs = merged_imgs[:num_log_images]
+
+                for i, img in enumerate(log_imgs):
+                    self.logger.log_image(f"test/{curr_head_name}_img{i}", img, step=self.current_epoch)
+
         step_output = {
             "loss": loss.detach().cpu(),
         }
@@ -318,8 +335,9 @@ class ModelLightningModule(pl.LightningModule):
                 self.log(f"train_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console
-        if self.cfg.get("train.train_metrics_interval") and self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0 and \
-            self.current_epoch != 0:
+        train_metric_interval = self.cfg.get("train.train_metrics_interval")
+        if train_metric_interval != -1 and self.current_epoch % train_metric_interval == 0 and \
+            self.current_epoch != 0:    
             for curr_head_name in self.metrics:
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
                 metric_results[curr_head_name] = curr_metrics

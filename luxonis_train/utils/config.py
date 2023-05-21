@@ -42,7 +42,7 @@ class Config:
                     f"(at level '{key if not iter_success else last_key}'). Skipping.")
                 continue
             # check if value represents something other than string
-            if value.isdigit():
+            if value.lstrip("-").isdigit():
                 value = int(value)
             elif value.lower() == "true":
                 value = True
@@ -103,11 +103,10 @@ class Config:
                 base_cfg[key] = self._merge_configs(base_cfg.get(key, {}), value)
             else:
                 # Otherwise, overwrite the value in the base dictionary
-                if key in base_cfg:
-                    base_cfg[key] = value
-                else:
-                    base_cfg[key] = value
+                if key not in base_cfg:
                     warnings.warn(f"New (key,value) pair added to config: ({key},{value})")
+                base_cfg[key] = value
+
         return base_cfg
 
     def _load_model_config(self, cfg: dict):

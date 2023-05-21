@@ -43,8 +43,9 @@ train:
   accumulate_grad_batches: 1 # number of batches for gradient accumulation (int)
   epochs: 100 # number of training epochs (int)
   num_workers: 2 # number of workers for data loading (int)
-  train_metrics_interval: 2 # frequency of computing metrics on train data (int)
+  train_metrics_interval: 1 # frequency of computing metrics on train data, -1 if don't perform (int)
   validation_interval: 1 # frequency of computing metrics on validation data (int)
+  num_log_images: 4 # maximum number of images to visualize and log (int) 
   skip_last_batch: True # bool if skip last batch while training (bool)
   main_head_index: 0 # index of the head which is used for checkpointing based on best metric (int)
   use_rich_text: True # bool if use rich text for console printing

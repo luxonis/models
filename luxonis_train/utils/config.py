@@ -42,7 +42,7 @@ class Config:
                     f"(at level '{key if not iter_success else last_key}'). Skipping.")
                 continue
             # check if value represents something other than string
-            if value.isdigit():
+            if value.lstrip("-").isdigit():
                 value = int(value)
             elif value.lower() == "true":
                 value = True

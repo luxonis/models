@@ -197,9 +197,10 @@ class ModelLightningModule(pl.LightningModule):
 
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
-            with torch.no_grad():         
-                if self.cfg.get("train.train_metrics_interval") and self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0 and \
-                    self.current_epoch != 0:
+            with torch.no_grad(): 
+                train_metric_interval = self.cfg.get("train.train_metrics_interval")
+                if train_metric_interval != -1 and self.current_epoch % train_metric_interval == 0 and \
+                    self.current_epoch != 0:     
                     output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
                     curr_metrics.update(output_processed, curr_label_processed)
@@ -338,8 +339,9 @@ class ModelLightningModule(pl.LightningModule):
                 self.log(f"train_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console
-        if self.cfg.get("train.train_metrics_interval") and self.current_epoch % self.cfg.get("train.train_metrics_interval") == 0 and \
-            self.current_epoch != 0:
+        train_metric_interval = self.cfg.get("train.train_metrics_interval")
+        if train_metric_interval != -1 and self.current_epoch % train_metric_interval == 0 and \
+            self.current_epoch != 0:    
             for curr_head_name in self.metrics:
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
                 metric_results[curr_head_name] = curr_metrics

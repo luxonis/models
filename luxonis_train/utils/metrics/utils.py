@@ -69,7 +69,7 @@ def postprocess_for_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn
         return output, labels
     elif isinstance(head.type, SemanticSegmentation):
         if head.n_classes != 1:
-            labels = torch.argmax(labels, dim=1, keepdim=True)
+            labels = torch.argmax(labels, dim=1)
         return output, labels
     elif isinstance(head.type, ObjectDetection):
         if isinstance(head, YoloV6Head):

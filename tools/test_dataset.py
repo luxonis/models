@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-cfg", "--config", type=str, required=True, help="Configuration file to use")
-    parser.add_arguemnt("-v", "--view", type=str, defualt="val", help="Dataset view to use")
+    parser.add_argument("-v", "--view", type=str, default="val", help="Dataset view to use")
     args = parser.parse_args()
 
     with open(args.config) as f:

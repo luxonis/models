@@ -86,7 +86,8 @@ class Trainer:
                 loader_train,
                 batch_size=self.cfg.get("train.batch_size"),
                 num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=loader_train.collate_fn
+                collate_fn=loader_train.collate_fn,
+                drop_last=self.cfg.get("train.skip_last_batch")
             )
 
             if self.val_augmentations == None:

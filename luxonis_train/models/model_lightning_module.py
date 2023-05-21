@@ -166,10 +166,6 @@ class ModelLightningModule(pl.LightningModule):
         inputs = train_batch[0]
         labels = train_batch[1]
         
-        if self.cfg.get("train.skip_last_batch"):
-            if inputs.shape[0] != self.cfg.get("train.batch_size"):
-                return None
-
         outputs = self.forward(inputs)
 
         loss = 0

@@ -1,8 +1,7 @@
 model:
   name: SimpleSegmentation
   type: 
-  pretrained:
-
+  pretrained: output/7-teal-vicuna/min_val_loss/val_loss=0.0000_val_mIoU=0.0000_epoch=12_SimpleSegmentation.ckpt
   backbone:
     name: ResNet18
     pretrained:

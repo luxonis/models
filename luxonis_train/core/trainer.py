@@ -6,9 +6,9 @@ from typing import Union
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
 from pytorch_lightning.callbacks import RichProgressBar
-from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_ml import *
 
+from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
 from luxonis_train.utils.config import Config
 from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations

@@ -14,7 +14,7 @@ model:
         params:
 
 dataset:
-  local_path: /home/paperspace/coco-people-small
+  local_path: /home/klemen/test_datasets/coco_person_keypoints/
   
 train:
   preprocessing:

@@ -76,15 +76,15 @@ class Inferer(pl.LightningModule):
             )
             loader_val.map(loader_val.auto_preprocess)
             loader_val.map(self.val_augmentations)
-            # TODO: Do we want this configurable?
+
             pytorch_loader_val = loader_val.to_pytorch(
-                batch_size=1, num_workers=1
+                batch_size=self.cfg.get("train.batch_size"),
+                num_workers=self.cfg.get("train.num_workers")
             )
             
             with torch.no_grad():
                 for data in pytorch_loader_val:
-                    inputs = data[0].float()
-                    img = unnormalize(inputs[0], to_uint8=True)
+                    inputs = data[0]
                     labels = data[1]
                     outputs = self.forward(inputs)
 
@@ -93,19 +93,17 @@ class Inferer(pl.LightningModule):
                         curr_head_name = get_head_name(curr_head, i)
                         curr_label = get_current_label(curr_head.type, labels)
 
-                        img_labels = draw_on_image(img, curr_label, curr_head, is_label=True)
-                        img_labels = torch_img_to_numpy(img_labels)
-                        img_outputs = draw_on_image(img, output, curr_head)
-                        img_outputs = torch_img_to_numpy(img_outputs)
+                        label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
+                        output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
+                        merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
                         
-                        out_img = cv2.hconcat([img_labels, img_outputs])
                         if display:
-                            plt.imshow(out_img)
-                            plt.title(curr_head_name+f"\n(labels left, outputs right)")
-                            plt.show()
+                            for img in merged_imgs:
+                                plt.imshow(img)
+                                plt.title(curr_head_name+f"\n(labels left, outputs right)")
+                                plt.show()
                         if save:
-                            # TODO: What do we want to save?
-                            pass
+                            raise NotImplementedError()
 
     def infer_image(self, img: torch.Tensor, display: bool = True, save: bool = False):
         """Runs inference on a single image

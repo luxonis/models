@@ -16,7 +16,4 @@ model:
         params:
 
 dataset:
-  local_path: /home/klemen/test_datasets/coco_person_keypoints/ #(string)
-
-train:
-  batch_size: 4
+  local_path: /home/klemen/test_datasets/coco_person_keypoints/ 

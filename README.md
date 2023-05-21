@@ -111,7 +111,7 @@ logger:
   is_mlflow: False # bool if use MLFlow (bool)
   mlflow_tracking_uri: null # name of MLFlow tracking uri (string|null)
   # is_sweep: False # bool if is sweep (not implemented yet) (bool)
-  logged_hyperparams: ["train.epochs", "train.batch_size", "train.optimizers.optimizer.params.lr"] # list of hyperparameters to log (list)
+  logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 ```
 ### Dataset
 To store and load the data we use LuxonisDataset and LuxonisLoader. For configuring path to the dataset and othere dataset related parameters use this:
@@ -175,12 +175,9 @@ train:
     optimizer:
       name: Adam
       params:
-        lr: 0.001
-        weight_decay: 0.01
     scheduler:
       name: ConstantLR
       params:
-        factor: 1
   
   freeze_modules: # defines which modules you want to freeze (not train)
     backbone: False # bool if freeze backbone (bool)
@@ -228,7 +225,7 @@ trainer.override_val_augmentations(aug=my_val_aug)
 To run training in another thread use this:
 ```python
 trainer = Trainer(args_dict, cfg)
-trainer.run(new_thread=True)
+trainer.train(new_thread=True)
 ```
 
 ## Inference

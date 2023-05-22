@@ -155,6 +155,9 @@ def _draw_on_image(img: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
             masks = data.bool()
         else:
             masks = seg_output_to_bool(data)
+        # push both inputs to function to cpu to get it working, probably a bug in torchvision
+        img = img.cpu()
+        masks = masks.cpu()
         img = draw_segmentation_masks(img, masks, alpha=0.4)
         return img
 
@@ -197,7 +200,7 @@ def _draw_on_image(img: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
 
 def seg_output_to_bool(data: torch.Tensor, binary_threshold: float = 0.5):
     """ Converts seg head output to 2D boolean mask for visualization"""
-    masks = torch.empty_like(data, dtype=torch.bool)
+    masks = torch.empty_like(data, dtype=torch.bool, device=data.device)
     if data.shape[0] == 1:
         classes = torch.sigmoid(data)
         masks[0] = classes >= binary_threshold

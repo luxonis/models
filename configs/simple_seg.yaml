@@ -4,11 +4,11 @@ model:
   pretrained:
   
   backbone:
-    name: ResNet18
+    name: ContextSpatial #ResNet18
     pretrained:
 
   heads:
-    - name: SegmentationHead
+    - name: BiSeNetHead #SegmentationHead
       params:
         n_classes: null
       loss: 

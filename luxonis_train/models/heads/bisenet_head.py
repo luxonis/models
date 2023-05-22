@@ -24,7 +24,7 @@ class BiSeNetHead(nn.Module):
         self.upscale = nn.PixelShuffle(upscale_factor)
 
     def forward(self, x):
-        x = self.conv_1x1(self.conv_3x3(x))
+        x = self.conv_1x1(self.conv_3x3(x[-1]))
         return self.upscale(x)
 
 if __name__ == "__main__":

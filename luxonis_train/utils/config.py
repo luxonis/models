@@ -172,7 +172,7 @@ class Config:
         key = sub_keys[0] # needed if search only one level deep
         for key in sub_keys[:-1]:
             if isinstance(sub_dict, list): # check if key should be list index 
-                if key.lstrip("-").isdigit():
+                if key.isdigit():
                     key = int(key)
                     # list index out of bounds
                     if key >= len(sub_dict) or key < 0:
@@ -199,12 +199,13 @@ class Config:
                 key = last_key
                 success = False
         elif isinstance(sub_dict, list):
-            if sub_keys[-1].lstrip("-").isdigit():
+            if sub_keys[-1].isdigit():
                 last_key = int(sub_keys[-1])
                 # list index out of bounds
                 if last_key >= len(sub_dict) or last_key < 0:
                     success = False
             else:
+                key = sub_keys[-1]
                 success = False
         else:
             key = sub_keys[-1]
@@ -248,7 +249,10 @@ class Config:
                 head["params"]["n_classes"] = dataset_n_classes
 
                 # also set n_classes to loss params
-                if not("paras" in head["loss"] and head["loss"]["params"]):
+                if not ("loss" in head and head["loss"]):
+                    # loss definition should be present in every head
+                    raise KeyError("Loss must be defined for every head.")
+                if not("params" in head["loss"] and head["loss"]["params"]):
                     head["loss"]["params"] = {}
                 head["loss"]["params"]["n_classes"] = dataset_n_classes
 
@@ -266,12 +270,6 @@ class Config:
 
             if "params" in model_cfg and model_cfg["params"]:
                 warnings.warn("Model-wise parameters won't be taken into account if you don't specify model type.")
-
-        for head in model_cfg["heads"]:
-            if not("n_classes" in head["params"] and head["params"]["n_classes"]):
-                raise KeyError("Head 'n_classes' param must be defined for every head.")
-            if not ("loss" in head and head["loss"]):
-                raise KeyError("Loss must be defined for every head.")
 
         if model_cfg["pretrained"] and model_cfg["backbone"]["pretrained"]:
             warnings.warn("Weights of the backbone will be overridden by whole model weights.")

@@ -329,6 +329,74 @@ class ConfigValuesTestCases(unittest.TestCase):
             with self.assertRaises(KeyError):
                 cfg = Config(user_cfg_dict2)
 
+    def test_freeze_modules(self):
+        """ Test sending incorrect number of freeze heads"""
+        user_cfg_dict = {
+            "model":{
+                "name":"TestModel",
+                "type": None,
+                "pretrained": None,
+                "backbone":{
+                    "name": "MicroNet",
+                    "pretrained": None,
+                },
+                "heads":[
+                    {
+                        "name": "ClassificationHead",
+                        "loss": {
+                            "name": "CrossEntropyLoss",
+                        }
+                    }
+                ]
+            },
+            "dataset":{
+                "local_path": DATASET_PATH
+            },
+            "train": {
+                "freeze_modules": {
+                    "heads": [True, True]
+                }
+            }
+        }
+        with self.assertRaises(KeyError):
+            cfg = Config(user_cfg_dict)
+
+    def test_loss_weights(self):
+        """ Test sending incorrect number of loss weights"""
+        user_cfg_dict = {
+            "model":{
+                "name":"TestModel",
+                "type": None,
+                "pretrained": None,
+                "backbone":{
+                    "name": "MicroNet",
+                    "pretrained": None,
+                },
+                "heads":[
+                    {
+                        "name": "ClassificationHead",
+                        "loss": {
+                            "name": "CrossEntropyLoss",
+                        }
+                    }
+                ]
+            },
+            "dataset":{
+                "local_path": DATASET_PATH
+            },
+            "train": {
+                "losses": {
+                    "weights": [1,1]
+                }
+            }
+        }
+        with self.assertRaises(KeyError):
+            cfg = Config(user_cfg_dict)
+
+    def test_override(self):
+        # TODO
+        pass
+
 
 if __name__ == "__main__":
     unittest.main()

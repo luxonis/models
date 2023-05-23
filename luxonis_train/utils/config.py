@@ -226,7 +226,8 @@ class Config:
             team_name=self._data["dataset"]["team_name"],
             dataset_name=self._data["dataset"]["dataset_name"]
         ) as dataset:
-            dataset_n_classes = len(dataset.classes)
+            classes, classes_by_task = dataset.get_classes()
+            dataset_n_classes = len(classes)
             
             if dataset_n_classes == 0:
                 raise ValueError("Provided dataset doesn't have any classes.")

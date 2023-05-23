@@ -36,3 +36,4 @@
   - Params:
     - context_backbone: str # backbone used
     - in_channels: int # 3 in most cases
+- TODO: add DeepLabV3+ ([source](https://github.com/VainF/DeepLabV3Plus-Pytorch))

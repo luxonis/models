@@ -23,6 +23,12 @@ class Config:
     def __repr__(self):
         return json.dumps(self._data, indent=4)
 
+    @classmethod
+    def clear_instance(cls):
+        """ Clears all singleton instances, should be only used for unit-testing"""
+        if hasattr(cls, "instance"):
+            del cls.instance
+
     def override_config(self, args: str):
         """ Overrides config values with ones specifid by --override string """
         if len(args) == 0:
@@ -34,12 +40,9 @@ class Config:
         for i in range(0, len(items), 2):
             key_merged = items[i]
             value = items[i+1]
-            (iter_success, key), last_key, last_sub_dict = self._config_iterate(key_merged)
-            last_matched = (isinstance(last_sub_dict, dict) and last_key in last_sub_dict) or \
-                (isinstance(last_sub_dict, list) and 0<=last_key<len(last_sub_dict))
-            if not(iter_success and last_matched):
-                warnings.warn(f"Key '{key_merged}' not matched to config "+
-                    f"(at level '{key if not iter_success else last_key}'). Skipping.")
+            last_key, last_sub_dict = self._config_iterate(key_merged, only_warn=True)
+            # should skip if _config_iterate returns None
+            if last_key is None and last_sub_dict is None:
                 continue
             # check if value represents something other than string
             if value.lstrip("-").isdigit():
@@ -52,29 +55,25 @@ class Config:
 
     def get(self, key_merged: str):
         """ Returns value from config based on the key """
-        (iter_success, key), last_key, last_sub_dict = self._config_iterate(key_merged)
-        last_matched = (isinstance(last_sub_dict, dict) and last_key in last_sub_dict) or \
-            (isinstance(last_sub_dict, list) and 0<=last_key<len(last_sub_dict))
-
-        if not(iter_success and last_matched):
-            raise KeyError(f"Key '{key_merged}' not matched to config "+
-                f"(at level '{key if not iter_success else last_key}')")
+        last_key, last_sub_dict = self._config_iterate(key_merged, only_warn=False)
         return last_sub_dict[last_key]
 
     def validate_config_exporter(self):
         """ Validates 'exporter' block in config """
         if not self._data["exporter"]:
-            raise KeyError("No 'exporter' section in config specified.")
+            raise ValueError("No 'exporter' section in config specified.")
 
         if not self._data["exporter"]["export_weights"]:
-            raise KeyError("No 'export_weights' speficied in config file.")
-
+            raise ValueError("No 'export_weights' speficied in config file.")
+    
     def _load(self, cfg: Union[str, dict]):
         """ Performs complete loading and validation of the config """
         with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
             base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
         if isinstance(cfg, str):
+            if not os.path.isfile(cfg):
+                raise ValueError("Provided file path doesn't exists.")
             with open(cfg, "r") as f:
                 user_cfg = yaml.load(f, Loader=yaml.SafeLoader)
         elif isinstance(cfg, dict):
@@ -132,12 +131,16 @@ class Config:
         if model_type.startswith("yolov6"):
             return self._load_yolov6_cfg(model_cfg)
         else:
-            raise RuntimeError(f"{model_type} not supported")
+            raise ValueError(f"{model_type} not supported")
 
     def _load_yolov6_cfg(self, model_cfg: dict):
         """ Loads predefined YoloV6 config from db"""
         predefined_cfg_path = model_cfg["type"].lower() +".yaml"
-        with open(os.path.join(self._db_path, predefined_cfg_path), "r") as f:
+        full_path = os.path.join(self._db_path, predefined_cfg_path)
+        if not os.path.isfile(full_path):
+            raise ValueError(f"There is no predefined config for this {model_cfg['type']} type.")
+
+        with open(full_path, "r") as f:
             predefined_cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
         model_cfg["backbone"] = predefined_cfg["backbone"]
@@ -159,25 +162,62 @@ class Config:
 
         return model_cfg
 
-    def _config_iterate(self, key_merged: str):
-        """ Iterates over config and returns the value if exists, otherwise returns success=False """
+    def _config_iterate(self, key_merged: str, only_warn: bool = False):
+        """ Iterates over config based on key_merged and returns last key and 
+            sub dict if it mathces structure 
+        """
         sub_keys = key_merged.split(".")
         sub_dict = self._data
         success = True
-        key = sub_keys[0] # needed if only search only one level deep
+        key = sub_keys[0] # needed if search only one level deep
         for key in sub_keys[:-1]:
-            if isinstance(sub_dict, list): # check if key should be list index
-                key = int(key)
-                if key >= len(sub_dict) or key < 0:
+            if isinstance(sub_dict, list): # check if key should be list index 
+                if key.lstrip("-").isdigit():
+                    key = int(key)
+                    # list index out of bounds
+                    if key >= len(sub_dict) or key < 0:
+                        success = False
+                else:
                     success = False
-                    break
             elif key not in sub_dict:
+                # key not present in sub_dict
                 success = False
-                break
-            sub_dict = sub_dict[key]
 
-        last_key = sub_keys[-1] if isinstance(sub_dict, dict) else int(sub_keys[-1])
-        return (success, key), last_key, sub_dict
+            if not success:
+                if only_warn:
+                    warnings.warn(f"Key '{key_merged}' not matched to config (at level '{key}'). Skipping.") 
+                    return None, None
+                else:
+                    raise KeyError(f"Key '{key_merged}' not matched to config (at level '{key}')")
+
+            sub_dict = sub_dict[key]
+        # return last_key in correct format (int or string)
+        success = True
+        if isinstance(sub_dict, dict):
+            last_key = sub_keys[-1]
+            if last_key not in sub_dict:
+                key = last_key
+                success = False
+        elif isinstance(sub_dict, list):
+            if sub_keys[-1].lstrip("-").isdigit():
+                last_key = int(sub_keys[-1])
+                # list index out of bounds
+                if last_key >= len(sub_dict) or last_key < 0:
+                    success = False
+            else:
+                success = False
+        else:
+            key = sub_keys[-1]
+            success = False
+
+        if not success:
+            if only_warn:
+                warnings.warn(f"Key '{key_merged}' not matched to config (at level '{key}'). Skipping.") 
+                return None, None
+            else:
+                raise KeyError(f"Key '{key_merged}' not matched to config (at level '{key}')")
+
+        return last_key, sub_dict
 
     def _validate_dataset_classes(self):
         """ Validates config to used datasets, overrides n_classes if needed """
@@ -185,8 +225,11 @@ class Config:
             team_name=self._data["dataset"]["team_name"],
             dataset_name=self._data["dataset"]["dataset_name"]
         ) as dataset:
-            classes, classes_by_task = dataset.get_classes()
-            dataset_n_classes = len(classes)
+            dataset_n_classes = len(dataset.classes)
+            
+            if dataset_n_classes == 0:
+                raise ValueError("Provided dataset doesn't have any classes.")
+            
             # TODO: implement per task number of classes
             # for key in dataset.classes_by_task:
             #     print(key, len(dataset.classes_by_task[key]))

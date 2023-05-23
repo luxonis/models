@@ -41,7 +41,7 @@ class ConfigDictTestCases(unittest.TestCase):
         """ Test passing dir to Config"""
         user_cfg_dict = {
             "model":{
-                "name":"SimpleDetection",
+                "name":"TestModel",
                 "type": None,
                 "pretrained": None,
                 "backbone":{
@@ -98,7 +98,7 @@ class ConfigValuesTestCases(unittest.TestCase):
                 curr_type = f"yolov6-{version}"
                 user_cfg_dict = {
                     "model":{
-                        "name":"SimpleDetection",
+                        "name":"TestModel",
                         "type": curr_type,
                         "pretrained": None,
                         "params":{
@@ -122,7 +122,7 @@ class ConfigValuesTestCases(unittest.TestCase):
                 reset_env()
                 user_cfg_dict = {
                     "model":{
-                        "name":"SimpleDetection",
+                        "name":"TestModel",
                         "type": curr_type,
                         "pretrained": None,
                         "params":{
@@ -141,7 +141,7 @@ class ConfigValuesTestCases(unittest.TestCase):
         empty_dataset_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "empty_dataset"))
         user_cfg_dict = {
             "model":{
-                "name":"SimpleDetection",
+                "name":"TestModel",
                 "type": "yolov6-n",
                 "pretrained": None,
                 "params":{
@@ -159,7 +159,7 @@ class ConfigValuesTestCases(unittest.TestCase):
         """ Test setting incorrect n_classes"""
         user_cfg_dict = {
             "model":{
-                "name":"SimpleDetection",
+                "name":"TestModel",
                 "type": "yolov6-n",
                 "pretrained": None,
                 "params":{
@@ -177,13 +177,13 @@ class ConfigValuesTestCases(unittest.TestCase):
         """ Test creating new key-value pair in config """
         user_cfg_dict = {
             "model":{
-                    "name":"SimpleDetection",
-                    "type": "yolov6-n",
-                    "pretrained": None,
-                    "params":{
-                        "n_classes": None
-                    }
-                },
+                "name":"TestModel",
+                "type": "yolov6-n",
+                "pretrained": None,
+                "params":{
+                    "n_classes": None
+                }
+            },
             "dataset":{
                 "local_path": DATASET_PATH
             },
@@ -205,49 +205,129 @@ class ConfigValuesTestCases(unittest.TestCase):
         """ Test Config get() method on different types and different depths"""
         user_cfg_dict = {
             "model":{
-                    "name":"SimpleDetection",
-                    "type": "yolov6-n",
-                    "pretrained": None,
-                    "params":{
-                        "n_classes": None
-                    }
-                },
+                "name":"TestModel",
+                "type": "yolov6-n",
+                "pretrained": None,
+                "params":{
+                    "n_classes": None
+                }
+            },
             "dataset":{
                 "local_path": DATASET_PATH
             },
         }
         cfg = Config(user_cfg_dict)
-        self.assertEqual(cfg.get("trainer.num_sanity_val_steps"), 2)
-        self.assertEqual(cfg.get("dataset.local_path"), DATASET_PATH)
-        self.assertEqual(cfg.get("dataset.train_view"), "train")
-        self.assertEqual(cfg.get("train.batch_size"), 32)
-        self.assertEqual(cfg.get("train.skip_last_batch"), True)
-        self.assertEqual(cfg.get("train.preprocessing.train_image_size"), [256,256])
+        self.assertEqual(cfg.get("trainer.num_sanity_val_steps"), 2) # one level deep
+        self.assertEqual(cfg.get("dataset.local_path"), DATASET_PATH) # one level deep
+        self.assertEqual(cfg.get("dataset.train_view"), "train") # get string
+        self.assertEqual(cfg.get("train.batch_size"), 32) # get int
+        self.assertEqual(cfg.get("train.skip_last_batch"), True) # get boolean
+        self.assertEqual(cfg.get("train.preprocessing.train_image_size"), [256,256]) # get int array
+        self.assertEqual(cfg.get("train.preprocessing.augmentations.0"), {"name": "Normalize", "params":{}}) # get dict
 
     def test_incorrect_get_key(self):
         """ Test using incorrect key in config get() method"""
         user_cfg_dict = {
             "model":{
-                    "name":"SimpleDetection",
-                    "type": "yolov6-n",
-                    "pretrained": None,
-                    "params":{
-                        "n_classes": None
-                    }
-                },
+                "name":"TestModel",
+                "type": "yolov6-n",
+                "pretrained": None,
+                "params":{
+                    "n_classes": None
+                }
+            },
             "dataset":{
                 "local_path": DATASET_PATH
             },
         }
         cfg = Config(user_cfg_dict)
-        keys = ["trainer.key1", "train.preprocessing.augmentations.0.key2",
-            "train.preprocessing.augmentations.key2.0", "train.optimizers.optimizer.name.key3",
-            "exporter.openvino.scale_values.0.key4", "logger.logged_hyperparams.2"]
+        keys = [
+            "trainer.key1", # key doesn't exist in dict  (one level deep)
+            "train.preprocessing.augmentations.0.key2", # key doesn't exist in dict 
+            "train.preprocessing.augmentations.key2.0", # list index is string
+            "train.optimizers.optimizer.name.key3", # key doesn't exist in dict (too deep)
+            "exporter.openvino.scale_values.0.key4", # key doesn't exist in dict (too deep)
+            "logger.logged_hyperparams.2" # list index out of bounds
+            "train.preprocessing.augmentations.-1.name" # list index negative (middle)
+            "logger.logged_hyperparams.-1" # list index negative (end)
+        ]
+        keys_should_fail = ["key1", "key2", "key2", "key3", "key4", "2", "-1", "-1"]
         for i, key in enumerate(keys):
             with self.subTest(i=i):
-                with self.assertRaises(KeyError):
+                with self.assertRaises(KeyError) as cm:
                     value = cfg.get(key)
-                    print(value)
+                    self.assertIn(f"at level '{keys_should_fail[i]}'", str(cm)) 
+
+    def test_no_nclasses(self):
+        """ Test if no n_classes/params are defined in user config"""
+        user_cfg_dict = {
+            "model":{
+                "name":"TestModel",
+                "type": None,
+                "pretrained": None,
+                "backbone":{
+                    "name": "MicroNet",
+                    "pretrained": None,
+                },
+                "heads":[
+                    {
+                        "name": "ClassificationHead",
+                        "loss": {
+                            "name": "CrossEntropyLoss",
+                        }
+                    }
+                ]
+            },
+            "dataset":{
+                "local_path": DATASET_PATH
+            },
+        }
+        cfg = Config(user_cfg_dict)
+
+    def test_no_loss(self):
+        """ Test if no loss is defined for a head or additional_head"""
+        user_cfg_dict = {
+            "model":{
+                "name":"TestModel",
+                "type": None,
+                "pretrained": None,
+                "backbone":{
+                    "name": "MicroNet",
+                    "pretrained": None,
+                },
+                "heads":[
+                    {
+                        "name": "ClassificationHead",
+                    }
+                ]
+            },
+            "dataset":{
+                "local_path": DATASET_PATH
+            },
+        }
+        with self.subTest(i=0):
+            with self.assertRaises(KeyError):
+                cfg = Config(user_cfg_dict)
+        
+        reset_env()
+        user_cfg_dict2 = {
+            "model":{
+                "name":"TestModel",
+                "type": "yolov6-n",
+                "pretrained": None,
+                "additional_heads":[
+                    {
+                        "name": "ClassificationHead",
+                    }
+                ]
+            },
+            "dataset":{
+                "local_path": DATASET_PATH
+            },
+        }
+        with self.subTest(i=1):
+            with self.assertRaises(KeyError):
+                cfg = Config(user_cfg_dict2)
 
 
 if __name__ == "__main__":

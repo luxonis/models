@@ -1,5 +1,5 @@
 #
-# Soure: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py
+# Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py
 # License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
 #
 
@@ -12,7 +12,7 @@ from luxonis_train.utils.head_type import ObjectDetection
 from luxonis_train.models.modules import ConvModule 
 
 class EffiDeHead(nn.Module):
-    def __init__(self, prev_out_shape, n_classes, reg_max=0, n_anchors=1, **kwargs):
+    def __init__(self, prev_out_shape, n_classes, n_anchors=1, **kwargs):
         super(EffiDeHead, self).__init__()
         
         self.n_classes = n_classes
@@ -20,7 +20,6 @@ class EffiDeHead(nn.Module):
         self.original_in_shape = kwargs["original_in_shape"]
         self.prev_out_shape = prev_out_shape
 
-        self.reg_max = reg_max
         self.n_anchors = n_anchors
         self.prior_prob = 1e-2
 
@@ -62,7 +61,7 @@ class EffiDeHead(nn.Module):
             # reg_pred
             nn.Conv2d(
                 in_channels=in_channels,
-                out_channels=4 * (self.reg_max + self.n_anchors),
+                out_channels=4 * (self.n_anchors),
                 kernel_size=1
             )
         ])

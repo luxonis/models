@@ -18,7 +18,7 @@ neck:
 heads:
   - name: YoloV6Head
     params:
-      n_classes: 80
+      n_classes: null
       n_layers: 3
       reg_max: 0
     loss: 

@@ -11,9 +11,9 @@ import torchvision
 
 class MobileNetV2(nn.Module):
 
-    def __init__(self, pretrained=False):
+    def __init__(self, download_weights=False):
         super(MobileNetV2, self).__init__()
-        mobilenet_v2 = torchvision.models.mobilenet_v2(weights="DEFAULT" if pretrained else None)
+        mobilenet_v2 = torchvision.models.mobilenet_v2(weights="DEFAULT" if download_weights else None)
         self.out_indices = [3, 6, 13, 17]
         self.channels = [24, 32, 96, 320]
         self.backbone = mobilenet_v2
@@ -29,7 +29,7 @@ class MobileNetV2(nn.Module):
 
 if __name__ == '__main__':
 
-    model = MobileNetV2(pretrained=True)
+    model = MobileNetV2(download_weights=True)
     model.eval()
     shapes = [224, 256, 384, 512]
     for shape in shapes:

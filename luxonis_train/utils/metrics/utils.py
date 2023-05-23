@@ -17,27 +17,33 @@ F1Score: micro
 JaccardIndex: macro
 """
 
-def init_metrics(head):
+def init_metrics(head: nn.Module):
+    """ Initializes specific metrics depending on the head type and returns nn.ModuleDict """
+
+    is_binary = head.n_classes == 1
     if isinstance(head.type, Classification):
         collection = torchmetrics.MetricCollection({
-            "accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=head.n_classes),
-            "precision": torchmetrics.Precision(task="multiclass", num_classes=head.n_classes),
-            "recall": torchmetrics.Recall(task="multiclass", num_classes=head.n_classes),
-            "f1": torchmetrics.F1Score(task="multiclass", num_classes=head.n_classes)
+            "accuracy": torchmetrics.Accuracy(task="binary" if is_binary else "multiclass",
+                num_classes=head.n_classes),
+            "precision": torchmetrics.Precision(task="binary" if is_binary else "multiclass",
+                num_classes=head.n_classes),
+            "recall": torchmetrics.Recall(task="binary" if is_binary else "multiclass",
+                num_classes=head.n_classes),
+            "f1": torchmetrics.F1Score(task="binary" if is_binary else "multiclass",
+                num_classes=head.n_classes)
         })
     elif isinstance(head.type, MultiLabelClassification):
         collection = torchmetrics.MetricCollection({
             "accuracy": torchmetrics.Accuracy(task="multilabel", num_labels=head.n_classes),
             "precision": torchmetrics.Precision(task="multilabel", num_labels=head.n_classes),
             "recall": torchmetrics.Recall(task="multilabel", num_labels=head.n_classes),
-            "f1": torchmetrics.F1Score(task="multilabel", num_labels=head.n_classes)   
+            "f1": torchmetrics.F1Score(task="multilabel", num_labels=head.n_classes)
         })
     elif isinstance(head.type, SemanticSegmentation):
-        is_binary = head.n_classes == 1
         collection = torchmetrics.MetricCollection({
-            "accuracy": torchmetrics.Accuracy(task="binary" if is_binary else "multiclass", 
+            "accuracy": torchmetrics.Accuracy(task="binary" if is_binary else "multiclass",
                 num_classes=head.n_classes, ignore_index=0 if is_binary else None),
-            "mIoU": torchmetrics.JaccardIndex(task="binary" if is_binary else "multiclass", 
+            "mIoU": torchmetrics.JaccardIndex(task="binary" if is_binary else "multiclass",
                 num_classes=head.n_classes, ignore_index=0 if is_binary else None),
 
         })
@@ -53,15 +59,18 @@ def init_metrics(head):
     })
 
 
-def postprocess_for_metrics(output, labels, head):
+def postprocess_for_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Module):
+    """ Performs post-processing on output and labels for specific metrics"""
     if isinstance(head.type, Classification):
-        labels = torch.argmax(labels, dim=1)
+        if head.n_classes != 1:
+            labels = torch.argmax(labels, dim=1)
+            output = torch.argmax(output, dim=1)
         return output, labels
     elif isinstance(head.type, MultiLabelClassification):
         return output, labels
     elif isinstance(head.type, SemanticSegmentation):
         if head.n_classes != 1:
-            labels = torch.argmax(labels, dim=1, keepdim=True)
+            labels = torch.argmax(labels, dim=1)
         return output, labels
     elif isinstance(head.type, ObjectDetection):
         if isinstance(head, YoloV6Head):
@@ -69,10 +78,11 @@ def postprocess_for_metrics(output, labels, head):
             return output, labels
 
 
-def yolov6_to_metrics(output, labels, head):
+def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Module):
+    """ Performs post-processing on ouptut and labels for YoloV6 output"""
     kwargs = {"conf_thres":0.001, "iou_thres": 0.6}
     output_nms = yolov6_out2box(output, head, **kwargs)
-    img_shape = head.original_in_shape[2:]
+    image_size = head.original_in_shape[2:]
 
     output_list = []
     labels_list = []
@@ -82,11 +92,11 @@ def yolov6_to_metrics(output, labels, head):
             "scores": output_nms[i][:,4],
             "labels": output_nms[i][:,5]
         })
-        
+
         curr_labels = labels[labels[:,0]==i]
         curr_bboxs = xywh2xyxy_coco(curr_labels[:, 2:])
-        curr_bboxs[:, 0::2] *= img_shape[1]
-        curr_bboxs[:, 1::2] *= img_shape[0]
+        curr_bboxs[:, 0::2] *= image_size[1]
+        curr_bboxs[:, 1::2] *= image_size[0]
         labels_list.append({
             "boxes": curr_bboxs,
             "labels": curr_labels[:,1]

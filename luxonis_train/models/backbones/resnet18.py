@@ -11,10 +11,10 @@ import torchvision
 
 class ResNet18(nn.Module):
 
-    def __init__(self, pretrained=False):
+    def __init__(self, download_weights=False):
         super(ResNet18, self).__init__()
 
-        resnet18 = torchvision.models.resnet18(weights="DEFAULT" if pretrained else None)
+        resnet18 = torchvision.models.resnet18(weights="DEFAULT" if download_weights else None)
         self.channels = [64, 128, 256, 512]
         self.backbone = resnet18
 

@@ -1,0 +1,20 @@
+model:
+  name: SimpleClassification
+  type:
+  pretrained:
+
+  backbone:
+    name: MicroNet
+    pretrained:
+
+  heads:
+    - name: ClassificationHead
+      params:
+        n_classes: null
+      loss: 
+        name: CrossEntropyLoss
+        params:
+
+dataset:
+  team_name: # TODO
+  dataset_name: # TODO

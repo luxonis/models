@@ -2,10 +2,11 @@ import torch
 import cv2
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
+from typing import Union
 from luxonis_ml import *
 
+from luxonis_train.utils.config import Config
 from luxonis_train.utils.augmentations import ValAugmentations
-from luxonis_train.utils.config import *
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.head_type import *
@@ -14,29 +15,29 @@ from luxonis_train.utils.visualization import *
 
 
 class Inferer(pl.LightningModule):
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: Union[str, dict], args: dict = None):
         """Main API which is used for inference/visualization on the dataset
 
         Args:
-            cfg (dict): Configs dict used to setup inference.
+            cfg (Union[str, dict]): path to config file or config dict used to setup training
+            args (dict, optional): argument dict provided through command line, used for config overriding
         """
         super().__init__()
-        self.cfg = cfg
 
-        # check if model is predefined
-        if self.cfg["model"]["type"]:
-            load_predefined_cfg(self.cfg)
-        
+        self.cfg = Config(cfg)
+        if args and args["override"]:
+            self.cfg.override_config(args["override"])
+
         self.model = Model()
-        self.model.build_model(self.cfg["model"], self.cfg["train"]["image_size"])
+        self.model.build_model()
 
-        self.load_checkpoint(self.cfg["model"]["pretrained"])
+        self.load_checkpoint(self.cfg.get("model.pretrained"))
         self.model.eval()
-        
+
         self.val_augmentations = None
 
-    def load_checkpoint(self, path):
-        """ Load checkpoint weights from provided path """
+    def load_checkpoint(self, path: str):
+        """ Loads checkpoint weights from provided path """
         print(f"Loading weights from: {path}")
         state_dict = torch.load(path)["state_dict"]
         # remove weights that are not part of the model
@@ -50,12 +51,12 @@ class Inferer(pl.LightningModule):
 
         self.load_state_dict(state_dict)
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """ Forward function used in inference """
         outputs = self.model(inputs)
         return outputs
-    
-    def infer(self, display:bool = True, save:bool = False):
+
+    def infer(self, display: bool = True, save: bool = False):
         """Runs inference on all images in the dataset
 
         Args:
@@ -63,25 +64,29 @@ class Inferer(pl.LightningModule):
             save (bool, optional): Save output image. Defaults to False.
         """
         with LuxonisDataset(
-            local_path=self.cfg["dataset"]["local_path"] if "local_path" in self.cfg["dataset"] else None,
-            s3_path=self.cfg["dataset"]["s3_path"] if "s3_path" in self.cfg["dataset"] else None
+            team_name=self.cfg.get("dataset.team_name"),
+            dataset_name=self.cfg.get("dataset.dataset_name")
         ) as dataset:
-            
-            if self.val_augmentations == None:
-                self.val_augmentations = ValAugmentations(image_size=self.cfg["train"]["image_size"])
 
-            loader_val = LuxonisLoader(dataset, view="val")
-            loader_val.map(loader_val.auto_preprocess)
-            loader_val.map(self.val_augmentations)
-            pytorch_loader_val = loader_val.to_pytorch(
-                batch_size=1,
-                num_workers=self.cfg["train"]["n_workers"]
+            if self.val_augmentations == None:
+                self.val_augmentations = ValAugmentations()
+
+            loader_val = LuxonisLoader(
+                dataset,
+                view=self.cfg.get("inferer.dataset_view"),
+                augmentations=self.val_augmentations
             )
-            
+            # TODO: Do we want this configurable?
+            pytorch_loader_val = torch.utils.data.DataLoader(
+                loader_val,
+                batch_size=self.cfg.get("train.batch_size"),
+                num_workers=self.cfg.get("train.num_workers"),
+                collate_fn=loader_val.collate_fn
+            )
+
             with torch.no_grad():
                 for data in pytorch_loader_val:
-                    inputs = data[0].float()
-                    img = unnormalize(inputs[0], to_uint8=True)
+                    inputs = data[0]
                     labels = data[1]
                     outputs = self.forward(inputs)
 
@@ -90,24 +95,19 @@ class Inferer(pl.LightningModule):
                         curr_head_name = get_head_name(curr_head, i)
                         curr_label = get_current_label(curr_head.type, labels)
 
-                        img_labels = draw_on_image(img, curr_label, curr_head, is_label=True)
-                        img_labels = torch_to_cv2(img_labels, to_rgb=True)
-                        img_outputs = draw_on_image(img, output, curr_head)
-                        img_outputs = torch_to_cv2(img_outputs, to_rgb=True)
+                        label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
+                        output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
+                        merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
                         
-                        out_img = cv2.hconcat([img_labels, img_outputs])
                         if display:
-                            plt.imshow(out_img)
-                            plt.title(curr_head_name+f"\n(labels left, outputs right)")
-                            plt.show()
-                            # TODO: this freezes for loop, needs to be fixed and then set to_rgb=False 
-                            # cv2.imshow(curr_head_name, out_img)
-                            # key = cv2.waitKey(0)
+                            for img in merged_imgs:
+                                plt.imshow(img)
+                                plt.title(curr_head_name+f"\n(labels left, outputs right)")
+                                plt.show()
                         if save:
-                            # TODO: What do we want to save?
-                            pass
+                            raise NotImplementedError()
 
-    def infer_image(self, img:torch.tensor, display:bool = True, save:bool = False):
+    def infer_image(self, img: torch.Tensor, display: bool = True, save: bool = False):
         """Runs inference on a single image
 
         Args:

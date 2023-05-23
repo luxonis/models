@@ -1,21 +1,20 @@
 ## List of supported backbones
 - ResNet18 ([source](https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html))
   - Params:
-    - pretrained: bool # if True download weights from imagenet
+    - download_weights: bool # if True download weights from imagenet
 - MicroNet ([source](https://github.com/liyunsheng13/micronet))
   - Params:
     - variant: str # M1, M2 or M3
 - RepVGG ([source](https://github.com/DingXiaoH/RepVGG))
   - Params:
     - variant: str # A0 or A1
-- EfficientRep ([source](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/efficientrep.py))
+- EfficientRep (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/efficientrep.py))
   - Params:
     - in_channels: int # 3 in most cases
     - channels_list: List[int] # list of number of channels for each block
     - num_repeats: List[int] # list of number of repeats of RepBlock
     - depth_mul: int # depth multiplier
     - width_mul: int # width multiplier
-    - block: nn.Module # custom block to use, should stay as RepVGGBlock
 - RexNetV1_lite ([source](https://github.com/clovaai/rexnet))
   - Params:
     - fix_head_stem: bool # weather to multiply head stem, 
@@ -29,11 +28,12 @@
     - variant: str # s0, s1, s2, s3 or s4
 - MobileNetV2 ([source](https://pytorch.org/vision/main/models/generated/torchvision.models.mobilenet_v2.html))
   - Params:
-    - pretrained: bool # if True download weights from imagenet
+    - download_weights: bool # if True download weights from imagenet
 - EfficientNet ([source](https://github.com/rwightman/gen-efficientnet-pytorch))
   - Params:
-    - pretrained: bool # if True download weights from imagenet
+    - download_weights: bool # if True download weights from imagenet
 - ContextSpatial (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
   - Params:
     - context_backbone: str # backbone used
     - in_channels: int # 3 in most cases
+- TODO: add DeepLabV3+ ([source](https://github.com/VainF/DeepLabV3Plus-Pytorch))

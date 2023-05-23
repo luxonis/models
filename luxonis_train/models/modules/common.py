@@ -17,7 +17,7 @@ class ConvModule(nn.Sequential):
 
 class Up(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size=2, stride=2):
-        """ Upsampling with ConvTranpose2D (simillar to U-Net Up block) """
+        """ Upsampling with ConvTranpose2D (similar to U-Net Up block) """
         super().__init__(
             nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride),
             ConvModule(out_channels, out_channels, kernel_size=3, padding=1)
@@ -46,7 +46,7 @@ class SEBlock(nn.Module):
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     """ Conv2d + BN
-        Source: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+        Source: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
     """
     result = nn.Sequential()
     result.add_module('conv', nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
@@ -55,14 +55,13 @@ def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     return result
 
 class RepVGGBlock(nn.Module):
-    """Source:https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py"""
+    """Source:https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py"""
 
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  stride=1, padding=1, dilation=1, groups=1, padding_mode='zeros', deploy=False, use_se=False):
         super(RepVGGBlock, self).__init__()
         """ RepVGGBlock is a basic rep-style block, including training and deploy status
             This code is based on https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
-            Source:https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
         """
         self.deploy = deploy
         self.groups = groups
@@ -185,19 +184,15 @@ class RepVGGBlock(nn.Module):
         self.deploy = True
 
 class RepBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, n=1, block=RepVGGBlock, basic_block=RepVGGBlock):
+    def __init__(self, in_channels, out_channels, n=1):
         super(RepBlock, self).__init__()
         """
             RepBlock is a stage block with rep-style basic block
-            Source: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+            Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
         """
 
-        self.conv1 = block(in_channels, out_channels)
-        self.block = nn.Sequential(*(block(out_channels, out_channels) for _ in range(n - 1))) if n > 1 else None
-        if block == BottleRep:
-            self.conv1 = BottleRep(in_channels, out_channels, basic_block=basic_block, weight=True)
-            n = n // 2
-            self.block = nn.Sequential(*(BottleRep(out_channels, out_channels, basic_block=basic_block, weight=True) for _ in range(n - 1))) if n > 1 else None
+        self.conv1 = RepVGGBlock(in_channels, out_channels)
+        self.block = nn.Sequential(*(RepVGGBlock(out_channels, out_channels) for _ in range(n - 1))) if n > 1 else None
 
     def forward(self, x):
         x = self.conv1(x)
@@ -205,32 +200,11 @@ class RepBlock(nn.Module):
             x = self.block(x)
         return x
 
-
-class BottleRep(nn.Module):
-    def __init__(self, in_channels, out_channels, basic_block=RepVGGBlock, weight=False):
-        super(BottleRep, self).__init__()
-        """Source:https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py"""
-        self.conv1 = basic_block(in_channels, out_channels)
-        self.conv2 = basic_block(out_channels, out_channels)
-        if in_channels != out_channels:
-            self.shortcut = False
-        else:
-            self.shortcut = True
-        if weight:
-            self.alpha = Parameter(torch.ones(1))
-        else:
-            self.alpha = 1.0
-
-    def forward(self, x):
-        outputs = self.conv1(x)
-        outputs = self.conv2(outputs)
-        return outputs + self.alpha * x if self.shortcut else outputs
-
-class SimSPPF(nn.Module):
+class SimplifiedSPPF(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=5):
-        super(SimSPPF, self).__init__()
-        """ Simplified SPPF with ReLU activation 
-            Source: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+        super(SimplifiedSPPF, self).__init__()
+        """ Simplified Spatial Pyramid Pooling with ReLU activation 
+            Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
         """
         c_ = in_channels // 2  # hidden channels
         self.cv1 = ConvModule(in_channels, c_, 1, 1)
@@ -238,9 +212,15 @@ class SimSPPF(nn.Module):
         self.m = nn.MaxPool2d(kernel_size=kernel_size, stride=1, padding=kernel_size // 2)
 
     def forward(self, x):
+        # Pass the input feature map through the first convolutional layer
         x = self.cv1(x)
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            y1 = self.m(x)
-            y2 = self.m(y1)
-            return self.cv2(torch.cat([x, y1, y2, self.m(y2)], 1))
+        
+        # apply max-pooling at three different scales
+        y1 = self.m(x)
+        y2 = self.m(y1)
+        y3 = self.m(y2)
+        
+        # Concatenate the original feature map and the three max-pooled versions
+        # along the channel dimension and pass through the second convolutional layer
+        out = self.cv2(torch.cat([x, y1, y2, y3], dim=1))
+        return out

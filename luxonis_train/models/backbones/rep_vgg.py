@@ -6,7 +6,6 @@
 
 import torch.nn as nn
 import torch
-import copy
 import torch.utils.checkpoint as checkpoint
 
 from luxonis_train.models.modules import RepVGGBlock

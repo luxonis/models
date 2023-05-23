@@ -1,0 +1,19 @@
+model:
+  name: SimpleClassification
+  type:
+  pretrained:
+
+  backbone:
+    name: MicroNet
+    pretrained:
+
+  heads:
+    - name: ClassificationHead
+      params:
+        n_classes: null
+      loss: 
+        name: CrossEntropyLoss
+        params:
+
+dataset:
+  local_path: /home/klemen/luxonis/test_datasets/datasets/coco-2017-person # TODO: change this if running tests

@@ -3,7 +3,6 @@
 #
 
 import torch
-import math
 import torch.nn as nn
 from torch.nn import functional as F
 
@@ -113,7 +112,8 @@ class ContextSpatial(nn.Module):
         spatial_out = self.spatial_path(x)
         context16, context32 = self.context_path(x)
         fm_fuse = self.ffm(spatial_out, context16)
-        return fm_fuse
+        outs = [fm_fuse]
+        return outs
 
 if __name__ == "__main__":
 

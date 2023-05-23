@@ -1,53 +1,46 @@
 import torch
 import os
-from pathlib import Path
 import blobconverter
-import torch.nn as nn
 import pytorch_lightning as pl
 import subprocess
 import onnx
 import onnxsim
+from typing import Union
+from pathlib import Path
 
-from luxonis_train.utils.config import *
+from luxonis_train.utils.config import Config
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.head_type import *
 
 
 class Exporter(pl.LightningModule):
-    def __init__(self, cfg: dict, args = {"override": None}):
+    def __init__(self, cfg: Union[str, dict], args: dict = None):
         """ Main API which is used for exporting models trained with this library to .onnx, openVINO and .blob format.
 
         Args:
-            cfg (dict): config dict used for exporting the model
+            cfg (Union[str, dict]): path to config file or config dict used to setup training
+            args (dict, optional): argument dict provided through command line, used for config overriding
         """
         super().__init__()
-        self.cfg = cfg
-        self.args = args
-        
-        if self.args["override"]:
-            self.cfg = cfg_override(self.cfg, self.args["override"])
 
-        # check if model is predefined
-        if self.cfg["model"]["type"]:
-            load_predefined_cfg(self.cfg)
-        
-        check_cfg_export(self.cfg)
-        
+        self.cfg = Config(cfg)
+        if args and args["override"]:
+            self.cfg.override_config(args["override"])
+        self.cfg.validate_config_exporter()
+
         # ensure save directory
-        Path(self.cfg["export"]["save_directory"]).mkdir(parents=True, exist_ok=True)
+        Path(self.cfg.get("exporter.export_save_directory")).mkdir(parents=True, exist_ok=True)
 
         self.model = Model()
-        self.model.build_model(self.cfg["model"], self.cfg["export"]["image_size"])
+        self.model.build_model()
 
-        self.load_checkpoint(self.cfg["export"]["weights"])
-
+        self.load_checkpoint(self.cfg.get("exporter.export_weights"))
         self.model.eval()
         self.to_deploy()
 
-
-    def load_checkpoint(self, path):
-        """ Load checkpoint weights from provided path """
+    def load_checkpoint(self, path: str):
+        """ Loads checkpoint weights from provided path """
         print(f"Loading weights from: {path}")
         state_dict = torch.load(path)["state_dict"]
         # remove weights that are not part of the model
@@ -67,54 +60,19 @@ class Exporter(pl.LightningModule):
             if hasattr(module, "to_deploy"):
                 module.to_deploy()
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """ Forward function used in export """
         outputs = self.model(inputs)
         return outputs
     
-    def to_blob(self, remove_onnx = True):
-        dummy_input = torch.rand(1,3,*self.cfg["export"]["image_size"])
-        base_path = self.cfg["export"]["save_directory"]
-        output_names = self._get_output_names()
-
-        print("Converting PyTorch model to ONNX")
-        onnx_path = os.path.join(base_path, f"{self.cfg['model']['name']}.onnx") 
-        self.to_onnx(
-            onnx_path,
-            dummy_input,
-            opset_version=12,
-            input_names=["input"],
-            output_names=output_names,
-            dynamic_axes=None
-        )
-        model_onnx = onnx.load(onnx_path)
-        onnx_model, check = onnxsim.simplify(model_onnx)
-        assert check, "assert check failed"
-        onnx.save(onnx_model, onnx_path)
-        
-        print("Converting ONNX to blob")
-        xmlfile = f"{os.path.join(base_path, self.cfg['model']['name'])}.xml"
-        binfile = f"{os.path.join(base_path, self.cfg['model']['name'])}.bin"
-        blob_path = blobconverter.from_onnx(
-            model=onnx_path,
-            data_type="FP16",
-            shaves=6,
-            output_dir=base_path,
-            use_cache=False
-        )
-        if remove_onnx:
-            os.remove(onnx_path)
-        print(f"Finished exporting. File saved in: {blob_path}")
-
-
     def export(self):
-        """ Export model to onnx, openVINO and .blob format """
-        dummy_input = torch.rand(1,3,*self.cfg["export"]["image_size"])
-        base_path = self.cfg["export"]["save_directory"]
+        """ Exports model to onnx, openVINO and .blob format """
+        dummy_input = torch.rand(1,3,*self.cfg.get("exporter.export_image_size"))
+        base_path = self.cfg.get("exporter.export_save_directory")
         output_names = self._get_output_names()
 
         print("Converting PyTorch model to ONNX")
-        onnx_path = os.path.join(base_path, f"{self.cfg['model']['name']}.onnx") 
+        onnx_path = os.path.join(base_path, f"{self.cfg.get('exporter.export_model_name')}.onnx") 
         self.to_onnx(
             onnx_path,
             dummy_input,
@@ -125,7 +83,8 @@ class Exporter(pl.LightningModule):
         )
         model_onnx = onnx.load(onnx_path)
         onnx_model, check = onnxsim.simplify(model_onnx)
-        assert check, "assert check failed"
+        if not check:
+            raise RuntimeError("Onnx simplify failed.")
         onnx.save(onnx_model, onnx_path)
 
         print("Converting ONNX to openVINO")
@@ -133,7 +92,7 @@ class Exporter(pl.LightningModule):
 
         cmd = f"mo --input_model {onnx_path} " \
         f"--output_dir {base_path} " \
-        f"--model_name {self.cfg['model']['name']} " \
+        f"--model_name {self.cfg.get('exporter.export_model_name')} " \
         "--reverse_input_channels " \
         "--data_type FP16 " \
         "--scale_values '[58.395, 57.120, 57.375]' " \
@@ -143,8 +102,8 @@ class Exporter(pl.LightningModule):
         subprocess.check_output(cmd, shell=True)
     
         print("Converting IR to blob")
-        xmlfile = f"{os.path.join(base_path, self.cfg['model']['name'])}.xml"
-        binfile = f"{os.path.join(base_path, self.cfg['model']['name'])}.bin"
+        xmlfile = f"{os.path.join(base_path, self.cfg.get('exporter.export_model_name'))}.xml"
+        binfile = f"{os.path.join(base_path, self.cfg.get('exporter.export_model_name'))}.bin"
         blob_path = blobconverter.from_openvino(
             xml=xmlfile,
             bin=binfile,
@@ -157,8 +116,43 @@ class Exporter(pl.LightningModule):
 
         print(f"Finished exporting. Files saved in: {base_path}")
 
+    def to_blob(self, remove_onnx: bool = True):
+        """ Exports model from onnx to blob directly """
+        dummy_input = torch.rand(1,3,*self.cfg.get("exporter.export_image_size"))
+        base_path = self.cfg.get("exporter.export_save_directory")
+        output_names = self._get_output_names()
+
+        print("Converting PyTorch model to ONNX")
+        onnx_path = os.path.join(base_path, f"{self.cfg.get('exporter.export_model_name')}.onnx") 
+        self.to_onnx(
+            onnx_path,
+            dummy_input,
+            opset_version=12,
+            input_names=["input"],
+            output_names=output_names,
+            dynamic_axes=None
+        )
+        model_onnx = onnx.load(onnx_path)
+        onnx_model, check = onnxsim.simplify(model_onnx)
+        if not check:
+            raise RuntimeError("Onnx simplify failed.")
+        onnx.save(onnx_model, onnx_path)
+        
+        print("Converting ONNX to blob")
+        # TODO: check if this export is correct, might be missing revert channels, mean scale,...
+        blob_path = blobconverter.from_onnx(
+            model=onnx_path,
+            data_type="FP16",
+            shaves=6,
+            output_dir=base_path,
+            use_cache=False
+        )
+        if remove_onnx:
+            os.remove(onnx_path)
+        print(f"Finished exporting. File saved in: {blob_path}")
+
     def _get_output_names(self):
-        """ Get output names for each head"""
+        """ Gets output names for each head """
         output_names = []
         for i, head in enumerate(self.model.heads):
             if isinstance(head, YoloV6Head):

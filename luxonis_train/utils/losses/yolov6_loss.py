@@ -1,5 +1,5 @@
 #
-# Soure: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/loss.py
+# Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/loss.py
 # License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
 #
 
@@ -10,44 +10,46 @@ import math
 import numpy as np
 import torch.nn.functional as F
 
+from luxonis_train.utils.config import Config
 from luxonis_train.utils.assigners import ATSSAssigner, TaskAlignedAssigner, generate_anchors
-from luxonis_train.utils.boxutils import dist2bbox, bbox2dist, xywh2xyxy_coco
+from luxonis_train.utils.boxutils import dist2bbox, xywh2xyxy_coco
 
 class YoloV6Loss(nn.Module):
     '''Loss computation func.'''
     def __init__(self,
-                 n_classes,
-                #  image_size,
-                 fpn_strides=[8, 16, 32],
-                 grid_cell_size=5.0,
-                 grid_cell_offset=0.5,
-                 warmup_epoch=4,
-                 use_dfl=False,
-                 reg_max=0,
-                 iou_type='giou',
-                 loss_weight={
-                     'class': 1.0,
-                     'iou': 2.5,
-                     'dfl': 0.5}
-                 ):
+            n_classes,
+            image_size=None,
+            fpn_strides=[8, 16, 32],
+            grid_cell_size=5.0,
+            grid_cell_offset=0.5,
+            warmup_epoch=4,
+            iou_type='giou',
+            loss_weight={
+                'class': 1.0,
+                'iou': 2.5
+                },
+            **kwargs
+        ):
         super(YoloV6Loss, self).__init__()
 
         self.fpn_strides = fpn_strides
         self.grid_cell_size = grid_cell_size
         self.grid_cell_offset = grid_cell_offset
         self.num_classes = n_classes
-        # self.ori_img_shape = image_size
+        
+        # if no image size provided get it from config
+        if image_size is None: 
+            cfg = Config()
+            image_size = cfg.get("train.preprocessing.train_image_size")
+        self.original_img_size = image_size
 
         self.warmup_epoch = warmup_epoch
         self.warmup_assigner = ATSSAssigner(9, num_classes=self.num_classes)
         self.formal_assigner = TaskAlignedAssigner(topk=13, num_classes=self.num_classes, alpha=1.0, beta=6.0)
 
-        self.use_dfl = use_dfl
-        self.reg_max = reg_max
-        self.proj = nn.Parameter(torch.linspace(0, self.reg_max, self.reg_max + 1), requires_grad=False)
         self.iou_type = iou_type
         self.varifocal_loss = VarifocalLoss()
-        self.bbox_loss = BboxLoss(self.num_classes, self.reg_max, self.use_dfl, self.iou_type)
+        self.bbox_loss = BboxLoss(self.num_classes, self.iou_type)
         self.loss_weight = loss_weight
 
     def forward(
@@ -59,7 +61,6 @@ class YoloV6Loss(nn.Module):
 
         epoch_num = kwargs["epoch"]
         step_num = kwargs["step"]
-        original_in_shape = kwargs["original_in_shape"]
 
         feats, pred_scores, pred_distri = outputs
         anchors, anchor_points, n_anchors_list, stride_tensor = \
@@ -68,7 +69,8 @@ class YoloV6Loss(nn.Module):
         
         # gt_bboxes_scale = torch.full((1,4), img_size).type_as(pred_scores)
         # supports rectangular original images
-        gt_bboxes_scale = torch.tensor([original_in_shape[1], original_in_shape[0], original_in_shape[1], original_in_shape[0]], device=targets.device) # use if bboxes normalized
+        gt_bboxes_scale = torch.tensor([self.original_img_size[1], self.original_img_size[0], 
+            self.original_img_size[1], self.original_img_size[0]], device=targets.device) # use if bboxes normalized
         batch_size = pred_scores.shape[0]
 
         # targets
@@ -79,7 +81,7 @@ class YoloV6Loss(nn.Module):
 
         # pboxes
         anchor_points_s = anchor_points / stride_tensor
-        pred_bboxes = self.bbox_decode(anchor_points_s, pred_distri) #xyxy
+        pred_bboxes = dist2bbox(pred_distri, anchor_points_s)
 
         try:
             if epoch_num < self.warmup_epoch:
@@ -169,21 +171,19 @@ class YoloV6Loss(nn.Module):
             loss_cls /= target_scores_sum
 
         # bbox loss
-        loss_iou, loss_dfl = self.bbox_loss(pred_distri, pred_bboxes, anchor_points_s, target_bboxes,
-                                            target_scores, target_scores_sum, fg_mask)
+        loss_iou = self.bbox_loss(pred_distri, pred_bboxes, target_bboxes,
+            target_scores, target_scores_sum, fg_mask)
 
         loss = self.loss_weight['class'] * loss_cls + \
-               self.loss_weight['iou'] * loss_iou + \
-               self.loss_weight['dfl'] * loss_dfl
+               self.loss_weight['iou'] * loss_iou
 
-        # TODO: what to do with additional outputs
-        additional_output = torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0),
-            (self.loss_weight['dfl'] * loss_dfl).unsqueeze(0),
-            (self.loss_weight['class'] * loss_cls).unsqueeze(0))).detach()
+        sub_losses = {
+            "class": loss_cls.detach(),
+            "iou": loss_iou.detach()
+        }
 
-        return loss
+        return loss, sub_losses
             
-
     def preprocess(self, targets, batch_size, scale_tensor):
         targets_list = np.zeros((batch_size, 1, 5)).tolist()
         for i, item in enumerate(targets.cpu().numpy().tolist()):
@@ -193,12 +193,6 @@ class YoloV6Loss(nn.Module):
         batch_target = targets[:, :, 1:5].mul_(scale_tensor)
         targets[..., 1:] = xywh2xyxy_coco(batch_target)
         return targets
-
-    def bbox_decode(self, anchor_points, pred_dist):
-        if self.use_dfl:
-            batch_size, n_anchors, _ = pred_dist.shape
-            pred_dist = F.softmax(pred_dist.view(batch_size, n_anchors, 4, self.reg_max + 1), dim=-1).matmul(self.proj).to(pred_dist.device)
-        return dist2bbox(pred_dist, anchor_points)
 
 
 class VarifocalLoss(nn.Module):
@@ -210,20 +204,17 @@ class VarifocalLoss(nn.Module):
         weight = alpha * pred_score.pow(gamma) * (1 - label) + gt_score * label
         with torch.amp.autocast(enabled=False, device_type=pred_score.device.type):
             loss = (F.binary_cross_entropy(pred_score.float(), gt_score.float(), reduction='none') * weight).sum()
-
         return loss
 
 
 class BboxLoss(nn.Module):
-    def __init__(self, num_classes, reg_max, use_dfl=False, iou_type='giou'):
+    def __init__(self, num_classes, iou_type='giou'):
         super(BboxLoss, self).__init__()
         self.num_classes = num_classes
         self.iou_loss = IOUloss(box_format='xyxy', iou_type=iou_type, eps=1e-10)
-        self.reg_max = reg_max
-        self.use_dfl = use_dfl
 
-    def forward(self, pred_dist, pred_bboxes, anchor_points,
-                target_bboxes, target_scores, target_scores_sum, fg_mask):
+    def forward(self, pred_dist, pred_bboxes, target_bboxes,
+        target_scores, target_scores_sum, fg_mask):
 
         # select positive samples mask
         num_pos = fg_mask.sum()
@@ -242,44 +233,10 @@ class BboxLoss(nn.Module):
                 loss_iou = loss_iou.sum()
             else:
                 loss_iou = loss_iou.sum() / target_scores_sum
-               
-            # dfl loss
-            if self.use_dfl:
-                dist_mask = fg_mask.unsqueeze(-1).repeat(
-                    [1, 1, (self.reg_max + 1) * 4])
-                pred_dist_pos = torch.masked_select(
-                    pred_dist, dist_mask).reshape([-1, 4, self.reg_max + 1])
-                target_ltrb = bbox2dist(anchor_points, target_bboxes, self.reg_max)
-                target_ltrb_pos = torch.masked_select(
-                    target_ltrb, bbox_mask).reshape([-1, 4])
-                loss_dfl = self._df_loss(pred_dist_pos,
-                                        target_ltrb_pos) * bbox_weight
-                if target_scores_sum == 0:
-                    loss_dfl = loss_dfl.sum()
-                else:
-                    loss_dfl = loss_dfl.sum() / target_scores_sum
-            else:
-                loss_dfl = torch.tensor(0.).to(pred_dist.device)
-
         else:
             loss_iou = torch.tensor(0.).to(pred_dist.device)
-            loss_dfl = torch.tensor(0.).to(pred_dist.device)
 
-        return loss_iou, loss_dfl
-
-    def _df_loss(self, pred_dist, target):
-        target_left = target.to(torch.long)
-        target_right = target_left + 1
-        weight_left = target_right.to(torch.float) - target
-        weight_right = 1 - weight_left
-        loss_left = F.cross_entropy(
-            pred_dist.view(-1, self.reg_max + 1), target_left.view(-1), reduction='none').view(
-            target_left.shape) * weight_left
-        loss_right = F.cross_entropy(
-            pred_dist.view(-1, self.reg_max + 1), target_right.view(-1), reduction='none').view(
-            target_left.shape) * weight_right
-        return (loss_left + loss_right).mean(-1, keepdim=True)
-
+        return loss_iou
 
 class IOUloss(nn.Module):
     """ Calculate IoU loss.
@@ -376,30 +333,3 @@ class IOUloss(nn.Module):
             loss = loss.mean()
 
         return loss
-
-
-def pairwise_bbox_iou(box1, box2, box_format='xywh'):
-    """Calculate iou.
-    This code is based on https://github.com/Megvii-BaseDetection/YOLOX/blob/main/yolox/utils/boxes.py
-    """
-    if box_format == 'xyxy':
-        lt = torch.max(box1[:, None, :2], box2[:, :2])
-        rb = torch.min(box1[:, None, 2:], box2[:, 2:])
-        area_1 = torch.prod(box1[:, 2:] - box1[:, :2], 1)
-        area_2 = torch.prod(box2[:, 2:] - box2[:, :2], 1)
-
-    elif box_format == 'xywh':
-        lt = torch.max(
-            (box1[:, None, :2] - box1[:, None, 2:] / 2),
-            (box2[:, :2] - box2[:, 2:] / 2),
-        )
-        rb = torch.min(
-            (box1[:, None, :2] + box1[:, None, 2:] / 2),
-            (box2[:, :2] + box2[:, 2:] / 2),
-        )
-
-        area_1 = torch.prod(box1[:, 2:], 1)
-        area_2 = torch.prod(box2[:, 2:], 1)
-    valid = (lt < rb).type(lt.type()).prod(dim=2)
-    inter = torch.prod(rb - lt, 2) * valid
-    return inter / (area_1[:, None] + area_2 - inter)

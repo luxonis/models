@@ -1,0 +1,10 @@
+model:
+  name: SimpleDetection
+  type: yolov6-n
+  pretrained:
+  params:
+    n_classes: null
+
+dataset:
+  team_name: # TODO
+  dataset_name: # TODO

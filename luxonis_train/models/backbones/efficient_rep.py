@@ -15,7 +15,8 @@ class EfficientRep(nn.Module):
     With rep-style struct, EfficientRep is friendly to high-computation hardware(e.g. GPU).
     '''
 
-    def __init__(self, in_channels=3, channels_list=None, num_repeats=None, depth_mul=0.33, width_mul=0.25):
+    def __init__(self, in_channels=3, channels_list=None, num_repeats=None, depth_mul=0.33,
+        width_mul=0.25, is_4head=False):
         super(EfficientRep, self).__init__()
 
         if channels_list is None:
@@ -25,6 +26,8 @@ class EfficientRep(nn.Module):
 
         channels_list = [make_divisible(i * width_mul, 8) for i in channels_list]
         num_repeats = [(max(round(i * depth_mul), 1) if i > 1 else i) for i in num_repeats]
+
+        self.is_4head = is_4head
 
         self.stem = RepVGGBlock(
             in_channels=in_channels,
@@ -62,9 +65,10 @@ class EfficientRep(nn.Module):
     def forward(self, x):
         outputs = []
         x = self.stem(x)
+        start_idx = 0 if self.is_4head else 1 # idx at which we start saving outputs
         for i, block in enumerate(self.blocks):
             x = block(x)
-            if i > 0:
+            if i >= start_idx:
                 outputs.append(x)
 
         return outputs
@@ -77,7 +81,8 @@ if __name__ == "__main__":
     channels_list =[64, 128, 256, 512, 1024]
     width_mul = 0.25
 
-    model = EfficientRep(in_channels=3, channels_list=channels_list, num_repeats=num_repeats, depth_mul=depth_mul, width_mul=width_mul)
+    model = EfficientRep(in_channels=3, channels_list=channels_list, num_repeats=num_repeats, 
+        depth_mul=depth_mul, width_mul=width_mul, is_4head=False)
     model.eval()
 
     shapes = [224, 256, 384, 512]

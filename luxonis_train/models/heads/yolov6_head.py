@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 
 from .effide_head import EffiDeHead
+# from luxonis_train.models.heads.effide_head import EffiDeHead #import for unit testing 
 from luxonis_train.utils.head_type import ObjectDetection
 
 class YoloV6Head(nn.Module):
@@ -15,22 +16,23 @@ class YoloV6Head(nn.Module):
     With hardware-aware degisn, the decoupled head is optimized with
     hybridchannels methods.
     '''
-    def __init__(self, prev_out_shape, n_classes, num_layers=3, **kwargs):
+    def __init__(self, prev_out_shape, n_classes, is_4head=False, **kwargs):
         super(YoloV6Head, self).__init__()
         self.n_classes = n_classes  # number of classes
         self.type = ObjectDetection()
         self.original_in_shape = kwargs["original_in_shape"]
         self.prev_out_shape = prev_out_shape
 
-        self.no = n_classes + 5  # number of outputs per anchor
-        self.nl = num_layers  # number of detection layers
+        self.no = n_classes + 5 # number of outputs per anchor
+        self.is_4head = is_4head
+        self.nl = 4 if self.is_4head else 3 # number of detection layers (support 3 and 4 heads)
 
         self.prior_prob = 1e-2
 
         self.n_anchors = 1
-        stride = [8, 16, 32]  # strides computed during build
+        stride = [4, 8, 16, 32] if self.is_4head else [8,16,32] # strides computed during build
         self.stride = torch.tensor(stride)
-        self.grid = [torch.zeros(1)] * num_layers
+        self.grid = [torch.zeros(1)] * self.nl
         self.grid_cell_offset = 0.5
         self.grid_cell_size = 5.0
 
@@ -90,7 +92,7 @@ if __name__ == "__main__":
     width_mul = 0.25
 
     backbone = EfficientRep(in_channels=3, channels_list=channels_list_backbone, num_repeats=num_repeats_backbone,
-        depth_mul=depth_mul, width_mul=width_mul)
+        depth_mul=depth_mul, width_mul=width_mul, is_4head=True)
     for module in backbone.modules():
         if hasattr(module, 'switch_to_deploy'):
             module.switch_to_deploy()
@@ -98,16 +100,17 @@ if __name__ == "__main__":
     backbone.eval()
 
     neck = RepPANNeck(prev_out_shape=backbone_out_shapes, channels_list=channels_list_neck, num_repeats=num_repeats_neck,
-        depth_mul=depth_mul, width_mul=width_mul)
+        depth_mul=depth_mul, width_mul=width_mul, is_4head=True)
     neck_out_shapes = dummy_input_run(neck, backbone_out_shapes, multi_input=True)
     neck.eval()
-
-    head = YoloV6Head(prev_out_shape=neck_out_shapes)
 
     shapes = [224, 256, 384, 512]
     for shape in shapes:
         print("\n\nShape", shape)
         x = torch.zeros(1, 3, shape, shape)
+        head = YoloV6Head(prev_out_shape=neck_out_shapes, n_classes=10, 
+            original_in_shape=x.shape, is_4head=True)
+        head.eval()
         outs = backbone(x)
         outs = neck(outs)
         outs = head(outs)

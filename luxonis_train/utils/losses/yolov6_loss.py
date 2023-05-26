@@ -19,7 +19,7 @@ class YoloV6Loss(nn.Module):
     def __init__(self,
             n_classes,
             image_size=None,
-            fpn_strides=[8, 16, 32],
+            fpn_strides=None,
             grid_cell_size=5.0,
             grid_cell_offset=0.5,
             warmup_epoch=4,
@@ -32,7 +32,12 @@ class YoloV6Loss(nn.Module):
         ):
         super(YoloV6Loss, self).__init__()
 
-        self.fpn_strides = fpn_strides
+        is_4head = kwargs.get("is_4head", False)
+        if fpn_strides is None:
+            self.fpn_strides = [4, 8, 16, 32] if is_4head else [8, 16, 32]
+        else:
+            self.fpn_strides = fpn_strides
+
         self.grid_cell_size = grid_cell_size
         self.grid_cell_offset = grid_cell_offset
         self.num_classes = n_classes

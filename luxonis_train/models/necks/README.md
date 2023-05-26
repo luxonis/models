@@ -5,3 +5,4 @@
     - num_repeats: List[int] # list of number of repeats of RepBlock
     - depth_mul: int # depth multiplier
     - width_mul: int # width multiplier
+    - is_4head: bool # either build 4 headed architecture or 3 headed one (**Important: Should be same also on backbone and head**)

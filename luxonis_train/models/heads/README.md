@@ -17,7 +17,7 @@
 - YoloV6Head (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
   - Params:
     - n_classes: int # number of classes for object detection
-    - num_layers: int # number of EffiDeHeads, should stay default
+    - is_4head: bool # either build 4 headed architecture or 3 headed one (**Important: Should be same also on backbone and neck**)
 - BiSeNetHead (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
   - Params:
     - n_classes: int # number of classes for semantic segmentation

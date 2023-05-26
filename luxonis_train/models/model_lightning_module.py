@@ -33,7 +33,7 @@ class ModelLightningModule(pl.LightningModule):
 
         self.model = Model()
         self.model.build_model()
-        
+
         # for each head get its loss
         self.losses = nn.ModuleList()
         for head in self.cfg.get("model.heads"):

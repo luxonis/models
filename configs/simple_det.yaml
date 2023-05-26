@@ -4,7 +4,8 @@ model:
   pretrained:
   params:
     n_classes: null
+    is_4head: False
 
 dataset:
-  team_name: # TODO
-  dataset_name: # TODO
+  team_name: luxonis # TODO
+  dataset_name: ppsr # TODO

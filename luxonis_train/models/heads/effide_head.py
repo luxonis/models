@@ -103,15 +103,14 @@ if __name__ == "__main__":
     backbone_out_shapes = dummy_input_run(backbone, [1,3,224,224])
     backbone.eval()
 
-    head = EffiDeHead(prev_out_shape=backbone_out_shapes)
-    head.eval()
-
     shapes = [224, 256, 384, 512]
     shapes = [512]
     for shape in shapes:
         print("\nShape", shape)
         x = torch.zeros(1, 3, shape, shape)
         outs = backbone(x)
+        head = EffiDeHead(prev_out_shape=backbone_out_shapes, n_classes=10, original_in_shape=x.shape)
+        head.eval()
         outs = head(outs)
         for i in range(len(outs)):
             print(f"Output {i}:")

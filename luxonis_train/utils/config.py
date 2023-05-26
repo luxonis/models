@@ -155,6 +155,11 @@ class Config:
             if key == "n_classes":
                 model_cfg["heads"][0]["params"]["n_classes"] = value
                 model_cfg["heads"][0]["loss"]["params"]["n_classes"] = value
+            if key == "is_4head":
+                model_cfg["backbone"]["params"]["is_4head"] = value
+                model_cfg["neck"]["params"]["is_4head"] = value
+                model_cfg["heads"][0]["params"]["is_4head"] = value
+                model_cfg["heads"][0]["loss"]["params"]["is_4head"] = value
 
         if "additional_heads" in model_cfg and isinstance(model_cfg["additional_heads"], list):
             model_cfg["heads"].extend(model_cfg["additional_heads"])

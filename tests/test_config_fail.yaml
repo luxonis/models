@@ -1,2 +1,3 @@
 dataset:
-  local_path: /home/klemen/luxonis/test_datasets/datasets/coco-2017-person # TODO: change this if running tests
+  team_name: luxonis
+  dataset_name: ppsr

@@ -3,6 +3,8 @@ import os
 from luxonis_train.utils.config import Config
 
 DATASET_PATH = "/home/klemen/luxonis/test_datasets/datasets/coco-2017-person"
+TEAM_NAME = "luxonis"
+DATASET_NAME = "ppsr"
 
 def reset_env():
     """ Removes Config() instance from current envirnoment. """
@@ -62,7 +64,8 @@ class ConfigDictTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             }
         }
         try:
@@ -79,7 +82,8 @@ class ConfigDictTestCases(unittest.TestCase):
         """ Test passing dir without model definition """
         user_cfg_dict = {
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             }
         }
         with self.assertRaises(KeyError):
@@ -106,7 +110,8 @@ class ConfigValuesTestCases(unittest.TestCase):
                         }
                     },
                     "dataset":{
-                        "local_path": DATASET_PATH
+                        "team_name": TEAM_NAME,
+                        "dataset_name": DATASET_NAME
                     }
                 }
                 try:
@@ -130,30 +135,31 @@ class ConfigValuesTestCases(unittest.TestCase):
                         }
                     },
                     "dataset":{
-                        "local_path": DATASET_PATH
+                        "team_name": TEAM_NAME,
+                        "dataset_name": DATASET_NAME
                     }
                 }
                 with self.assertRaises(ValueError):
                     cfg = Config(user_cfg_dict)
 
-    def test_incorrect_dataset(self):
-        """ Test providing incorrect dataset path"""
-        empty_dataset_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "empty_dataset"))
-        user_cfg_dict = {
-            "model":{
-                "name":"TestModel",
-                "type": "yolov6-n",
-                "pretrained": None,
-                "params":{
-                    "n_classes": None
-                }
-            },
-            "dataset":{
-                "local_path": empty_dataset_path
-            }
-        }
-        with self.assertRaises(ValueError):
-            cfg = Config(user_cfg_dict)
+    # def test_incorrect_dataset(self):
+    #     """ Test providing incorrect dataset path"""
+    #     empty_dataset_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "empty_dataset"))
+    #     user_cfg_dict = {
+    #         "model":{
+    #             "name":"TestModel",
+    #             "type": "yolov6-n",
+    #             "pretrained": None,
+    #             "params":{
+    #                 "n_classes": None
+    #             }
+    #         },
+    #         "dataset":{
+    #             "local_path": empty_dataset_path
+    #         }
+    #     }
+    #     with self.assertRaises(ValueError):
+    #         cfg = Config(user_cfg_dict)
 
     def test_incorrect_n_classes(self):
         """ Test setting incorrect n_classes"""
@@ -167,7 +173,8 @@ class ConfigValuesTestCases(unittest.TestCase):
                 }
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             }
         }
         with self.assertRaises(KeyError):
@@ -185,7 +192,8 @@ class ConfigValuesTestCases(unittest.TestCase):
                 }
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             },
             "train":{
                 "optimizers":{
@@ -213,12 +221,13 @@ class ConfigValuesTestCases(unittest.TestCase):
                 }
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             },
         }
         cfg = Config(user_cfg_dict)
         self.assertEqual(cfg.get("trainer.num_sanity_val_steps"), 2) # one level deep
-        self.assertEqual(cfg.get("dataset.local_path"), DATASET_PATH) # one level deep
+        self.assertEqual(cfg.get("dataset.dataset_name"), DATASET_NAME) # one level deep
         self.assertEqual(cfg.get("dataset.train_view"), "train") # get string
         self.assertEqual(cfg.get("train.batch_size"), 32) # get int
         self.assertEqual(cfg.get("train.skip_last_batch"), True) # get boolean
@@ -237,7 +246,8 @@ class ConfigValuesTestCases(unittest.TestCase):
                 }
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             },
         }
         cfg = Config(user_cfg_dict)
@@ -279,7 +289,8 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             },
         }
         cfg = Config(user_cfg_dict)
@@ -302,7 +313,8 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             },
         }
         with self.subTest(i=0):
@@ -322,7 +334,8 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             },
         }
         with self.subTest(i=1):
@@ -350,7 +363,8 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             },
             "train": {
                 "freeze_modules": {
@@ -382,7 +396,8 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "local_path": DATASET_PATH
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
             },
             "train": {
                 "losses": {
@@ -394,8 +409,47 @@ class ConfigValuesTestCases(unittest.TestCase):
             cfg = Config(user_cfg_dict)
 
     def test_override(self):
-        # TODO
-        pass
+        """ Test config override with a string """
+        from copy import deepcopy
+        user_cfg_dict = {
+            "model":{
+                "name":"TestModel",
+                "type": "yolov6-n",
+                "pretrained": None,
+                "params":{
+                    "n_classes": None
+                }
+            },
+            "dataset":{
+                "team_name": TEAM_NAME,
+                "dataset_name": DATASET_NAME
+            },
+        }
+
+        override_tests = {
+            "trainer.accelerator cpu": ["trainer.accelerator", "auto", "cpu"], # one level deep
+            "dataset.train_view test": ["dataset.train_view", "train", "test"], # string
+            "train.batch_size 16": ["train.batch_size", 32, 16], # int
+            "train.preprocessing.train_rgb False": ["train.preprocessing.train_rgb", True, False], # bool
+            "logger.logged_hyperparams [train.test]": ["logger.logged_hyperparams", 
+                ["train.epochs","train.batch_size"], ["train.test"]], # list of strings
+            "logger.logged_hyperparams ['train.test']": ["logger.logged_hyperparams", 
+                ["train.epochs", "train.batch_size"], ["train.test"]], # not needed characters
+            "train.preprocessing.train_image_size [512, 512]": ["train.preprocessing.train_image_size",
+                [256,256], [512, 512]], # list of ints
+            "exporter.export_image_size.0 128": ["exporter.export_image_size.0", 256, 128] # int inside list
+        }
+
+        for i, (override_str, (key, previous_val, new_val)) in enumerate(override_tests.items()):
+            reset_env()
+            with self.subTest(i=i):
+                cfg = Config(user_cfg_dict)
+                initial_cfg = deepcopy(cfg._data)
+                cfg.override_config(override_str)
+                current_val = cfg.get(key)
+                self.assertEqual(current_val, new_val)
+                cfg.override_config(f"{key} {previous_val}")
+                self.assertEqual(cfg._data, initial_cfg)
 
 
 if __name__ == "__main__":

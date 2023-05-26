@@ -2,6 +2,7 @@ import os
 import yaml
 import warnings
 import json
+import re
 from typing import Union
 from luxonis_ml import LuxonisDataset
 
@@ -33,7 +34,10 @@ class Config:
         """ Overrides config values with ones specifid by --override string """
         if len(args) == 0:
             return
+        
+        args = remove_chars_inside_brackets(args) # remove characters that are not needed
         items = args.split(" ")
+
         if len(items) % 2 != 0:
             raise ValueError("Parameters passed by --override should be in 'key value' shape but one value is missing.")
 
@@ -41,16 +45,12 @@ class Config:
             key_merged = items[i]
             value = items[i+1]
             last_key, last_sub_dict = self._config_iterate(key_merged, only_warn=True)
+
             # should skip if _config_iterate returns None
             if last_key is None and last_sub_dict is None:
                 continue
             # check if value represents something other than string
-            if value.lstrip("-").isdigit():
-                value = int(value)
-            elif value.lower() == "true":
-                value = True
-            elif value.lower() == "false":
-                value = False
+            value = parse_string_to_types(value)
             last_sub_dict[last_key] = value
 
     def get(self, key_merged: str):
@@ -315,3 +315,33 @@ class Config:
                     if "params" in self._data["train"]["preprocessing"]["normalize"] and \
                         self._data["train"]["preprocessing"]["normalize"]["params"] else {}
             })
+
+def remove_chars_inside_brackets(string):
+    """ Find and remove all spaces, single and double quotes inside substring which starts
+        with [ and ends with ] character
+    """
+    # Find substrings enclosed in square brackets
+    pattern = r'\[(.*?)\]'
+    matches = re.findall(pattern, string)
+    # Remove spaces, single quotes, and double quotes within each substring
+    for match in matches:
+        updated_match = re.sub(r'[\s\'"]', '', match)
+        string = string.replace(match, updated_match)
+    return string
+
+def parse_string_to_types(input_str: str):
+    """ Parse input strings to different data type if it matches some rule"""
+    if input_str.lstrip("-").isdigit(): # check if is digit
+        out = int(input_str)
+    elif input_str.lower() == "true": # check for bool values
+        out = True
+    elif input_str.lower() == "false":
+        out = False
+    elif input_str.startswith("[") and input_str.endswith("]"): # check if list
+        sub_inputs = input_str[1:-1].split(",")
+        out = []
+        for sub_input in sub_inputs:
+            out.append(parse_string_to_types(sub_input)) # parse every sub-item
+    else:
+        out = input_str # if nothing matches then it's a string
+    return out

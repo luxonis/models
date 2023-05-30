@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
         loader_train = LuxonisLoader(
             dataset,
-            view='val',
+            view=args.view,
             augmentations=train_augmentations
         )
         pytorch_loader_train = torch.utils.data.DataLoader(

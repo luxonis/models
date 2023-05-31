@@ -85,6 +85,8 @@ model:
 ```
 
 You can see the list of all currently supported loss functions and their parameters [here](./luxonis_train/utils/losses/README.md).
+#### Advanced configuration:
+Every head also supports the `attach_index` parameter which specifies on which backbone/neck layer should the head attach to. Layers are indexed from 0 to N where N is the last layer (closest to the head). By default `attach_index` is set to -1 for all heads which means that the head attaches to the last previous layer (Python list index convention is used here).
 
 ### Trainer:
 This block configures everything connected to PytrochLightning Trainer object. 

@@ -21,6 +21,7 @@ class YoloV6Head(nn.Module):
         self.n_classes = n_classes  # number of classes
         self.type = ObjectDetection()
         self.original_in_shape = kwargs["original_in_shape"]
+        self.attach_index = kwargs.get("attach_index", -1) # not used in this head
         self.prev_out_shape = prev_out_shape
 
         self.no = n_classes + 5 # number of outputs per anchor

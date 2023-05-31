@@ -15,7 +15,8 @@ class BiSeNetHead(nn.Module):
         self.n_classes = n_classes
         self.type = SemanticSegmentation()
         self.original_in_shape = kwargs["original_in_shape"]
-        self.prev_out_shape = prev_out_shape
+        self.attach_index = kwargs.get("attach_index", -1)
+        self.prev_out_shape = prev_out_shape[self.attach_index]
 
         ch = 256 if is_aux else 64
         c2 = n_classes * upscale_factor * upscale_factor
@@ -24,7 +25,7 @@ class BiSeNetHead(nn.Module):
         self.upscale = nn.PixelShuffle(upscale_factor)
 
     def forward(self, x):
-        x = self.conv_1x1(self.conv_3x3(x[-1]))
+        x = self.conv_1x1(self.conv_3x3(x[self.attach_index]))
         return self.upscale(x)
 
 if __name__ == "__main__":

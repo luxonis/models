@@ -11,9 +11,10 @@ class ClassificationHead(nn.Module):
         self.n_classes = n_classes
         self.type = Classification()
         self.original_in_shape = kwargs["original_in_shape"]
-        self.prev_out_shape = prev_out_shape
+        self.attach_index = kwargs.get("attach_index", -1)
+        self.prev_out_shape = prev_out_shape[self.attach_index]
         
-        self.in_channels = self.prev_out_shape[-1][1]
+        self.in_channels = self.prev_out_shape[1]
 
         self.head = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
@@ -23,5 +24,5 @@ class ClassificationHead(nn.Module):
         )
 
     def forward(self, x):
-        out = self.head(x[-1])
+        out = self.head(x[self.attach_index])
         return out

@@ -18,12 +18,13 @@ class EffiDeHead(nn.Module):
         self.n_classes = n_classes
         self.type = ObjectDetection()
         self.original_in_shape = kwargs["original_in_shape"]
-        self.prev_out_shape = prev_out_shape
+        self.attach_index = kwargs.get("attach_index", -1)
+        self.prev_out_shape = prev_out_shape[self.attach_index]
 
         self.n_anchors = n_anchors
         self.prior_prob = 1e-2
 
-        in_channels = self.prev_out_shape[-1][1]
+        in_channels = self.prev_out_shape[1]
 
         self.head = nn.Sequential(*[
             # stem
@@ -87,7 +88,7 @@ class EffiDeHead(nn.Module):
         conv.weight = nn.Parameter(w, requires_grad=True)
 
     def forward(self, x):
-        out = self.head[0](x[-1])
+        out = self.head[0](x[self.attach_index])
         out_cls = self.head[1](out)
         out_cls = self.head[3](out_cls)
         out_reg = self.head[2](out)

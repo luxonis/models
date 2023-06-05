@@ -76,10 +76,10 @@ class Exporter(pl.LightningModule):
         self.to_onnx(
             onnx_path,
             dummy_input,
-            opset_version=12,
+            opset_version=self.cfg.get("exporter.onnx.opset_version"),
             input_names=["input"],
             output_names=output_names,
-            dynamic_axes=None
+            dynamic_axes=self.cfg.get("exporter.onnx.dynamic_axes")
         )
         model_onnx = onnx.load(onnx_path)
         onnx_model, check = onnxsim.simplify(model_onnx)
@@ -93,11 +93,13 @@ class Exporter(pl.LightningModule):
         cmd = f"mo --input_model {onnx_path} " \
         f"--output_dir {base_path} " \
         f"--model_name {self.cfg.get('exporter.export_model_name')} " \
-        "--reverse_input_channels " \
-        "--data_type FP16 " \
-        "--scale_values '[58.395, 57.120, 57.375]' " \
-        "--mean_values '[123.675, 116.28, 103.53]' "  \
+        f"--data_type {self.cfg.get('exporter.openvino.data_type')} " \
+        f"--scale_values '{self.cfg.get('exporter.openvino.scale_values')}' " \
+        f"--mean_values '{self.cfg.get('exporter.openvino.mean_values')}' "  \
         f"--output {output_list}"
+
+        if self.cfg.get("exporter.openvino.reverse_input_channels"):
+            cmd += " --reverse_input_channels "
 
         subprocess.check_output(cmd, shell=True)
     
@@ -107,9 +109,9 @@ class Exporter(pl.LightningModule):
         blob_path = blobconverter.from_openvino(
             xml=xmlfile,
             bin=binfile,
-            data_type="FP16",
-            shaves=6,
-            version="2022.1",
+            data_type=self.cfg.get("exporter.blobconverter.data_type"),
+            shaves=self.cfg.get("exporter.blobconverter.shaves"),
+            version=str(self.cfg.get("exporter.blobconverter.openvino_version")),
             use_cache=False,
             output_dir=base_path
         )
@@ -127,10 +129,10 @@ class Exporter(pl.LightningModule):
         self.to_onnx(
             onnx_path,
             dummy_input,
-            opset_version=12,
+            opset_version=self.cfg.get("exporter.onnx.opset_version"),
             input_names=["input"],
             output_names=output_names,
-            dynamic_axes=None
+            dynamic_axes=self.cfg.get("exporter.onnx.dynamic_axes")
         )
         model_onnx = onnx.load(onnx_path)
         onnx_model, check = onnxsim.simplify(model_onnx)
@@ -142,10 +144,10 @@ class Exporter(pl.LightningModule):
         # TODO: check if this export is correct, might be missing revert channels, mean scale,...
         blob_path = blobconverter.from_onnx(
             model=onnx_path,
-            data_type="FP16",
-            shaves=6,
-            output_dir=base_path,
-            use_cache=False
+            data_type=self.cfg.get("exporter.blobconverter.data_type"),
+            shaves=self.cfg.get("exporter.blobconverter.shaves"),
+            use_cache=False,
+            output_dir=base_path
         )
         if remove_onnx:
             os.remove(onnx_path)

@@ -6,7 +6,6 @@ from copy import deepcopy
 from typing import Union
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
-from pytorch_lightning.callbacks import RichProgressBar
 from luxonis_ml import *
 
 from luxonis_train.utils.callbacks import LuxonisProgressBar
@@ -61,6 +60,9 @@ class Trainer:
             callbacks=LuxonisProgressBar() if self.cfg.get("train.use_rich_text") else None # NOTE: this is likely PL bug, should be configurable inside configure_callbacks(),
         )
         self.error_message = None
+
+        # save current config to logger directory
+        self.cfg.save_data(os.path.join(self.run_save_dir, "config.yaml"))
 
     def train(self, new_thread: bool = False):
         """ Runs training

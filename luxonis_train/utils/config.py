@@ -30,6 +30,10 @@ class Config:
         if hasattr(cls, "instance"):
             del cls.instance
 
+    def save_data(self, path: str):
+        with open(path, "w+") as f:
+            yaml.dump(self._data, f, default_flow_style=False)    
+
     def override_config(self, args: str):
         """ Overrides config values with ones specifid by --override string """
         if len(args) == 0:

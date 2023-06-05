@@ -8,4 +8,4 @@ model:
 
 dataset:
   team_name: luxonis # TODO
-  dataset_name: ds_small # TODO
+  dataset_name: ds_big # TODO

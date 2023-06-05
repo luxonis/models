@@ -21,6 +21,9 @@ class LuxonisProgressBar(RichProgressBar):
 
         super().__init__(leave=True)
 
+    def print_single_line(self, text:str):
+        self._console.print(f"[magenta]{text}[/magenta]")
+
     def get_metrics(self, trainer, pl_module):
         # NOTE: there might be a cleaner way of doing this
         items = super().get_metrics(trainer, pl_module)
@@ -30,8 +33,8 @@ class LuxonisProgressBar(RichProgressBar):
 
     def print_results(self, stage: str, loss: float, metrics: dict):
         """ Prints results to the console using rich text"""
-        rule = Rule(stage, style="bold magenta")
-        self._console.print(rule)
+
+        self._console.rule(stage, style="bold magenta")
         self._console.print(f"[bold magenta]Loss:[/bold magenta] [white]{loss}[/white]")
         self._console.print(f"[bold magenta]Metrics:[/bold magenta]")
         for head in metrics:
@@ -42,6 +45,4 @@ class LuxonisProgressBar(RichProgressBar):
                 value = "{:.5f}".format(metrics[head][metric_name].cpu().item())
                 table.add_row(metric_name, value)
             self._console.print(table)
-        
-        rule = Rule(style="bold magenta")
-        self._console.print(rule)
+        self._console.rule(style="bold magenta")

@@ -194,9 +194,7 @@ class ModelLightningModule(pl.LightningModule):
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
             with torch.no_grad(): 
-                train_metric_interval = self.cfg.get("train.train_metrics_interval")
-                if train_metric_interval != -1 and self.current_epoch % train_metric_interval == 0 and \
-                    self.current_epoch != 0:     
+                if self._is_train_eval_epoch():  
                     output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
                     curr_metrics.update(output_processed, curr_label_processed)
@@ -257,6 +255,7 @@ class ModelLightningModule(pl.LightningModule):
                 label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
                 output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
                 merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
+                
                 num_log_images = self.cfg.get("train.num_log_images")
                 log_imgs = merged_imgs[:num_log_images]
                 
@@ -273,6 +272,7 @@ class ModelLightningModule(pl.LightningModule):
         return step_output
 
     def test_step(self, test_batch: tuple, batch_idx: int):
+        """ Performs one step of test with provided batch """
         inputs = test_batch[0]
         labels = test_batch[1]
         outputs = self.forward(inputs)
@@ -335,15 +335,15 @@ class ModelLightningModule(pl.LightningModule):
                 self.log(f"train_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console
-        train_metric_interval = self.cfg.get("train.train_metrics_interval")
-        if train_metric_interval != -1 and self.current_epoch % train_metric_interval == 0 and \
-            self.current_epoch != 0:    
+        if self._is_train_eval_epoch():  
+            self._print_metric_warning("Computing metrics on train subset...")
             for curr_head_name in self.metrics:
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
                 metric_results[curr_head_name] = curr_metrics
                 for metric_name in curr_metrics:
                     self.log(f"train_metric/{curr_head_name}_{metric_name}", curr_metrics[metric_name], sync_dist=True)
                 self.metrics[curr_head_name]["train_metrics"].reset() 
+            self._print_metric_warning("Metrics computed.")
 
             if self.cfg.get("trainer.verbose"):
                 self._print_results(stage="Train", loss=epoch_train_loss, metrics=metric_results)
@@ -363,6 +363,7 @@ class ModelLightningModule(pl.LightningModule):
                 self.log(f"val_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console
+        self._print_metric_warning("Computing metrics on val subset...")
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"].compute()
             metric_results[curr_head_name] = curr_metrics
@@ -372,6 +373,7 @@ class ModelLightningModule(pl.LightningModule):
             if i == 0:
                 self.log(f"val_metric/{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)
             self.metrics[curr_head_name]["val_metrics"].reset()
+        self._print_metric_warning("Metrics computed.")
 
         if self.cfg.get("trainer.verbose"):
             self._print_results(stage="Validation", loss=epoch_val_loss, metrics=metric_results)
@@ -379,6 +381,7 @@ class ModelLightningModule(pl.LightningModule):
         self.validation_step_outputs.clear()
 
     def on_test_epoch_end(self):
+        """ Performs test epoch end operations"""
         epoch_test_loss = np.mean([step_output["loss"] for step_output in self.test_step_outputs])
         self.log("test_loss/loss", epoch_test_loss, sync_dist=True)
 
@@ -390,6 +393,7 @@ class ModelLightningModule(pl.LightningModule):
                 self.log(f"test_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console
+        self._print_metric_warning("Computing metrics on test subset...")
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["test_metrics"].compute()
             metric_results[curr_head_name] = curr_metrics
@@ -399,6 +403,7 @@ class ModelLightningModule(pl.LightningModule):
             if i == 0:
                 self.log(f"test_metric/{self.main_metric}", curr_metrics[self.main_metric], sync_dist=True)
             self.metrics[curr_head_name]["test_metrics"].reset()
+        self._print_metric_warning("Metrics computed.")
 
         if self.cfg.get("trainer.verbose"):
             self._print_results(stage="Test", loss=epoch_test_loss, metrics=metric_results)
@@ -419,6 +424,21 @@ class ModelLightningModule(pl.LightningModule):
                 return 100.0
         else:    
             return (self.current_epoch / self.cfg.get("train.epochs"))*100 
+
+    def _is_train_eval_epoch(self):
+        """ Checks if train eval should be performed on current epoch based on configured train_metrics_interval"""
+        train_metric_interval = self.cfg.get("train.train_metrics_interval")
+        # add +1 to current_epoch because starting epoch is at 0
+        return train_metric_interval != -1 and (self.current_epoch+1) % train_metric_interval == 0 and \
+                self.current_epoch != 0
+
+    def _print_metric_warning(self, text:str):
+        """ Prints warning in the console for running metric computation (which can take quite long) """
+        if self.cfg.get("train.use_rich_text"):
+            # Spinner element would be nicer but afaik needs context manager
+            self._trainer.progress_bar_callback.print_single_line(text)
+        else:
+            print(f"\n{text}")
 
     @rank_zero_only
     def _print_results(self, stage: str, loss: float, metrics: dict):

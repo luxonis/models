@@ -209,7 +209,8 @@ class ModelLightningModule(pl.LightningModule):
                         log_imgs = merged_imgs[:num_log_images]
 
                         for i, img in enumerate(log_imgs):
-                            self.logger.log_image(f"train/{curr_head_name}_img{i}", img, step=self.current_epoch)
+                            # self.logger.log_image(f"train_image/{curr_head_name}_img{i}", img, step=self.global_step)
+                            self.logger.log_image(f"train_image/{curr_head_name}_img{i}", img, step=self.current_epoch)
 
         step_output = {
             "loss": loss.detach().cpu(),
@@ -260,7 +261,7 @@ class ModelLightningModule(pl.LightningModule):
                 log_imgs = merged_imgs[:num_log_images]
                 
                 for i, img in enumerate(log_imgs):
-                    self.logger.log_image(f"val/{curr_head_name}_img{i}", img, step=self.current_epoch)
+                    self.logger.log_image(f"val_image/{curr_head_name}_img{i}", img, step=self.current_epoch)
         
         step_output = {
             "loss": loss.detach().cpu(),
@@ -311,7 +312,7 @@ class ModelLightningModule(pl.LightningModule):
                 log_imgs = merged_imgs[:num_log_images]
 
                 for i, img in enumerate(log_imgs):
-                    self.logger.log_image(f"test/{curr_head_name}_img{i}", img, step=self.current_epoch)
+                    self.logger.log_image(f"test_image/{curr_head_name}_img{i}", img, step=self.current_epoch)
 
         step_output = {
             "loss": loss.detach().cpu(),
@@ -325,6 +326,8 @@ class ModelLightningModule(pl.LightningModule):
     def on_train_epoch_end(self):
         """ Performs train epoch end operations """
         epoch_train_loss = np.mean([step_output["loss"] for step_output in self.training_step_outputs])
+        # self.log doesn't have an option to specify step and uses step=self.global_step as default
+        # Track this issue if this will change anytime: https://github.com/Lightning-AI/lightning/issues/3228
         self.log("train_loss/loss", epoch_train_loss, sync_dist=True)
 
         if self.cfg.get("train.losses.log_sub_losses"):
@@ -336,7 +339,7 @@ class ModelLightningModule(pl.LightningModule):
 
         metric_results = {} # used for printing to console
         if self._is_train_eval_epoch():  
-            self._print_metric_warning("Computing metrics on train subset...")
+            self._print_metric_warning("Computing metrics on train subset ...")
             for curr_head_name in self.metrics:
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
                 metric_results[curr_head_name] = curr_metrics
@@ -363,7 +366,7 @@ class ModelLightningModule(pl.LightningModule):
                 self.log(f"val_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console
-        self._print_metric_warning("Computing metrics on val subset...")
+        self._print_metric_warning("Computing metrics on val subset ...")
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"].compute()
             metric_results[curr_head_name] = curr_metrics
@@ -393,7 +396,7 @@ class ModelLightningModule(pl.LightningModule):
                 self.log(f"test_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console
-        self._print_metric_warning("Computing metrics on test subset...")
+        self._print_metric_warning("Computing metrics on test subset ...")
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["test_metrics"].compute()
             metric_results[curr_head_name] = curr_metrics

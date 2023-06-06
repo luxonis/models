@@ -8,4 +8,9 @@ model:
 
 dataset:
   team_name: luxonis # TODO
-  dataset_name: ds_big # TODO
+  dataset_name: ds_small # TODO
+
+logger:
+  is_wandb: True 
+  wandb_entity: luxonis
+  project_name: ml-ops-train

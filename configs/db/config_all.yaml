@@ -37,7 +37,7 @@ train:
     augmentations: # list of Albumentations augmentations
       # - name: Rotate
       #   params:
-      #    - limit: 15
+      #     limit: 15
 
   batch_size: 32 # batch size used for trainig (int)
   accumulate_grad_batches: 1 # number of batches for gradient accumulation (int)

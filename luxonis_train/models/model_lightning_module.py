@@ -432,8 +432,7 @@ class ModelLightningModule(pl.LightningModule):
         """ Checks if train eval should be performed on current epoch based on configured train_metrics_interval"""
         train_metric_interval = self.cfg.get("train.train_metrics_interval")
         # add +1 to current_epoch because starting epoch is at 0
-        return train_metric_interval != -1 and (self.current_epoch+1) % train_metric_interval == 0 and \
-                self.current_epoch != 0
+        return train_metric_interval != -1 and (self.current_epoch+1) % train_metric_interval == 0
 
     def _print_metric_warning(self, text:str):
         """ Prints warning in the console for running metric computation (which can take quite long) """

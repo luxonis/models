@@ -4,7 +4,7 @@ import yaml
 
 from luxonis_ml import *
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.augmentations import TrainAugmentations
+from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations
 from luxonis_train.utils.visualization import *
 import matplotlib.pyplot as plt
 
@@ -31,12 +31,11 @@ if __name__ == "__main__":
             for _ in range(len(classes))
         ]
 
-        train_augmentations = TrainAugmentations()
-
+        augmentations = TrainAugmentations if args.view == "train" else ValAugmentations()
         loader_train = LuxonisLoader(
             dataset,
             view=args.view,
-            augmentations=train_augmentations
+            augmentations=augmentations
         )
         pytorch_loader_train = torch.utils.data.DataLoader(
             loader_train,

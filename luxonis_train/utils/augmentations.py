@@ -16,16 +16,24 @@ class Augmentations:
     def _parse_cfg(self, cfg_aug: dict):
         """ Parses provided config and returns Albumentations Compose object"""
         image_size = self.cfg["train_image_size"]
-        
+
         # Always perform Resize
-        augmentations = [A.Resize(image_size[0], image_size[1])]
+        if self.cfg["keep_aspect_ratio"]:
+            resize = A.Sequential([
+                A.LongestMaxSize(max_size=max(image_size), interpolation=1),
+                A.PadIfNeeded(min_height=image_size[0], min_width=image_size[1], border_mode=0, value=(0,0,0)),
+            ], p=1)
+        else: 
+            resize = A.Resize(image_size[0], image_size[1])
+
+        augmentations = [resize]
         if cfg_aug:
             for aug in cfg_aug:
                 augmentations.append(
                     eval(aug["name"])(**aug.get("params", {}))
                 )
         augmentations.append(ToTensorV2())
-        
+  
         return A.Compose(
             augmentations, 
             bbox_params=A.BboxParams(format="coco", label_fields=["bbox_classes"]),

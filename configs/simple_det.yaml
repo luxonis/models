@@ -11,6 +11,6 @@ dataset:
   dataset_name: ds_small # TODO
 
 logger:
-  is_wandb: True 
+  is_wandb: False 
   wandb_entity: luxonis
   project_name: ml-ops-train

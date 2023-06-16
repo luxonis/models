@@ -16,7 +16,7 @@ class Augmentations:
     def _parse_cfg(self, cfg_aug: dict):
         """ Parses provided config and returns Albumentations Compose object"""
         image_size = self.cfg["train_image_size"]
-        
+
         # Always perform Resize
         augmentations = [A.Resize(image_size[0], image_size[1])]
         if cfg_aug:
@@ -25,9 +25,9 @@ class Augmentations:
                     eval(aug["name"])(**aug.get("params", {}))
                 )
         augmentations.append(ToTensorV2())
-        
+
         return A.Compose(
-            augmentations, 
+            augmentations,
             bbox_params=A.BboxParams(format="coco", label_fields=["bbox_classes"]),
             keypoint_params=A.KeypointParams(format="xy", label_fields=["keypoints_classes"], remove_invisible=False),
         )
@@ -44,7 +44,7 @@ class Augmentations:
 
         classes = anno_dict.get("class", torch.zeros(1))
 
-        seg = anno_dict.get("segmentation", torch.zeros((1, *img_in.shape[1:])))
+        seg = anno_dict.get("segmentation", torch.zeros((1, *img_in.shape[:-1])))
         masks = [m.numpy() for m in seg]
 
         # COCO format in albumentations is [x,y,w,h] non-normalized
@@ -75,7 +75,7 @@ class Augmentations:
         )
 
         transformed_image, out_bboxes, transformed_mask, final_keypoints = \
-            post_augment_process(transformed, keypoints, 
+            post_augment_process(transformed, keypoints,
                 keypoints_classes, use_rgb=self.cfg["train_rgb"])
 
         out_annotations = create_out_annotations(present_annotations, classes=classes, bboxes=out_bboxes,

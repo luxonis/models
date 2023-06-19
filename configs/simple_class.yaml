@@ -16,5 +16,5 @@ model:
         params:
 
 dataset:
-  team_name: # TODO
-  dataset_name: # TODO
+  team_name: luxonis # TODO
+  dataset_name: coco_test # TODO

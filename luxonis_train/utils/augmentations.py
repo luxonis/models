@@ -4,14 +4,18 @@ from albumentations.pytorch import ToTensorV2
 import numpy as np
 import cv2
 import torch
+from typing import Union
 
 from luxonis_train.utils.config import Config
+from luxonis_train.models.heads import *
+from luxonis_train.utils.head_type import *
+from luxonis_train.utils.head_utils import generate_blaze_heatmap
 
 class Augmentations:
     def __init__(self):
         """ Base class for creating Augmentations object """
-        cfg_all = Config()
-        self.cfg = cfg_all.get("train.preprocessing")
+        self.cfg_all = Config()
+        self.cfg = self.cfg_all.get("train.preprocessing")
 
     def _parse_cfg(self, cfg_aug: dict):
         """ Parses provided config and returns Albumentations Compose object"""
@@ -74,14 +78,28 @@ class Augmentations:
             keypoints_classes = keypoints_visibility, # not object class, but per-kp class
         )
 
-        transformed_image, out_bboxes, transformed_mask, final_keypoints = \
+        final_image, final_bboxes, final_masks, final_keypoints = \
             post_augment_process(transformed, keypoints, 
                 keypoints_classes, use_rgb=self.cfg["train_rgb"])
 
-        out_annotations = create_out_annotations(present_annotations, classes=classes, bboxes=out_bboxes,
-            masks=transformed_mask, keypoints=final_keypoints)
+        custom_labels = self.create_custom_labels(final_image, final_bboxes, final_masks, final_keypoints)
+        custom_labels = custom_labels[0] if len(custom_labels) else None # NOTE: only supports one custom label per model for now (aka. one head with custom labels)
 
-        return transformed_image, out_annotations
+        out_annotations = create_out_annotations(present_annotations, classes=classes, bboxes=final_bboxes,
+            masks=final_masks, keypoints=final_keypoints, custom_labels=custom_labels)
+
+        return final_image, out_annotations
+
+    def create_custom_labels(self, image: np.ndarray, bboxes: torch.Tensor, final_masks: torch.Tensor, final_keypoints: torch.Tensor):
+        custom_labels = []
+        for head in self.cfg_all.get("model.heads"):
+            curr_head_name = head["name"]
+            curr_head_type = eval(curr_head_name).type
+            if isinstance(curr_head_type, CustomHeadType):
+                if "blazeheatmap" in curr_head_name.lower():
+                    heatmap = generate_blaze_heatmap(final_keypoints)
+                    custom_labels.append(heatmap)
+        return custom_labels
 
 class TrainAugmentations(Augmentations):
     def __init__(self):
@@ -152,7 +170,7 @@ def check_bboxes(bboxes: torch.Tensor):
     return bboxes
 
 def create_out_annotations(present_annotations: list, classes: torch.Tensor, bboxes: torch.Tensor,
-    masks: torch.Tensor, keypoints: torch.Tensor):
+    masks: torch.Tensor, keypoints: torch.Tensor, custom_labels: Union[None, torch.Tensor]):
     """ Create dictionary of output annotations """
     out_annotations = {}
     if "class" in present_annotations:
@@ -163,4 +181,6 @@ def create_out_annotations(present_annotations: list, classes: torch.Tensor, bbo
         out_annotations["segmentation"] = masks
     if "keypoints" in present_annotations:
         out_annotations["keypoints"] = keypoints
+    if custom_labels:
+        out_annotations["custom"] = custom_labels
     return out_annotations

@@ -7,6 +7,7 @@ from .mobileone import MobileOne
 from .mobilenetv2 import MobileNetV2
 from .efficientnet import EfficientNet
 from .context_spatial import ContextSpatial
+from .blazepose import BlazePose
 
 __all__ = [
     "MicroNet",
@@ -17,5 +18,6 @@ __all__ = [
     "MobileOne",
     "MobileNetV2",
     "EfficientNet",
-    "ContextSpatial"
+    "ContextSpatial",
+    "BlazePose"
 ]

@@ -6,8 +6,6 @@ class ClassificationHead(nn.Module):
     def __init__(self, prev_out_shape, n_classes=0, fc_dropout=0.2, **kwargs):
         super(ClassificationHead, self).__init__()
 
-        assert (n_classes), "Classification head should have at least one class"
-
         self.n_classes = n_classes
         self.type = Classification()
         self.original_in_shape = kwargs["original_in_shape"]

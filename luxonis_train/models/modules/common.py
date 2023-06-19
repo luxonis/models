@@ -224,3 +224,39 @@ class SimplifiedSPPF(nn.Module):
         # along the channel dimension and pass through the second convolutional layer
         out = self.cv2(torch.cat([x, y1, y2, y3], dim=1))
         return out
+    
+
+class MobileBottleneck(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, groups, se=False, activation=nn.ReLU()):
+        """ MobileNetv2 bottleneck layer
+            Adapted from: https://github.com/WangChyanhassth-2say/BlazePose_torch/blob/main/full/lib/models/BlazePose.py
+        """
+        super(MobileBottleneck, self).__init__()
+        assert stride in [1, 2]
+        assert kernel_size in [3, 5]
+
+        padding = (kernel_size - 1) // 2
+        self.use_res_connect = stride == 1 and in_channels == out_channels
+
+        if se:
+            SELayer = SEBlock(in_channels=groups, internal_channels=groups//4)
+        else:
+            SELayer = nn.Identity()
+
+        self.conv = nn.Sequential(
+            # pw
+            ConvModule(in_channels, groups, 1, 1, 0, activation=activation),
+            # dw
+            nn.Conv2d(groups, groups, kernel_size, stride, padding, groups=groups, bias=False),
+            nn.BatchNorm2d(groups),
+            SELayer,
+            activation,
+            # pw-linear
+            ConvModule(groups, out_channels, 1, 1, 0, activation=nn.Identity())
+        )
+
+    def forward(self, x):
+        if self.use_res_connect:
+            return x + self.conv(x)
+        else:
+            return self.conv(x)

@@ -47,3 +47,12 @@ class KeyPointDetection():
     @property
     def main_metric(self):
         return self._main_metric
+    
+class CustomHeadType():
+    def __init__(self, main_metric):
+        self._main_metric = main_metric
+    
+    @property
+    def main_metric(self):
+        return self._main_metric
+

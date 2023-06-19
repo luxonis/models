@@ -312,7 +312,7 @@ class Config:
         if not("augmentations" in self._data["train"]["preprocessing"] and \
                 self._data["train"]["preprocessing"]["augmentations"]):
             self._data["train"]["preprocessing"]["augmentations"] = []
-        if self._data["train"]["preprocessing"]["normalize"]["use_normalize"]:
+        if self._data["train"]["preprocessing"]["normalize"]["active"]:
             self._data["train"]["preprocessing"]["augmentations"].append({
                 "name":"Normalize",
                 "params":self._data["train"]["preprocessing"]["normalize"]["params"]

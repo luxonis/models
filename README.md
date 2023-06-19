@@ -145,9 +145,10 @@ For `optimizers` we use Pytorch library. You can see [here](https://pytorch.org/
 train:
   preprocessing:
     train_image_size: [256, 256] # image size used for training [height, width] (list)
+    keep_aspect_ratio: True # bool if keep aspect ration while resizing (bool)
     train_rgb: True # bool if train on rgb or bgr (bool)
     normalize:
-      use_normalize: True # bool if use normalization (bool)
+      active: True # bool if use normalization (bool)
       params: # params for normalization (dict|null)
     augmentations: # list of Albumentations augmentations
       # - name: Rotate

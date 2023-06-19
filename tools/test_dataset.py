@@ -4,7 +4,7 @@ import yaml
 
 from luxonis_ml import *
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.augmentations import TrainAugmentations
+from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations
 from luxonis_train.utils.visualization import *
 import matplotlib.pyplot as plt
 
@@ -12,12 +12,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-cfg", "--config", type=str, required=True, help="Configuration file to use")
     parser.add_argument("-v", "--view", type=str, default="val", help="Dataset view to use")
+    parser.add_argument("--override", default=None, type=str, help="Manually override config parameter")
     args = parser.parse_args()
 
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
     cfg = Config(cfg)
+    if args.override:
+        cfg.override_config(args.override)
+
     image_size = cfg.get("train.preprocessing.train_image_size")
 
     with LuxonisDataset(
@@ -31,12 +35,11 @@ if __name__ == "__main__":
             for _ in range(len(classes))
         ]
 
-        train_augmentations = TrainAugmentations()
-
+        augmentations = TrainAugmentations() if args.view == "train" else ValAugmentations()
         loader_train = LuxonisLoader(
             dataset,
             view=args.view,
-            augmentations=train_augmentations
+            augmentations=augmentations
         )
         pytorch_loader_train = torch.utils.data.DataLoader(
             loader_train,

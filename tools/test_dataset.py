@@ -12,12 +12,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-cfg", "--config", type=str, required=True, help="Configuration file to use")
     parser.add_argument("-v", "--view", type=str, default="val", help="Dataset view to use")
+    parser.add_argument("--override", default=None, type=str, help="Manually override config parameter")
     args = parser.parse_args()
 
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
     cfg = Config(cfg)
+    if args.override:
+        cfg.override_config(args.override)
+
     image_size = cfg.get("train.preprocessing.train_image_size")
 
     with LuxonisDataset(
@@ -31,7 +35,7 @@ if __name__ == "__main__":
             for _ in range(len(classes))
         ]
 
-        augmentations = TrainAugmentations if args.view == "train" else ValAugmentations()
+        augmentations = TrainAugmentations() if args.view == "train" else ValAugmentations()
         loader_train = LuxonisLoader(
             dataset,
             view=args.view,

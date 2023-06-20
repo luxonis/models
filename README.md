@@ -157,6 +157,7 @@ train:
 
   batch_size: 32 # batch size used for trainig (int)
   accumulate_grad_batches: 1 # number of batches for gradient accumulation (int)
+  use_weighted_sampler: False # bool if should use weighted sampler - only applicable for classification tasks (bool)
   epochs: 100 # number of training epochs (int)
   num_workers: 2 # number of workers for data loading (int)
   train_metrics_interval: -1 # frequency of computing metrics on train data, -1 if don't perform (int)

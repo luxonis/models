@@ -84,6 +84,14 @@ class Trainer:
                 view=self.cfg.get("dataset.train_view"),
                 augmentations=self.train_augmentations
             )
+
+            sampler = None
+            if self.cfg.get("train.use_weighted_sampler"):
+                class_counts = dataset.get_classes_counts()
+                # sampler = torch.utils.data.WeightedRandomSampler(
+                #     weights = 
+                # )
+
             pytorch_loader_train = torch.utils.data.DataLoader(
                 loader_train,
                 batch_size=self.cfg.get("train.batch_size"),

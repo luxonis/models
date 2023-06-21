@@ -28,13 +28,7 @@ if __name__ == "__main__":
         team_name=cfg.get("dataset.team_name"),
         dataset_name=cfg.get("dataset.dataset_name")
     ) as dataset:
-
-        classes, classes_by_task = dataset.get_classes()
-        colors = [
-            (np.random.randint(256),np.random.randint(256),np.random.randint(256)) \
-            for _ in range(len(classes))
-        ]
-
+    
         augmentations = TrainAugmentations() if args.view == "train" else ValAugmentations()
         loader_train = LuxonisLoader(
             dataset,

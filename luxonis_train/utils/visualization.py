@@ -86,8 +86,9 @@ def draw_only_labels(imgs: torch.tensor, anno_dict: dict, image_size: tuple,
         for label_type in anno_dict:
             if label_type == "class":
                 curr_img_class = torch_img_to_numpy(curr_img)
-                curr_label = int(anno_dict[label_type][i])
-                curr_img_class = cv2.putText(curr_img_class, f"{curr_label}", (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+                indices = torch.nonzero(anno_dict[label_type][i]).flatten().tolist()
+                curr_label_str = ",".join(str(i) for i in indices)
+                curr_img_class = cv2.putText(curr_img_class, curr_label_str, (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
                 curr_img_class = numpy_to_torch_img(curr_img_class)
                 curr_out_imgs.append(curr_img_class)
 
@@ -148,7 +149,12 @@ def _draw_on_image(img: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
 
     elif isinstance(head.type, MultiLabelClassification):
         # TODO: what do we want to visualize in this case?
-        raise NotImplementedError()
+        img = torch_img_to_numpy(img)
+        indices = torch.nonzero(data).flatten().tolist()
+        curr_label_str = ",".join(str(i) for i in indices)
+        img = cv2.putText(img, f"{curr_label_str}", (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+        img = numpy_to_torch_img(img)
+        raise img
 
     elif isinstance(head.type, SemanticSegmentation):
         if is_label:

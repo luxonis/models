@@ -2,6 +2,7 @@ import os
 import torch
 import pytorch_lightning as pl
 import threading
+import warnings
 from copy import deepcopy
 from typing import Union
 from dotenv import load_dotenv
@@ -84,12 +85,24 @@ class Trainer:
                 view=self.cfg.get("dataset.train_view"),
                 augmentations=self.train_augmentations
             )
+
+            sampler = None
+            if self.cfg.get("train.use_weighted_sampler"):
+                classes_count = dataset.get_classes_count()
+                if len(classes_count) == 0:
+                    warnings.warn("WeightedRandomSampler only available for classification tasks. Using default sampler instead.")
+                else:
+                    weights = [1/i for i in classes_count.values()]
+                    num_samples = sum(classes_count.values())
+                    sampler = torch.utils.data.WeightedRandomSampler(weights, num_samples)
+
             pytorch_loader_train = torch.utils.data.DataLoader(
                 loader_train,
                 batch_size=self.cfg.get("train.batch_size"),
                 num_workers=self.cfg.get("train.num_workers"),
                 collate_fn=loader_train.collate_fn,
-                drop_last=self.cfg.get("train.skip_last_batch")
+                drop_last=self.cfg.get("train.skip_last_batch"),
+                sampler=sampler
             )
 
             if self.val_augmentations == None:

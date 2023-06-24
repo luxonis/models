@@ -41,7 +41,9 @@ class Config:
             yaml.dump(self._data, f, default_flow_style=False)    
 
     def override_config(self, args: str):
-        """ Overrides config values with ones specifid by --override string """
+        """ Overrides config values with ones specifid by --override string.
+            If last key is not matched to config, creates a new (key, value) pair.
+        """
         if len(args) == 0:
             return
         
@@ -76,6 +78,13 @@ class Config:
         if not self._data["exporter"]["export_weights"]:
             raise ValueError("No 'export_weights' speficied in config file.")
     
+    def validate_config_tuner(self):
+        """ Validates 'tuner' block in config """
+        if not self._data["tuner"]:
+            raise ValueError("No 'tuner' section in config specified.")
+        # TODO: and more checks if needed
+
+
     def _load(self, cfg: Union[str, dict]):
         """ Performs complete loading and validation of the config """
         with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
@@ -232,12 +241,8 @@ class Config:
             key = sub_keys[-1]
             success = False
 
-        if not success:
-            if only_warn:
-                warnings.warn(f"Key '{key_merged}' not matched to config (at level '{key}'). Skipping.") 
-                return None, None
-            else:
-                raise KeyError(f"Key '{key_merged}' not matched to config (at level '{key}')")
+        if not success and not only_warn:
+            raise KeyError(f"Key '{key_merged}' not matched to config (at level '{key}')")
 
         return last_key, sub_dict
 
@@ -333,8 +338,15 @@ class Config:
                         if "params" in self._data["train"]["preprocessing"]["normalize"] and \
                             self._data["train"]["preprocessing"]["normalize"]["params"] else {}
                 })
+        
+        # handle optimizer and scheduler params - set to empty dict if None
+        if not self._data["train"]["optimizers"]["optimizer"]["params"]:
+            self._data["train"]["optimizers"]["optimizer"]["params"] ={}
+        if not self._data["train"]["optimizers"]["scheduler"]["params"]:
+            self._data["train"]["optimizers"]["scheduler"]["params"] = {}
 
 def mlflow_load_artifact_dict(run_info):
+    """ Loads config dictionary from MLFlow artifact """
     from dotenv import load_dotenv
     load_dotenv() # load environment variables needed for authorization
     
@@ -363,6 +375,8 @@ def parse_string_to_types(input_str: str):
     """ Parse input strings to different data type if it matches some rule"""
     if input_str.lstrip("-").isdigit(): # check if is digit
         out = int(input_str)
+    elif input_str.lstrip("-").replace(".","",1).isdigit():
+        out = float(input_str)
     elif input_str.lower() == "true": # check for bool values
         out = True
     elif input_str.lower() == "false":

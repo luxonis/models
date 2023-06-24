@@ -5,6 +5,7 @@ import json
 import re
 from typing import Union
 from luxonis_ml import LuxonisDataset
+from copy import deepcopy
 
 class Config:
     """ Singleton class which checks and merges user config with default one and provides access to its values"""
@@ -30,7 +31,12 @@ class Config:
         if hasattr(cls, "instance"):
             del cls.instance
 
+    def get_data(self):
+        """ Returns a deepcopy of current data dict """
+        return deepcopy(self._data)
+
     def save_data(self, path: str):
+        """ Saves data dict to yaml file """
         with open(path, "w+") as f:
             yaml.dump(self._data, f, default_flow_style=False)    
 
@@ -76,10 +82,16 @@ class Config:
             base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
         if isinstance(cfg, str):
-            if not os.path.isfile(cfg):
-                raise ValueError("Provided file path doesn't exists.")
-            with open(cfg, "r") as f:
-                user_cfg = yaml.load(f, Loader=yaml.SafeLoader)
+            if cfg.startswith("mlflow:"):
+                # load config from mlflow artifact
+                run_info = cfg.split("mlflow:")[-1]
+                user_cfg = mlflow_load_artifact_dict(run_info)
+            else:
+                # load config from local file
+                if not os.path.isfile(cfg):
+                    raise ValueError("Provided file path doesn't exists.")
+                with open(cfg, "r") as f:
+                    user_cfg = yaml.load(f, Loader=yaml.SafeLoader)
         elif isinstance(cfg, dict):
             user_cfg = cfg
         else:
@@ -313,12 +325,26 @@ class Config:
                 self._data["train"]["preprocessing"]["augmentations"]):
             self._data["train"]["preprocessing"]["augmentations"] = []
         if self._data["train"]["preprocessing"]["normalize"]["active"]:
-            self._data["train"]["preprocessing"]["augmentations"].append({
-                "name":"Normalize",
-                "params":self._data["train"]["preprocessing"]["normalize"]["params"]
-                    if "params" in self._data["train"]["preprocessing"]["normalize"] and \
-                        self._data["train"]["preprocessing"]["normalize"]["params"] else {}
-            })
+            normalize_present = any(filter(lambda x: x["name"], self._data["train"]["preprocessing"]["augmentations"]))
+            if not normalize_present:
+                self._data["train"]["preprocessing"]["augmentations"].append({
+                    "name":"Normalize",
+                    "params":self._data["train"]["preprocessing"]["normalize"]["params"]
+                        if "params" in self._data["train"]["preprocessing"]["normalize"] and \
+                            self._data["train"]["preprocessing"]["normalize"]["params"] else {}
+                })
+
+def mlflow_load_artifact_dict(run_info):
+    from dotenv import load_dotenv
+    load_dotenv() # load environment variables needed for authorization
+    
+    import mlflow
+    tracking_uri, experiment, run_id = re.split(r"(?<!/)/(?!/)", run_info) # split by / (ignore //)
+    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_experiment(experiment)
+    run = mlflow.get_run(run_id)
+    cfg = mlflow.artifacts.load_dict(run.info.artifact_uri + "/config.json")
+    return cfg
 
 def remove_chars_inside_brackets(string):
     """ Find and remove all spaces, single and double quotes inside substring which starts

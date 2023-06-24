@@ -16,3 +16,6 @@ pandas >= 1.5.3
 optuna >= 3.2.0
 # openvino-dev==2022.1.0 #problematic because of numpy dependecies
 # luxonis-ml @ git+https://github.com/luxonis/luxonis-ml.git@dev
+# psycopg2-binary
+# mlflow
+# wandb

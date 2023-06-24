@@ -15,7 +15,6 @@ logger:
   wandb_entity: null # name of WanDB entity (string|null)
   is_mlflow: False # bool if use MLFlow (bool)
   mlflow_tracking_uri: null # name of MLFlow tracking uri (string|null)
-  # is_sweep: False # bool if is sweep (not implemented) (bool)
   logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 
 dataset:

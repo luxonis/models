@@ -17,14 +17,29 @@ from luxonis_ml import *
 
 class Tuner:
     def __init__(self, cfg: Union[str, dict], args: dict = None):
+        """Main API which is used to perform hyperparameter tunning
+
+        Args:
+            cfg (Union[str, dict]): path to config file or config dict used to setup training
+            args (dict, optional): argument dict provided through command line, used for config overriding
+        """
         self.cfg_data = cfg
         self.args = args
+        load_dotenv()
 
     def tune(self):
+        """ Runs Optuna tunning of hyperparameters """
         pruner = optuna.pruners.MedianPruner()
-        storage = "sqlite:///example.db"
+        # storage = "sqlite:///example.db"
+        storage = "postgresql://{}:{}@{}:{}/{}".format(
+            os.environ["POSTGRES_USER"],
+            os.environ["POSTGRES_PASSWORD"],
+            os.environ["POSTGRES_HOST"],
+            os.environ["POSTGRES_PORT"],
+            os.environ["POSTGRES_DB"],
+        )
         study = optuna.create_study(
-            study_name="test_study_1",
+            study_name="ml-ops-train-3",
             storage=storage,
             direction="minimize",
             pruner=pruner,
@@ -33,33 +48,34 @@ class Tuner:
         study.optimize(self._objective, n_trials=3, timeout=600)
 
     def _objective(self, trial: optuna.trial.Trial):
+        """ Objective function used to optimize Optuna study """
+
         # Config.clear_instance() # TODO: check if this is needed because config is singleton
         self.cfg = Config(self.cfg_data)
         if self.args and self.args["override"]:
             self.cfg.override_config(self.args["override"])
+        self.cfg.validate_config_tuner()
         
-        load_dotenv() # loads env variables for mlflow logging
         rank = rank_zero_only.rank
         cfg_logger = self.cfg.get("logger")
         logger_params = deepcopy(cfg_logger.copy())
         logger_params.pop("logged_hyperparams")
-        logger = LuxonisTrackerPL(rank=rank, **logger_params)
+        logger = LuxonisTrackerPL(rank=rank, is_sweep=True, **logger_params)
         run_save_dir = os.path.join(cfg_logger["save_directory"], logger.run_name)
 
-        # trial specific parameters
-        batch_size = trial.suggest_int("batch_size", 4, 8)
-        self.cfg.override_config(
-            f"train.batch_size {batch_size}"
-        )
+        # get curr trial params and update config
+        curr_params = self._get_trial_params(trial)
+        print("-----", curr_params)
+        for key, value in curr_params.items():
+            self.cfg.override_config(f"{key} {value}")
 
-        # log trial specific parameters
-        logger.log_hyperparams({"batch_size":batch_size})
+        logger.log_hyperparams(curr_params) # log curr trial params
+        
         # save current config to logger directory
         self.cfg.save_data(os.path.join(run_save_dir, "config.yaml"))
 
-        pruner_callback = PyTorchLightningPruningCallback(trial, monitor="val_loss/loss")
-
         lightning_module = ModelLightningModule(run_save_dir)
+        pruner_callback = PyTorchLightningPruningCallback(trial, monitor="val_loss/loss")
         pl_trainer = pl.Trainer(
             accelerator=self.cfg.get("trainer.accelerator"),
             devices=self.cfg.get("trainer.devices"),
@@ -122,3 +138,29 @@ class Tuner:
             pruner_callback.check_pruned()
 
             return pl_trainer.callback_metrics["val_loss/loss"].item()
+
+    def _get_trial_params(self, trial: optuna.trial.Trial):
+        """ Get trial params based on specified config """
+        cfg_tuner = self.cfg.get("tuner")
+        new_params = {}
+        for key, value in cfg_tuner.items():
+            key_info = key.split("_")
+            key_name = "_".join(key_info[:-1])
+            key_type = key_info[-1]
+            
+            if key_type == "categorical":
+                # NOTE: might need to do some preprocessing if list doesn't only have strings
+                new_value = trial.suggest_categorical(key_name, value)
+            elif key_type == "float":
+                new_value = trial.suggest_float(key_name, *value)
+            elif key_type == "int":
+                new_value = trial.suggest_int(key_name, *value)
+            elif key_type == "loguniform":
+                new_value = trial.suggest_loguniform(key_name, *value)
+            elif key_type == "uniform":
+                new_value = trial.suggest_uniform(key_name, *value)
+            else:
+                raise KeyError(f"Tunning type '{key_type}' not supported.")
+
+            new_params[key_name] = new_value
+        return new_params

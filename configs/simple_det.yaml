@@ -8,7 +8,7 @@ model:
 
 dataset:
   team_name: luxonis # TODO
-  dataset_name: coco_sample_people_crops  # TODO
+  dataset_name: coco_sample_people  # TODO
 
 logger:
   is_wandb: False 
@@ -16,3 +16,8 @@ logger:
   project_name: ml-ops-train
   is_mlflow: True
   mlflow_tracking_uri: https://ml-track.luxonis.com
+
+tuner:
+  train.optimizers.optimizer.name_categorical: ["Adam", "SGD"] #["Adam", "SGD"]
+  train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
+  train.batch_size_int: [4, 16, 4]

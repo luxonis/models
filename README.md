@@ -12,7 +12,9 @@ The work on this project is in an MVP state, so it may be missing some critical 
   - [Logger](#logger)
   - [Dataset](#dataset)
   - [Train](#train)
+  - [Initialization](#initialization)
 - [Training](#training)
+- [Tuning](#tuning)
 - [Inference](#inference)
 - [Exporting](#exporting)
 - [Test Dataset](#test-dataset)
@@ -112,7 +114,6 @@ logger:
   wandb_entity: null # name of WanDB entity (string|null)
   is_mlflow: False # bool if use MLFlow (bool)
   mlflow_tracking_uri: null # name of MLFlow tracking uri (string|null)
-  # is_sweep: False # bool if is sweep (not implemented yet) (bool)
   logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 ```
 ### Dataset
@@ -197,6 +198,18 @@ train:
     # learn_weights: False # bool if weights should be learned (not implemented yet) (bool)
 ```
 
+### Initialization
+You can initialize config object by passing one of:
+- Python dictionary
+- Path to local .yaml file
+- Path to MLFlow artifact with config.json file. This path has to be formated like this: `mlflow:<tracking_uri>/<experiment>/<run_id>`
+After that you can create a Config object like:
+```python
+from luxonis_train.utils.config import Config
+cfg = Config(data)
+```
+***Note**: Config is a singleton object, so once created, you can initialize it without a path/dictionary and access its data. If you want to delete it you can call `Config.clear_instance()`.*
+
 ## Training
 Once you've configured your `custom.yaml` file you can train the model using this command:
 ```
@@ -233,6 +246,21 @@ To run training in another thread use this:
 ```python
 trainer = Trainer(args_dict, cfg)
 trainer.train(new_thread=True)
+```
+
+## Tuning
+To improve training performance you can use `Tuner` for hyperparameter optimization. To do this you have to setup a `tuner` block in the config file where you specify which parameters to tune and the ranges from which the values should be chosen. An example of this block is shown below. The key should be in the format: `key1.key2.key3_<type>` where type can be one of `[categorical, float, int, loguniform, uniform]` (for more information about specific type check out [Optuna documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.Trial.html)).
+
+```yaml
+tuner:
+  train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
+  train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
+  train.batch_size_int: [4, 16, 4]
+```
+
+When a `tuner` block is specified, you can start tunning like:
+```
+python3 tools/tune.py -cfg configs/custom.yaml
 ```
 
 ## Inference

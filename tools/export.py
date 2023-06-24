@@ -1,5 +1,4 @@
 import argparse
-import yaml
 from luxonis_train.core import Exporter
 
 if __name__ == "__main__":
@@ -9,8 +8,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args_dict = vars(args)
 
-    with open(args.config) as f:
-        cfg = yaml.load(f, Loader=yaml.SafeLoader)
-
-    exporter = Exporter(cfg, args_dict)
+    exporter = Exporter(args.config, args_dict)
     exporter.export()

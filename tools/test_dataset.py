@@ -1,6 +1,6 @@
 import argparse
 import torch
-import yaml
+from dotenv import load_dotenv
 
 from luxonis_ml import *
 from luxonis_train.utils.config import Config
@@ -15,10 +15,7 @@ if __name__ == "__main__":
     parser.add_argument("--override", default=None, type=str, help="Manually override config parameter")
     args = parser.parse_args()
 
-    with open(args.config) as f:
-        cfg = yaml.load(f, Loader=yaml.SafeLoader)
-
-    cfg = Config(cfg)
+    cfg = Config(args.config)
     if args.override:
         cfg.override_config(args.override)
 

@@ -1,5 +1,4 @@
 import argparse
-import yaml
 from luxonis_train.core import Tuner
 
 if __name__ == "__main__":
@@ -9,8 +8,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args_dict = vars(args)
     
-    with open(args.config) as f:
-        cfg = yaml.load(f, Loader=yaml.SafeLoader)
-
-    trainer = Tuner(cfg, args_dict)
+    trainer = Tuner(args.config, args_dict)
     trainer.tune()

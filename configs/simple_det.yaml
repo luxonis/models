@@ -8,9 +8,11 @@ model:
 
 dataset:
   team_name: luxonis # TODO
-  dataset_name: coco_sample_all #coco_sample_people # TODO
+  dataset_name: coco_sample_people_crops  # TODO
 
 logger:
   is_wandb: False 
   wandb_entity: luxonis
   project_name: ml-ops-train
+  is_mlflow: True
+  mlflow_tracking_uri: https://ml-track.luxonis.com

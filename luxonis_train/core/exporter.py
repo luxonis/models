@@ -1,8 +1,6 @@
 import torch
 import os
-import blobconverter
 import pytorch_lightning as pl
-import subprocess
 import onnx
 import onnxsim
 from typing import Union
@@ -66,7 +64,7 @@ class Exporter(pl.LightningModule):
         return outputs
     
     def export(self):
-        """ Exports model to onnx, openVINO and .blob format """
+        """ Exports model to onnx and optionally to openVINO and .blob format """
         dummy_input = torch.rand(1,3,*self.cfg.get("exporter.export_image_size"))
         base_path = self.cfg.get("exporter.export_save_directory")
         output_names = self._get_output_names()
@@ -87,71 +85,48 @@ class Exporter(pl.LightningModule):
             raise RuntimeError("Onnx simplify failed.")
         onnx.save(onnx_model, onnx_path)
 
-        print("Converting ONNX to openVINO")
-        output_list = ",".join(output_names)
+        if self.cfg.get("exporter.openvino.active"):
+            import subprocess
+            print("Converting ONNX to openVINO")
+            output_list = ",".join(output_names)
 
-        cmd = f"mo --input_model {onnx_path} " \
-        f"--output_dir {base_path} " \
-        f"--model_name {self.cfg.get('exporter.export_model_name')} " \
-        f"--data_type {self.cfg.get('exporter.openvino.data_type')} " \
-        f"--scale_values '{self.cfg.get('exporter.openvino.scale_values')}' " \
-        f"--mean_values '{self.cfg.get('exporter.openvino.mean_values')}' "  \
-        f"--output {output_list}"
+            cmd = f"mo --input_model {onnx_path} " \
+            f"--output_dir {base_path} " \
+            f"--model_name {self.cfg.get('exporter.export_model_name')} " \
+            f"--data_type {self.cfg.get('exporter.data_type')} " \
+            f"--scale_values '{self.cfg.get('exporter.scale_values')}' " \
+            f"--mean_values '{self.cfg.get('exporter.mean_values')}' "  \
+            f"--output {output_list}"
 
-        if self.cfg.get("exporter.openvino.reverse_input_channels"):
-            cmd += " --reverse_input_channels "
+            if self.cfg.get("exporter.reverse_input_channels"):
+                cmd += " --reverse_input_channels "
 
-        subprocess.check_output(cmd, shell=True)
+            subprocess.check_output(cmd, shell=True)
     
-        print("Converting IR to blob")
-        xmlfile = f"{os.path.join(base_path, self.cfg.get('exporter.export_model_name'))}.xml"
-        binfile = f"{os.path.join(base_path, self.cfg.get('exporter.export_model_name'))}.bin"
-        blob_path = blobconverter.from_openvino(
-            xml=xmlfile,
-            bin=binfile,
-            data_type=self.cfg.get("exporter.blobconverter.data_type"),
-            shaves=self.cfg.get("exporter.blobconverter.shaves"),
-            version=str(self.cfg.get("exporter.blobconverter.openvino_version")),
-            use_cache=False,
-            output_dir=base_path
-        )
+        if self.cfg.get("exporter.blobconverter.active"):
+            import blobconverter
+            print("Converting ONNX to .blob")
+
+            optimizer_params=[
+                f"--scale_values={self.cfg.get('exporter.scale_values')}",
+                f"--mean_values={self.cfg.get('exporter.mean_values')}",
+            ]
+            if self.cfg.get("exporter.reverse_input_channels"):
+                optimizer_params.append("--reverse_input_channels")
+            
+            blob_path = blobconverter.from_onnx(
+                model=onnx_path,
+                optimizer_params=optimizer_params,
+                data_type=self.cfg.get("exporter.data_type"),
+                shaves=self.cfg.get("exporter.blobconverter.shaves"),
+                use_cache=False,
+                output_dir=base_path
+            )
 
         print(f"Finished exporting. Files saved in: {base_path}")
 
-    def to_blob(self, remove_onnx: bool = True):
-        """ Exports model from onnx to blob directly """
-        dummy_input = torch.rand(1,3,*self.cfg.get("exporter.export_image_size"))
-        base_path = self.cfg.get("exporter.export_save_directory")
-        output_names = self._get_output_names()
-
-        print("Converting PyTorch model to ONNX")
-        onnx_path = os.path.join(base_path, f"{self.cfg.get('exporter.export_model_name')}.onnx") 
-        self.to_onnx(
-            onnx_path,
-            dummy_input,
-            opset_version=self.cfg.get("exporter.onnx.opset_version"),
-            input_names=["input"],
-            output_names=output_names,
-            dynamic_axes=self.cfg.get("exporter.onnx.dynamic_axes")
-        )
-        model_onnx = onnx.load(onnx_path)
-        onnx_model, check = onnxsim.simplify(model_onnx)
-        if not check:
-            raise RuntimeError("Onnx simplify failed.")
-        onnx.save(onnx_model, onnx_path)
-        
-        print("Converting ONNX to blob")
-        # TODO: check if this export is correct, might be missing revert channels, mean scale,...
-        blob_path = blobconverter.from_onnx(
-            model=onnx_path,
-            data_type=self.cfg.get("exporter.blobconverter.data_type"),
-            shaves=self.cfg.get("exporter.blobconverter.shaves"),
-            use_cache=False,
-            output_dir=base_path
-        )
-        if remove_onnx:
-            os.remove(onnx_path)
-        print(f"Finished exporting. File saved in: {blob_path}")
+        if self.cfg.get("exporter.s3_upload.active"):
+            self._upload_to_s3(onnx_path)
 
     def _get_output_names(self):
         """ Gets output names for each head """
@@ -164,3 +139,39 @@ class Exporter(pl.LightningModule):
             else:
                 output_names.append(f"output{i}")
         return output_names
+
+    def _upload_to_s3(self, onnx_path):
+        """ Uploads .pt, .onnx and current config.yaml to specified s3 bucket """
+        import boto3
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        s3_client = boto3.client("s3",
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            endpoint_url=os.getenv("AWS_S3_ENDPOINT_URL")
+        )
+        base_upload_key = f"{self.cfg.get('exporter.s3_upload.upload_directory')}/{self.cfg.get('exporter.export_model_name')}"
+        
+        # upload .ckpt file
+        s3_client.upload_file(
+            Filename=self.cfg.get("exporter.export_weights"),
+            Bucket=self.cfg.get("exporter.s3_upload.bucket"),
+            Key=f"{base_upload_key}/{self.cfg.get('exporter.export_model_name')}.ckpt")
+        
+        # upload .onnx file
+        s3_client.upload_file(
+            Filename=onnx_path,
+            Bucket=self.cfg.get("exporter.s3_upload.bucket"),
+            Key=f"{base_upload_key}/{self.cfg.get('exporter.export_model_name')}.onnx")
+        
+        # upload config.yaml
+        self.cfg.save_data("config.yaml") # create temporary file
+        s3_client.upload_file(
+            Filename="config.yaml",
+            Bucket=self.cfg.get("exporter.s3_upload.bucket"),
+            Key=f"{base_upload_key}/config.yaml")
+        os.remove("config.yaml") # delete temporary file
+
+        print(f"Files uploaded to: {base_upload_key}")
+        

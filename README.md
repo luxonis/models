@@ -276,7 +276,9 @@ inferer:
 ```
 
 ## Exporting
-We support export to ONNX, openVINO and .blob format which is used for OAK cameras. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
+We support export to ONNX, openVINO and .blob format which is used for OAK cameras. By default we only export to ONNX and you should use [modelconverter](TODO) repository for other formats. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
+
+There is also an option to upload .ckpt, .onnx and config.yaml files to S3 bucket. To do this you have to specify `bucket` and `upload_directory` to configure S3 upload location.
 
 ```yaml
 exporter:
@@ -284,18 +286,22 @@ exporter:
   export_save_directory: output_export # path to save directory of exported models (string)
   export_image_size: [256, 256] # image size used for export [height, width] (list)
   export_model_name: model # name of the exported model (string)
-  onnx: 
+  data_type: FP16 # data type used for openVino conversion (string)
+  reverse_input_channels: True # bool if reverse input shapes (bool)
+  scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
+  mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
+  onnx:
     opset_version: 12 # opset version of onnx used (int)
     dynamic_axes: null # define if dynamic input shapes are used (dict)
   openvino:
-    data_type: FP16 # data type used for openVino conversion (string)
-    reverse_input_channels: True # bool if reverse input shapes (bool)
-    scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
-    mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
+    active: False # bool if export to openvino (bool)
   blobconverter:
-    data_type: FP16 # data type used for blob conversion (string)
+    active: False # bool if export to blob (bool)
     shaves: 6 # number of shaves used (int)
-    openvino_version: 2022.1 # openvino version (string)
+  s3_upload:
+    active: False # bool if upload .ckpt, .onnx and config file to S3 bucket (bool)
+    bucket: null # name of the S3 bucket (string)
+    upload_directory: null # location of directory for upload (string)
 ```
 
 Once you have the config file ready you can export the model like this:

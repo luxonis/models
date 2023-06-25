@@ -88,15 +88,19 @@ exporter:
   export_save_directory: output_export # path to save directory of exported models (string)
   export_image_size: [256, 256] # image size used for export [height, width] (list)
   export_model_name: model # name of the exported model (string)
+  data_type: FP16 # data type used for openVino conversion (string)
+  reverse_input_channels: True # bool if reverse input shapes (bool)
+  scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
+  mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
   onnx:
     opset_version: 12 # opset version of onnx used (int)
     dynamic_axes: null # define if dynamic input shapes are used (dict)
   openvino:
-    data_type: FP16 # data type used for openVino conversion (string)
-    reverse_input_channels: True # bool if reverse input shapes (bool)
-    scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
-    mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
+    active: False # bool if export to openvino (bool)
   blobconverter:
-    data_type: FP16 # data type used for blob conversion (string)
+    active: False # bool if export to blob (bool)
     shaves: 6 # number of shaves used (int)
-    openvino_version: 2022.1 # openvino version (string)
+  s3_upload:
+    active: False # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)
+    bucket: null # name of the s3 bucket (string)
+    upload_directory: null # location of directory for upload (string)

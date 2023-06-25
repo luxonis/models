@@ -1,0 +1,1 @@
+include src/luxonis_train/config_db/*.yaml

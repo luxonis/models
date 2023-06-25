@@ -1,5 +1,4 @@
 import pytorch_lightning as pl
-import optuna
 import warnings
 import torch
 import os
@@ -7,6 +6,7 @@ from typing import Union
 from dotenv import load_dotenv
 from copy import deepcopy
 from pytorch_lightning.utilities import rank_zero_only
+import optuna
 from optuna.integration import PyTorchLightningPruningCallback
 
 from luxonis_train.utils.config import Config

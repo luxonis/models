@@ -1,8 +1,8 @@
 import torch
 import os
-import pytorch_lightning as pl
 import onnx
 import onnxsim
+import pytorch_lightning as pl
 from typing import Union
 from pathlib import Path
 

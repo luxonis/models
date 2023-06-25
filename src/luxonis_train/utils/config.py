@@ -10,7 +10,7 @@ from copy import deepcopy
 class Config:
     """ Singleton class which checks and merges user config with default one and provides access to its values"""
 
-    _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../configs/db"))
+    _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../config_db"))
 
     def __new__(cls, cfg=None):
         if not hasattr(cls, 'instance'):

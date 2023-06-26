@@ -2,11 +2,11 @@ import pytorch_lightning as pl
 import warnings
 import torch
 import os
+import optuna
 from typing import Union
 from dotenv import load_dotenv
 from copy import deepcopy
 from pytorch_lightning.utilities import rank_zero_only
-import optuna
 from optuna.integration import PyTorchLightningPruningCallback
 
 from luxonis_train.utils.config import Config
@@ -29,28 +29,48 @@ class Tuner:
 
     def tune(self):
         """ Runs Optuna tunning of hyperparameters """
-        pruner = optuna.pruners.MedianPruner()
-        # storage = "sqlite:///example.db"
-        storage = "postgresql://{}:{}@{}:{}/{}".format(
-            os.environ["POSTGRES_USER"],
-            os.environ["POSTGRES_PASSWORD"],
-            os.environ["POSTGRES_HOST"],
-            os.environ["POSTGRES_PORT"],
-            os.environ["POSTGRES_DB"],
-        )
+        self.cfg = Config(self.cfg_data)
+        if self.args and self.args["override"]:
+            self.cfg.override_config(self.args["override"])
+        self.cfg.validate_config_tuner()
+
+        pruner = optuna.pruners.MedianPruner() if self.cfg.get("tuner.use_pruner") \
+            else optuna.pruners.NopPruner()
+        
+        storage = None
+        if self.cfg.get("tuner.storage.active"):
+            if self.cfg.get("tuner.storage.type") == "local":
+                storage = "sqlite:///study_local.db"
+            elif self.cfg.get("tuner.storage.type") == "remote":
+                storage = "postgresql://{}:{}@{}:{}/{}".format(
+                    os.environ["POSTGRES_USER"],
+                    os.environ["POSTGRES_PASSWORD"],
+                    os.environ["POSTGRES_HOST"],
+                    os.environ["POSTGRES_PORT"],
+                    os.environ["POSTGRES_DB"],
+                )
+            else:
+                raise KeyError(f"Storage type '{self.cfg.get('tuner.storage.type')}'"+
+                    "not supported. Choose one of ['local', 'remote']")
+
         study = optuna.create_study(
-            study_name="ml-ops-train-3",
+            study_name=self.cfg.get("tuner.study_name"),
             storage=storage,
             direction="minimize",
             pruner=pruner,
             load_if_exists=True,
         )
-        study.optimize(self._objective, n_trials=3, timeout=600)
+
+        study.optimize(
+            self._objective, 
+            n_trials=self.cfg.get("tuner.n_trials"),
+            timeout=self.cfg.get("tuner.timeout")
+        )
 
     def _objective(self, trial: optuna.trial.Trial):
         """ Objective function used to optimize Optuna study """
-
-        # Config.clear_instance() # TODO: check if this is needed because config is singleton
+        # TODO: check if this is even needed needed because config is singleton
+        # Config.clear_instance() 
         self.cfg = Config(self.cfg_data)
         if self.args and self.args["override"]:
             self.cfg.override_config(self.args["override"])
@@ -65,7 +85,6 @@ class Tuner:
 
         # get curr trial params and update config
         curr_params = self._get_trial_params(trial)
-        print("-----", curr_params)
         for key, value in curr_params.items():
             self.cfg.override_config(f"{key} {value}")
 
@@ -141,7 +160,7 @@ class Tuner:
 
     def _get_trial_params(self, trial: optuna.trial.Trial):
         """ Get trial params based on specified config """
-        cfg_tuner = self.cfg.get("tuner")
+        cfg_tuner = self.cfg.get("tuner.params")
         new_params = {}
         for key, value in cfg_tuner.items():
             key_info = key.split("_")

@@ -82,8 +82,9 @@ class Config:
         """ Validates 'tuner' block in config """
         if not self._data["tuner"]:
             raise ValueError("No 'tuner' section in config specified.")
+        if not self._data["tuner"]["params"]:
+            raise ValueError("No tuner params specified in the config.")
         # TODO: and more checks if needed
-
 
     def _load(self, cfg: Union[str, dict]):
         """ Performs complete loading and validation of the config """

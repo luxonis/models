@@ -249,16 +249,28 @@ trainer.train(new_thread=True)
 ```
 
 ## Tuning
-To improve training performance you can use `Tuner` for hyperparameter optimization. To do this you have to setup a `tuner` block in the config file where you specify which parameters to tune and the ranges from which the values should be chosen. An example of this block is shown below. The key should be in the format: `key1.key2.key3_<type>` where type can be one of `[categorical, float, int, loguniform, uniform]` (for more information about specific type check out [Optuna documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.Trial.html)).
+To improve training performance you can use `Tuner` for hyperparameter optimization. There are some study related parameters that you can change for initialization. To do the actual tuning you have to setup a `tuner.params` block in the config file where you specify which parameters to tune and the ranges from which the values should be chosen. An example of this block is shown below. The key should be in the format: `key1.key2.key3_<type>` where type can be one of `[categorical, float, int, loguniform, uniform]` (for more information about specific type check out [Optuna documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.Trial.html)).
 
 ```yaml
 tuner:
-  train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
-  train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
-  train.batch_size_int: [4, 16, 4]
+  study_name: "test-study" # name of the study (string)
+  use_pruner: True # if should use MedianPruner (bool)
+  n_trials: 3 # number of trials for each process (int)
+  timeout: 600 # stop study after the given number of seconds (int)
+  storage:
+    active: True # if should use storage to make study persistant (bool)
+    type: remote # type of storage, "local" or "remote" (string)
 ```
 
-When a `tuner` block is specified, you can start tunning like:
+```yaml
+tuner:
+  params:
+    train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
+    train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
+    train.batch_size_int: [4, 16, 4]
+```
+
+When a `tuner` block is specified, you can start tuning like:
 ```
 python3 tools/tune.py -cfg configs/custom.yaml
 ```

@@ -104,3 +104,12 @@ exporter:
     active: False # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)
     bucket: null # name of the s3 bucket (string)
     upload_directory: null # location of directory for upload (string)
+
+tuner:
+  study_name: "test-study" # name of the study (string)
+  use_pruner: True # if should use MedianPruner (bool)
+  n_trials: 3 # number of trials for each process (int)
+  timeout: 600 # stop study after the given number of seconds (int)
+  storage:
+    active: True # if should use storage to make study persistant (bool)
+    type: remote # type of storage, "local" or "remote" (string)

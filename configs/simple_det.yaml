@@ -18,9 +18,10 @@ logger:
   mlflow_tracking_uri: https://ml-track.luxonis.com
 
 tuner:
-  train.optimizers.optimizer.name_categorical: ["Adam", "SGD"] #["Adam", "SGD"]
-  train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
-  train.batch_size_int: [4, 16, 4]
+  params:
+    train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
+    train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
+    train.batch_size_int: [4, 16, 4]
 
 exporter:
   export_weights: /home/klemen/luxonis/models/output/1-beige-primate/best_val_metric/map=0.0032_loss=2.6849_00_SimpleDetection.ckpt

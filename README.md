@@ -260,8 +260,10 @@ tuner:
   storage:
     active: True # if should use storage to make study persistant (bool)
     type: remote # type of storage, "local" or "remote" (string)
+  params: # (key, value) pairs for tunning
 ```
 
+Example of params for tuner block:
 ```yaml
 tuner:
   params:

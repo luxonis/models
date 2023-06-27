@@ -23,7 +23,9 @@ if __name__ == "__main__":
 
     with LuxonisDataset(
         team_name=cfg.get("dataset.team_name"),
-        dataset_name=cfg.get("dataset.dataset_name")
+        dataset_name=cfg.get("dataset.dataset_name"),
+        bucket_type=cfg.get("dataset.bucket_type"),
+        override_bucket_type=cfg.get("dataset.override_bucket_type")
     ) as dataset:
     
         augmentations = TrainAugmentations() if args.view == "train" else ValAugmentations()

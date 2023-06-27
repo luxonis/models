@@ -82,8 +82,8 @@ class Config:
         """ Validates 'tuner' block in config """
         if not self._data["tuner"]:
             raise ValueError("No 'tuner' section in config specified.")
-        if not self._data["tuner"]["params"]:
-            raise ValueError("No tuner params specified in the config.")
+        if not ("params" in self._data["tuner"] and self._data["tuner"]["params"]):
+            raise ValueError("Nothing to tune as no tuner params specified in the config.")
         # TODO: and more checks if needed
 
     def _load(self, cfg: Union[str, dict]):
@@ -251,7 +251,9 @@ class Config:
         """ Validates config to used datasets, overrides n_classes if needed """
         with LuxonisDataset(
             team_name=self._data["dataset"]["team_name"],
-            dataset_name=self._data["dataset"]["dataset_name"]
+            dataset_name=self._data["dataset"]["dataset_name"],
+            bucket_type=self._data["dataset"]["bucket_type"],
+            override_bucket_type=self._data["dataset"]["override_bucket_type"]
         ) as dataset:
             classes, classes_by_task = dataset.get_classes()
             dataset_n_classes = len(classes)

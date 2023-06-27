@@ -35,6 +35,6 @@ exporter:
     active: True # bool if export to blob (bool)
     shaves: 6 # number of shaves used (int)
   s3_upload:
-    active: False # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)
+    active: True # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)
     bucket: luxonis-test-bucket # name of the s3 bucket (string)
     upload_directory: luxonis-train # location of directory for upload (string)

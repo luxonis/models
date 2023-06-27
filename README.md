@@ -12,7 +12,9 @@ The work on this project is in an MVP state, so it may be missing some critical 
   - [Logger](#logger)
   - [Dataset](#dataset)
   - [Train](#train)
+  - [Initialization](#initialization)
 - [Training](#training)
+- [Tuning](#tuning)
 - [Inference](#inference)
 - [Exporting](#exporting)
 - [Test Dataset](#test-dataset)
@@ -112,7 +114,6 @@ logger:
   wandb_entity: null # name of WanDB entity (string|null)
   is_mlflow: False # bool if use MLFlow (bool)
   mlflow_tracking_uri: null # name of MLFlow tracking uri (string|null)
-  # is_sweep: False # bool if is sweep (not implemented yet) (bool)
   logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 ```
 ### Dataset
@@ -157,7 +158,7 @@ train:
 
   batch_size: 32 # batch size used for trainig (int)
   accumulate_grad_batches: 1 # number of batches for gradient accumulation (int)
-  use_weighted_sampler: False # bool if should use weighted sampler - only applicable for classification tasks (bool)
+  use_weighted_sampler: False # bool if use WeightedRandomSampler for training, only works with classification tasks (bool)
   epochs: 100 # number of training epochs (int)
   num_workers: 2 # number of workers for data loading (int)
   train_metrics_interval: -1 # frequency of computing metrics on train data, -1 if don't perform (int)
@@ -197,6 +198,18 @@ train:
     # learn_weights: False # bool if weights should be learned (not implemented yet) (bool)
 ```
 
+### Initialization
+You can initialize config object by passing one of:
+- Python dictionary
+- Path to local .yaml file
+- Path to MLFlow artifact with config.json file. This path has to be formated like this: `mlflow:<tracking_uri>/<experiment>/<run_id>`
+After that you can create a Config object like:
+```python
+from luxonis_train.utils.config import Config
+cfg = Config(data)
+```
+***Note**: Config is a singleton object, so once created, you can initialize it without a path/dictionary and access its data. If you want to delete it you can call `Config.clear_instance()`.*
+
 ## Training
 Once you've configured your `custom.yaml` file you can train the model using this command:
 ```
@@ -235,6 +248,35 @@ trainer = Trainer(args_dict, cfg)
 trainer.train(new_thread=True)
 ```
 
+## Tuning
+To improve training performance you can use `Tuner` for hyperparameter optimization. There are some study related parameters that you can change for initialization. To do the actual tuning you have to setup a `tuner.params` block in the config file where you specify which parameters to tune and the ranges from which the values should be chosen. An example of this block is shown below. The key should be in the format: `key1.key2.key3_<type>` where type can be one of `[categorical, float, int, loguniform, uniform]` (for more information about specific type check out [Optuna documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.Trial.html)).
+
+```yaml
+tuner:
+  study_name: "test-study" # name of the study (string)
+  use_pruner: True # if should use MedianPruner (bool)
+  n_trials: 3 # number of trials for each process (int)
+  timeout: 600 # stop study after the given number of seconds (int)
+  storage:
+    active: True # if should use storage to make study persistant (bool)
+    type: remote # type of storage, "local" or "remote" (string)
+  params: # (key, value) pairs for tunning
+```
+
+Example of params for tuner block:
+```yaml
+tuner:
+  params:
+    train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
+    train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
+    train.batch_size_int: [4, 16, 4]
+```
+
+When a `tuner` block is specified, you can start tuning like:
+```
+python3 tools/tune.py -cfg configs/custom.yaml
+```
+
 ## Inference
 When you have a trained model you can perform inference with it. To do this setup a path to dataset directory (under `dataset` in config file) and path to local pretrained weights (under `model.pretrained` in config file). 
 ```
@@ -248,7 +290,9 @@ inferer:
 ```
 
 ## Exporting
-We support export to ONNX, openVINO and .blob format which is used for OAK cameras. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
+We support export to ONNX, openVINO and .blob format which is used for OAK cameras. By default we only export to ONNX and you should use [modelconverter](TODO) repository for other formats. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
+
+There is also an option to upload .ckpt, .onnx and config.yaml files to S3 bucket. To do this you have to specify `bucket` and `upload_directory` to configure S3 upload location.
 
 ```yaml
 exporter:
@@ -256,18 +300,22 @@ exporter:
   export_save_directory: output_export # path to save directory of exported models (string)
   export_image_size: [256, 256] # image size used for export [height, width] (list)
   export_model_name: model # name of the exported model (string)
-  onnx: 
+  data_type: FP16 # data type used for openVino conversion (string)
+  reverse_input_channels: True # bool if reverse input shapes (bool)
+  scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
+  mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
+  onnx:
     opset_version: 12 # opset version of onnx used (int)
     dynamic_axes: null # define if dynamic input shapes are used (dict)
   openvino:
-    data_type: FP16 # data type used for openVino conversion (string)
-    reverse_input_channels: True # bool if reverse input shapes (bool)
-    scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
-    mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
+    active: False # bool if export to openvino (bool)
   blobconverter:
-    data_type: FP16 # data type used for blob conversion (string)
+    active: False # bool if export to blob (bool)
     shaves: 6 # number of shaves used (int)
-    openvino_version: 2022.1 # openvino version (string)
+  s3_upload:
+    active: False # bool if upload .ckpt, .onnx and config file to S3 bucket (bool)
+    bucket: null # name of the S3 bucket (string)
+    upload_directory: null # location of directory for upload (string)
 ```
 
 Once you have the config file ready you can export the model like this:

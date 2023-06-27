@@ -135,14 +135,14 @@ class ModelLightningModule(pl.LightningModule):
         optimizer = init_optimizer(
             model_params=self.model.parameters(), 
             name=optimizer_name, 
-            **cfg_optimizer["optimizer"]["params"] if cfg_optimizer["optimizer"]["params"] else {}
+            **cfg_optimizer["optimizer"]["params"]
         )
         
         scheduler_name = cfg_optimizer["scheduler"]["name"]
         scheduler = init_scheduler(
             optimizer=optimizer,
             name=scheduler_name,
-            **cfg_optimizer["scheduler"]["params"] if cfg_optimizer["scheduler"]["params"] else {}
+            **cfg_optimizer["scheduler"]["params"]
         )
         return [optimizer], [scheduler]
 

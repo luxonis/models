@@ -8,9 +8,33 @@ model:
 
 dataset:
   team_name: luxonis # TODO
-  dataset_name: coco_sample # TODO
+  dataset_name: coco_sample_people  # TODO
 
 logger:
   is_wandb: False 
   wandb_entity: luxonis
   project_name: ml-ops-train
+  is_mlflow: False
+  mlflow_tracking_uri: https://ml-track.luxonis.com
+
+tuner:
+  params:
+    train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
+    train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
+    train.batch_size_int: [4, 16, 4]
+
+exporter:
+  export_weights: /home/klemen/luxonis/models/output/1-beige-primate/best_val_metric/map=0.0032_loss=2.6849_00_SimpleDetection.ckpt
+  export_model_name: test-model-3
+  onnx:
+    opset_version: 12 # opset version of onnx used (int)
+    dynamic_axes: null # define if dynamic input shapes are used (dict)
+  openvino:
+    active: False # bool if export to openvino (bool)
+  blobconverter:
+    active: True # bool if export to blob (bool)
+    shaves: 6 # number of shaves used (int)
+  s3_upload:
+    active: True # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)
+    bucket: luxonis-test-bucket # name of the s3 bucket (string)
+    upload_directory: luxonis-train # location of directory for upload (string)

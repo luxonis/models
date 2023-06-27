@@ -2,6 +2,7 @@ import os
 import torch
 import pytorch_lightning as pl
 import threading
+import warnings
 from copy import deepcopy
 from typing import Union
 from dotenv import load_dotenv
@@ -73,7 +74,9 @@ class Trainer:
 
         with LuxonisDataset(
             team_name=self.cfg.get("dataset.team_name"),
-            dataset_name=self.cfg.get("dataset.dataset_name")
+            dataset_name=self.cfg.get("dataset.dataset_name"),
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:
 
             if self.train_augmentations == None:
@@ -87,17 +90,21 @@ class Trainer:
 
             sampler = None
             if self.cfg.get("train.use_weighted_sampler"):
-                class_counts = dataset.get_classes_counts()
-                # sampler = torch.utils.data.WeightedRandomSampler(
-                #     weights = 
-                # )
+                classes_count = dataset.get_classes_count()
+                if len(classes_count) == 0:
+                    warnings.warn("WeightedRandomSampler only available for classification tasks. Using default sampler instead.")
+                else:
+                    weights = [1/i for i in classes_count.values()]
+                    num_samples = sum(classes_count.values())
+                    sampler = torch.utils.data.WeightedRandomSampler(weights, num_samples)
 
             pytorch_loader_train = torch.utils.data.DataLoader(
                 loader_train,
                 batch_size=self.cfg.get("train.batch_size"),
                 num_workers=self.cfg.get("train.num_workers"),
                 collate_fn=loader_train.collate_fn,
-                drop_last=self.cfg.get("train.skip_last_batch")
+                drop_last=self.cfg.get("train.skip_last_batch"),
+                sampler=sampler
             )
 
             if self.val_augmentations == None:
@@ -139,7 +146,9 @@ class Trainer:
 
         with LuxonisDataset(
             team_name=self.cfg.get("dataset.team_name"),
-            dataset_name=self.cfg.get("dataset.dataset_name")
+            dataset_name=self.cfg.get("dataset.dataset_name"),
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:
 
             if self.test_augmentations == None:

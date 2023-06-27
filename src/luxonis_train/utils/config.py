@@ -5,11 +5,12 @@ import json
 import re
 from typing import Union
 from luxonis_ml import LuxonisDataset
+from copy import deepcopy
 
 class Config:
     """ Singleton class which checks and merges user config with default one and provides access to its values"""
 
-    _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../configs/db"))
+    _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../config_db"))
 
     def __new__(cls, cfg=None):
         if not hasattr(cls, 'instance'):
@@ -30,12 +31,19 @@ class Config:
         if hasattr(cls, "instance"):
             del cls.instance
 
+    def get_data(self):
+        """ Returns a deepcopy of current data dict """
+        return deepcopy(self._data)
+
     def save_data(self, path: str):
+        """ Saves data dict to yaml file """
         with open(path, "w+") as f:
             yaml.dump(self._data, f, default_flow_style=False)    
 
     def override_config(self, args: str):
-        """ Overrides config values with ones specifid by --override string """
+        """ Overrides config values with ones specifid by --override string.
+            If last key is not matched to config, creates a new (key, value) pair.
+        """
         if len(args) == 0:
             return
         
@@ -70,16 +78,30 @@ class Config:
         if not self._data["exporter"]["export_weights"]:
             raise ValueError("No 'export_weights' speficied in config file.")
     
+    def validate_config_tuner(self):
+        """ Validates 'tuner' block in config """
+        if not self._data["tuner"]:
+            raise ValueError("No 'tuner' section in config specified.")
+        if not ("params" in self._data["tuner"] and self._data["tuner"]["params"]):
+            raise ValueError("Nothing to tune as no tuner params specified in the config.")
+        # TODO: and more checks if needed
+
     def _load(self, cfg: Union[str, dict]):
         """ Performs complete loading and validation of the config """
         with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
             base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
         if isinstance(cfg, str):
-            if not os.path.isfile(cfg):
-                raise ValueError("Provided file path doesn't exists.")
-            with open(cfg, "r") as f:
-                user_cfg = yaml.load(f, Loader=yaml.SafeLoader)
+            if cfg.startswith("mlflow:"):
+                # load config from mlflow artifact
+                run_info = cfg.split("mlflow:")[-1]
+                user_cfg = mlflow_load_artifact_dict(run_info)
+            else:
+                # load config from local file
+                if not os.path.isfile(cfg):
+                    raise ValueError("Provided file path doesn't exists.")
+                with open(cfg, "r") as f:
+                    user_cfg = yaml.load(f, Loader=yaml.SafeLoader)
         elif isinstance(cfg, dict):
             user_cfg = cfg
         else:
@@ -220,12 +242,8 @@ class Config:
             key = sub_keys[-1]
             success = False
 
-        if not success:
-            if only_warn:
-                warnings.warn(f"Key '{key_merged}' not matched to config (at level '{key}'). Skipping.") 
-                return None, None
-            else:
-                raise KeyError(f"Key '{key_merged}' not matched to config (at level '{key}')")
+        if not success and not only_warn:
+            raise KeyError(f"Key '{key_merged}' not matched to config (at level '{key}')")
 
         return last_key, sub_dict
 
@@ -233,7 +251,9 @@ class Config:
         """ Validates config to used datasets, overrides n_classes if needed """
         with LuxonisDataset(
             team_name=self._data["dataset"]["team_name"],
-            dataset_name=self._data["dataset"]["dataset_name"]
+            dataset_name=self._data["dataset"]["dataset_name"],
+            bucket_type=self._data["dataset"]["bucket_type"],
+            override_bucket_type=self._data["dataset"]["override_bucket_type"]
         ) as dataset:
             classes, classes_by_task = dataset.get_classes()
             dataset_n_classes = len(classes)
@@ -313,12 +333,33 @@ class Config:
                 self._data["train"]["preprocessing"]["augmentations"]):
             self._data["train"]["preprocessing"]["augmentations"] = []
         if self._data["train"]["preprocessing"]["normalize"]["active"]:
-            self._data["train"]["preprocessing"]["augmentations"].append({
-                "name":"Normalize",
-                "params":self._data["train"]["preprocessing"]["normalize"]["params"]
-                    if "params" in self._data["train"]["preprocessing"]["normalize"] and \
-                        self._data["train"]["preprocessing"]["normalize"]["params"] else {}
-            })
+            normalize_present = any(filter(lambda x: x["name"], self._data["train"]["preprocessing"]["augmentations"]))
+            if not normalize_present:
+                self._data["train"]["preprocessing"]["augmentations"].append({
+                    "name":"Normalize",
+                    "params":self._data["train"]["preprocessing"]["normalize"]["params"]
+                        if "params" in self._data["train"]["preprocessing"]["normalize"] and \
+                            self._data["train"]["preprocessing"]["normalize"]["params"] else {}
+                })
+        
+        # handle optimizer and scheduler params - set to empty dict if None
+        if not self._data["train"]["optimizers"]["optimizer"]["params"]:
+            self._data["train"]["optimizers"]["optimizer"]["params"] ={}
+        if not self._data["train"]["optimizers"]["scheduler"]["params"]:
+            self._data["train"]["optimizers"]["scheduler"]["params"] = {}
+
+def mlflow_load_artifact_dict(run_info):
+    """ Loads config dictionary from MLFlow artifact """
+    from dotenv import load_dotenv
+    load_dotenv() # load environment variables needed for authorization
+    
+    import mlflow
+    tracking_uri, experiment, run_id = re.split(r"(?<!/)/(?!/)", run_info) # split by / (ignore //)
+    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_experiment(experiment)
+    run = mlflow.get_run(run_id)
+    cfg = mlflow.artifacts.load_dict(run.info.artifact_uri + "/config.json")
+    return cfg
 
 def remove_chars_inside_brackets(string):
     """ Find and remove all spaces, single and double quotes inside substring which starts
@@ -337,6 +378,8 @@ def parse_string_to_types(input_str: str):
     """ Parse input strings to different data type if it matches some rule"""
     if input_str.lstrip("-").isdigit(): # check if is digit
         out = int(input_str)
+    elif input_str.lstrip("-").replace(".","",1).isdigit():
+        out = float(input_str)
     elif input_str.lower() == "true": # check for bool values
         out = True
     elif input_str.lower() == "false":

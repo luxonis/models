@@ -1,6 +1,6 @@
 import argparse
 import torch
-import yaml
+from dotenv import load_dotenv
 
 from luxonis_ml import *
 from luxonis_train.utils.config import Config
@@ -15,10 +15,7 @@ if __name__ == "__main__":
     parser.add_argument("--override", default=None, type=str, help="Manually override config parameter")
     args = parser.parse_args()
 
-    with open(args.config) as f:
-        cfg = yaml.load(f, Loader=yaml.SafeLoader)
-
-    cfg = Config(cfg)
+    cfg = Config(args.config)
     if args.override:
         cfg.override_config(args.override)
 
@@ -26,15 +23,11 @@ if __name__ == "__main__":
 
     with LuxonisDataset(
         team_name=cfg.get("dataset.team_name"),
-        dataset_name=cfg.get("dataset.dataset_name")
+        dataset_name=cfg.get("dataset.dataset_name"),
+        bucket_type=cfg.get("dataset.bucket_type"),
+        override_bucket_type=cfg.get("dataset.override_bucket_type")
     ) as dataset:
-
-        classes, classes_by_task = dataset.get_classes()
-        colors = [
-            (np.random.randint(256),np.random.randint(256),np.random.randint(256)) \
-            for _ in range(len(classes))
-        ]
-
+    
         augmentations = TrainAugmentations() if args.view == "train" else ValAugmentations()
         loader_train = LuxonisLoader(
             dataset,

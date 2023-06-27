@@ -13,8 +13,7 @@ COPY ../tools /app/tools
 COPY ["../requirements.txt", "../setup.py", "../entrypoint.sh", "../README.md", "../MANIFEST.in", "/app/"]
 
 # Needed apt packages
-RUN apt-get update &&\
-    apt-get install -y git gcc ffmpeg libsm6 libxext6
+RUN apt-get update && apt-get install -y git wget python3.8-dev gcc s3fs ffmpeg libsm6 libxext6 curl libfreetype6-dev libssl-dev libpng-dev
 
 # Install the library
 RUN pip install --no-cache-dir .

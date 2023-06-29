@@ -178,6 +178,13 @@
                     ],
                     "default": null
                 },
+                "run_id": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "default": null
+                },
                 "save_directory": {
                     "type": "string",
                     "default": "output"
@@ -224,10 +231,10 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-                "team_name": {
+                "team_id": {
                     "type": "string"
                 },
-                "dataset_name": {
+                "dataset_id": {
                     "type": "string"
                 },
                 "bucket_type": {
@@ -256,8 +263,8 @@
                 }
             },
             "required": [
-                "team_name",
-                "dataset_name"
+                "team_id",
+                "dataset_id"
             ]
         },
         "trainBlock": {

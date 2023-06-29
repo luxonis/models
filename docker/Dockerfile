@@ -1,4 +1,5 @@
-FROM nvcr.io/nvidia/pytorch:23.04-py3
+#FROM nvcr.io/nvidia/pytorch:23.04-py3
+FROM python:3.8-bullseye
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -12,16 +13,17 @@ USER luxonis
 WORKDIR /home/luxonis
 
 # Copy the whole library and tool directory
-COPY ../src ./src
-COPY ../tools ./tools
+COPY ./src ./src
+COPY ./tools ./tools
 
 # Copy package related files
-COPY ["../requirements.txt", "../setup.py", "../entrypoint.sh", "../README.md", "../MANIFEST.in", "."]
+COPY ["./requirements.txt", "./setup.py", "./README.md", "./MANIFEST.in", "docker/entrypoint.sh", "."]
 
 # needed because of _imagingft C module error
 RUN pip install --no-cache-dir pillow
 
 # Install the library
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir .
 
 # # Set the entrypoint command for the container

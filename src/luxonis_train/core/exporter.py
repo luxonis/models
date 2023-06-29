@@ -134,6 +134,8 @@ class Exporter(pl.LightningModule):
         for i, head in enumerate(self.model.heads):
             if isinstance(head, YoloV6Head):
                 output_names.extend(["output1_yolov6r2", "output2_yolov6r2", "output3_yolov6r2"])
+                if head.is_4head:
+                    output_names.extend(["output4_yolov6r2"])
             elif isinstance(head.type, SemanticSegmentation):
                 output_names.append("segmentation")
             else:

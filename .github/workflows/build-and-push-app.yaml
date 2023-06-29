@@ -14,7 +14,7 @@ jobs:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ replace(github.ref, 'refs/heads/', '') }}
 
       - name: 'Login to GitHub Container Registry'
         uses: docker/login-action@v1

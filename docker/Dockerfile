@@ -1,5 +1,4 @@
-#FROM nvcr.io/nvidia/pytorch:23.04-py3
-FROM python:3.8-bullseye
+FROM nvcr.io/nvidia/pytorch:23.04-py3
 
 ENV DEBIAN_FRONTEND=noninteractive
 

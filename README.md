@@ -106,7 +106,8 @@ trainer:
 This library uses [LuxonisTrackerPL](https://github.com/luxonis/luxonis-ml/blob/b2399335efa914ef142b1b1a5db52ad90985c539/src/luxonis_ml/ops/tracker.py#L152) for managing different loggers. You can configure it like this: 
 ```yaml
 logger:
-  project_id: null # id of the project used for logging (string)
+  project_name: null # name of the project used for logging (string|null)
+  project_id: null # id of the project used for logging (relevant if using MLFlow) (string|null)
   run_name: null # name of the run, if empty then auto-generate (string|null)
   run_id: null # id of already create run (relevant if using MLFlow) (string|null)
   save_directory: output # path to the save directory (string)
@@ -114,7 +115,6 @@ logger:
   is_wandb: False # bool if use WanDB (bool)
   wandb_entity: null # name of WanDB entity (string|null)
   is_mlflow: False # bool if use MLFlow (bool)
-  mlflow_tracking_uri: null # name of MLFlow tracking uri (string|null)
   logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 ```
 ### Dataset
@@ -203,7 +203,7 @@ train:
 You can initialize config object by passing one of:
 - Python dictionary
 - Path to local .yaml file
-- Path to MLFlow artifact with config.json file. This path has to be formated like this: `mlflow:<tracking_uri>/<experiment>/<run_id>`
+- Path to MLFlow artifact with config.json file. This path has to be formated like this: `mlflow://<experiment_id>/<run_id>`
 After that you can create a Config object like:
 ```python
 from luxonis_train.utils.config import Config

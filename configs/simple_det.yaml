@@ -13,9 +13,9 @@ dataset:
 logger:
   is_wandb: False 
   wandb_entity: luxonis
-  project_id: ml-ops-train
+  project_name: ml-ops-train
+  project_id: null #19
   is_mlflow: True
-  mlflow_tracking_uri: https://ml-track.luxonis.com
 
 tuner:
   params:

@@ -92,9 +92,9 @@ class Config:
             base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
         if isinstance(cfg, str):
-            if cfg.startswith("mlflow:"):
+            if cfg.startswith("mlflow://"):
                 # load config from mlflow artifact
-                run_info = cfg.split("mlflow:")[-1]
+                run_info = cfg.removeprefix("mlflow://")
                 user_cfg = mlflow_load_artifact_dict(run_info)
             else:
                 # load config from local file
@@ -349,17 +349,23 @@ class Config:
             self._data["train"]["optimizers"]["scheduler"]["params"] = {}
 
 def mlflow_load_artifact_dict(run_info):
-    """ Loads config dictionary from MLFlow artifact """
+    """ Loads config dictionary from MLFlow artifact and updates logger config """
     from dotenv import load_dotenv
     load_dotenv() # load environment variables needed for authorization
     
     import mlflow
-    tracking_uri, experiment, run_id = re.split(r"(?<!/)/(?!/)", run_info) # split by / (ignore //)
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+    if tracking_uri is None:
+        raise KeyError("There is no 'MLFLOW_TRACKING_URI' in environment variables")
+
+    experiment_id, run_id = run_info.split("/")
     mlflow.set_tracking_uri(tracking_uri)
-    mlflow.set_experiment(experiment)
+    mlflow.set_experiment(experiment_id=experiment_id)
     run = mlflow.get_run(run_id)
     cfg = mlflow.artifacts.load_dict(run.info.artifact_uri + "/config.json")
     cfg["logger"]["run_id"] = run_id # set run_id to continue run in MLFlow
+    cfg["logger"]["project_id"] = experiment_id
+
     return cfg
 
 def remove_chars_inside_brackets(string):
@@ -381,6 +387,8 @@ def parse_string_to_types(input_str: str):
         out = int(input_str)
     elif input_str.lstrip("-").replace(".","",1).isdigit():
         out = float(input_str)
+    elif input_str.lower() in ["none", "null"]: # check if None
+        out = None
     elif input_str.lower() == "true": # check for bool values
         out = True
     elif input_str.lower() == "false":

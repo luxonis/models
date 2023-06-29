@@ -163,6 +163,13 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "project_name": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "default": null
+                },
                 "project_id": {
                     "type": [
                         "null",
@@ -206,13 +213,6 @@
                 "is_mlflow": {
                     "type": "boolean",
                     "default": false
-                },
-                "mlflow_tracking_uri": {
-                    "type": [
-                        "null",
-                        "string"
-                    ],
-                    "default": null
                 },
                 "logged_hyperparams": {
                     "type": "array",

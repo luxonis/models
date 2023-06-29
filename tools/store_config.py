@@ -27,8 +27,15 @@ if __name__ == "__main__":
     if args.override:
         cfg.override_config(args.override)
     
-    mlflow.set_tracking_uri(cfg.get("logger.mlflow_tracking_uri"))
-    mlflow.set_experiment(cfg.get("logger.project_id"))
+    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+    if cfg.get("logger.project_id") is not None:
+        cfg.override_config("logger.project_name null")
+    project_id = cfg.get("logger.project_id")
+    mlflow.set_experiment(
+        experiment_name=cfg.get("logger.project_name"),
+        experiment_id=str(project_id) if project_id is not None else None
+    )
+
     with mlflow.start_run() as run:
         s3_client = boto3.client("s3",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),

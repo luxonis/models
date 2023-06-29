@@ -80,7 +80,12 @@ class Tuner:
         cfg_logger = self.cfg.get("logger")
         logger_params = deepcopy(cfg_logger.copy())
         logger_params.pop("logged_hyperparams")
-        logger = LuxonisTrackerPL(rank=rank, is_sweep=True, **logger_params)
+        logger = LuxonisTrackerPL(
+            rank=self.rank,
+            mlflow_tracking_uri=os.getenv("MLFLOW_TRACKING_URI"), # read seperately from env vars
+            is_sweep=True,
+            **logger_params
+        )
         run_save_dir = os.path.join(cfg_logger["save_directory"], logger.run_name)
 
         # get curr trial params and update config

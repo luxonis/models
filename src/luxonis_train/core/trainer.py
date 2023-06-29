@@ -38,7 +38,11 @@ class Trainer:
         load_dotenv() # loads env variables for mlflow logging
         logger_params = deepcopy(cfg_logger.copy())
         logger_params.pop("logged_hyperparams")
-        logger = LuxonisTrackerPL(rank=self.rank, **logger_params)
+        logger = LuxonisTrackerPL(
+            rank=self.rank,
+            mlflow_tracking_uri=os.getenv("MLFLOW_TRACKING_URI"), # read seperately from env vars
+            **logger_params
+        )
         logger.log_hyperparams(hparams)
 
         self.run_save_dir = os.path.join(cfg_logger["save_directory"], logger.run_name)

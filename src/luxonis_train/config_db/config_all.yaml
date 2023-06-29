@@ -7,7 +7,8 @@ trainer:
   verbose: True # print all intermidiate results in console (bool)
 
 logger:
-  project_id: null # id of the project used for logging (string)
+  project_name: null # name of the project used for logging (string|null)
+  project_id: null # id of the project used for logging (relevant if using MLFlow) (string|null)
   run_name: null # name of the run, if empty then auto-generate (string|null)
   run_id: null # id of already create run (relevant if using MLFlow) (string|null)
   save_directory: output # path to the save directory (string)
@@ -15,7 +16,6 @@ logger:
   is_wandb: False # bool if use WanDB (bool)
   wandb_entity: null # name of WanDB entity (string|null)
   is_mlflow: False # bool if use MLFlow (bool)
-  mlflow_tracking_uri: null # name of MLFlow tracking uri (string|null)
   logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 
 dataset:

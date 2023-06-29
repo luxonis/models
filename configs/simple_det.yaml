@@ -7,14 +7,14 @@ model:
     is_4head: False
 
 dataset:
-  team_name: luxonis # TODO
-  dataset_name: coco_sample_people  # TODO
+  team_id: luxonis # TODO
+  dataset_id: coco_sample_people  # TODO
 
 logger:
   is_wandb: False 
   wandb_entity: luxonis
-  project_name: ml-ops-train
-  is_mlflow: False
+  project_id: ml-ops-train
+  is_mlflow: True
   mlflow_tracking_uri: https://ml-track.luxonis.com
 
 tuner:

@@ -112,8 +112,8 @@ class Tuner:
         )
 
         with LuxonisDataset(
-            team_name=self.cfg.get("dataset.team_name"),
-            dataset_name=self.cfg.get("dataset.dataset_name"),
+            team_name=self.cfg.get("dataset.team_id"),
+            dataset_name=self.cfg.get("dataset.dataset_id"),
             bucket_type=self.cfg.get("dataset.bucket_type"),
             override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:

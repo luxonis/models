@@ -106,8 +106,9 @@ trainer:
 This library uses [LuxonisTrackerPL](https://github.com/luxonis/luxonis-ml/blob/b2399335efa914ef142b1b1a5db52ad90985c539/src/luxonis_ml/ops/tracker.py#L152) for managing different loggers. You can configure it like this: 
 ```yaml
 logger:
-  project_name: null # name of the project used for logging (string)
+  project_id: null # id of the project used for logging (string)
   run_name: null # name of the run, if empty then auto-generate (string|null)
+  run_id: null # id of already create run (relevant if using MLFlow) (string|null)
   save_directory: output # path to the save directory (string)
   is_tensorboard: True # bool if use tensorboard (bool)
   is_wandb: False # bool if use WanDB (bool)
@@ -123,8 +124,8 @@ To store and load the data we use LuxonisDataset and LuxonisLoader. For configur
 
 ```yaml
 dataset:
-  team_name: null # team under which you can find all datasets (string)
-  dataset_name: null # name of the dataset (string)
+  team_id: null # team under which you can find all datasets (string)
+  dataset_id: null # id of the dataset (string)
   bucket_type: local # underlying storage for images, which can be local or an AWS bucket (local|aws)
   override_bucket_type: False # option to change underlying storage from saved setting in DB (bool)
   train_view: train # view to use for training (string)

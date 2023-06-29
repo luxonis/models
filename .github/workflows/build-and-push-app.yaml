@@ -12,7 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout GitHub Action'
-        uses: actions/checkout@main
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
 
       - name: 'Login to GitHub Container Registry'
         uses: docker/login-action@v1
@@ -27,5 +29,5 @@ jobs:
             
       - name: 'Build Inventory Image'
         run: |
-          docker build --build-arg GITHUB_TOKEN=${{secrets.GHCR_PAT}} -f docker/Dockerfile . --tag ghcr.io/luxonis/models:latest --tag ghcr.io/luxonis/models:${{ steps.commit.outputs.sha_short }}
+          docker build --build-arg GITHUB_TOKEN=${{secrets.GHCR_PAT}} -f docker/Dockerfile . --tag ghcr.io/luxonis/models:${{ github.ref }}.${{ steps.commit.outputs.sha_short }}
           docker push ghcr.io/luxonis/models --all-tags

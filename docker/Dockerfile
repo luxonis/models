@@ -16,7 +16,7 @@ COPY ./src ./src
 COPY ./tools ./tools
 
 # Copy package related files
-COPY ["./requirements.txt", "./setup.py", "./README.md", "./MANIFEST.in", "docker/entrypoint.sh", "."]
+COPY ["./requirements.txt", "./setup.py", "./README.md", "./MANIFEST.in", "docker/entrypoint.sh", "./"]
 
 # needed because of _imagingft C module error
 RUN pip install --no-cache-dir pillow

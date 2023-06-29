@@ -250,8 +250,8 @@ class Config:
     def _validate_dataset_classes(self):
         """ Validates config to used datasets, overrides n_classes if needed """
         with LuxonisDataset(
-            team_name=self._data["dataset"]["team_name"],
-            dataset_name=self._data["dataset"]["dataset_name"],
+            team_name=self._data["dataset"]["team_id"],
+            dataset_name=self._data["dataset"]["dataset_id"],
             bucket_type=self._data["dataset"]["bucket_type"],
             override_bucket_type=self._data["dataset"]["override_bucket_type"]
         ) as dataset:
@@ -359,6 +359,7 @@ def mlflow_load_artifact_dict(run_info):
     mlflow.set_experiment(experiment)
     run = mlflow.get_run(run_id)
     cfg = mlflow.artifacts.load_dict(run.info.artifact_uri + "/config.json")
+    cfg["logger"]["run_id"] = run_id # set run_id to continue run in MLFlow
     return cfg
 
 def remove_chars_inside_brackets(string):

@@ -21,6 +21,8 @@ COPY ["./requirements.txt", "./setup.py", "./README.md", "./MANIFEST.in", "docke
 # needed because of _imagingft C module error
 RUN pip install --no-cache-dir pillow
 
+RUN sudo chown -R luxonis:luxonis /home/luxonis
+
 # Install the library
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir .

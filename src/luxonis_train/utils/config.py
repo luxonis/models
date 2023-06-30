@@ -94,7 +94,7 @@ class Config:
         if isinstance(cfg, str):
             if cfg.startswith("mlflow://"):
                 # load config from mlflow artifact
-                run_info = cfg.removeprefix("mlflow://")
+                run_info = cfg.split("mlflow://")[-1]
                 user_cfg = mlflow_load_artifact_dict(run_info)
             else:
                 # load config from local file

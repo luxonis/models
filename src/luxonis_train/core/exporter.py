@@ -3,7 +3,7 @@ import os
 import onnx
 import onnxsim
 import pytorch_lightning as pl
-from typing import Union
+from typing import Union, Optional
 from pathlib import Path
 
 from luxonis_train.utils.config import Config
@@ -13,12 +13,12 @@ from luxonis_train.utils.head_type import *
 
 
 class Exporter(pl.LightningModule):
-    def __init__(self, cfg: Union[str, dict], args: dict = None):
+    def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):
         """ Main API which is used for exporting models trained with this library to .onnx, openVINO and .blob format.
 
         Args:
             cfg (Union[str, dict]): path to config file or config dict used to setup training
-            args (dict, optional): argument dict provided through command line, used for config overriding
+            args (Optional[dict]): argument dict provided through command line, used for config overriding
         """
         super().__init__()
 

@@ -238,14 +238,14 @@ You can also override train or validation augmentations like this:
 ```python
 my_train_aug = my_custom_train_aug()
 my_val_aug = my_custom_val_aug()
-trainer = Trainer(args_dict, cfg)
+trainer = Trainer(cfg, args_dict)
 trainer.override_train_augmentations(aug=my_train_aug)
 trainer.override_val_augmentations(aug=my_val_aug)
 ```
 
 To run training in another thread use this:
 ```python
-trainer = Trainer(args_dict, cfg)
+trainer = Trainer(cfg, args_dict)
 trainer.train(new_thread=True)
 ```
 
@@ -288,7 +288,16 @@ You can also change on which part of the dataset the inference will run. This is
 ```yaml
 inferer:
   dataset_view: val # view to use for inference (string)
+  display: True # bool if should display inference resutls (bool)
+  infer_save_directory: null # if this is not null then use this as save directory (string|null)
 ```
+
+If you want to run Inferer one single image you can do that like this:
+```python
+inferer = Inferer(args.cfg, args_dict)
+inferer.infer_image(img)
+```
+
 
 ## Exporting
 We support export to ONNX, openVINO and .blob format which is used for OAK cameras. By default we only export to ONNX and you should use [modelconverter](TODO) repository for other formats. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.

@@ -4,7 +4,7 @@ import pytorch_lightning as pl
 import threading
 import warnings
 from copy import deepcopy
-from typing import Union
+from typing import Union, Optional
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
 from luxonis_ml import *
@@ -16,13 +16,13 @@ from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentatio
 from luxonis_train.utils.head_type import *
 
 class Trainer:
-    def __init__(self, cfg: Union[str, dict], args: dict = None):
+    def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):
         """Main API which is used to create the model, setup pytorch lightning environment
         and perform training based on provided arguments and config.
 
         Args:
             cfg (Union[str, dict]): path to config file or config dict used to setup training
-            args (dict, optional): argument dict provided through command line, used for config overriding
+            args (Optional[dict]): argument dict provided through command line, used for config overriding
         """
 
         self.cfg = Config(cfg)

@@ -145,7 +145,9 @@ class Exporter(pl.LightningModule):
     def _upload_to_s3(self, onnx_path):
         """ Uploads .pt, .onnx and current config.yaml to specified s3 bucket """
         import boto3
+        import yaml
         from dotenv import load_dotenv
+        print("Started upload to S3...")
 
         load_dotenv()
         s3_client = boto3.client("s3",
@@ -175,5 +177,40 @@ class Exporter(pl.LightningModule):
             Key=f"{base_upload_key}/config.yaml")
         os.remove("config.yaml") # delete temporary file
 
-        print(f"Files uploaded to: {base_upload_key}")
+        # generate and upload export_config.yaml compatible with modelconverter
+        onnx_path = f"s3://{self.cfg.get('exporter.s3_upload.bucket')}/" + \
+            f"{base_upload_key}/{self.cfg.get('exporter.export_model_name')}.onnx"
+        modelconverter_config = self._get_modelconverter_config(onnx_path)
         
+        with open("config_export.yaml", "w+") as f:
+            yaml.dump(modelconverter_config, f, default_flow_style=False) 
+        
+        s3_client.upload_file(
+            Filename="config_export.yaml",
+            Bucket=self.cfg.get("exporter.s3_upload.bucket"),
+            Key=f"{base_upload_key}/config_export.yaml")
+        os.remove("config_export.yaml") # delete temporary file
+        
+        print(f"Files uploaded to: s3://{self.cfg.get('exporter.s3_upload.bucket')}/{base_upload_key}")
+
+    def _get_modelconverter_config(self, onnx_path: str):
+        """ Generates export config from input config that is
+            compatible with Luxonis modelconverter tool
+
+        Args:
+            onnx_path (str): Path to .onnx model
+        """
+        out_config = {
+            "input_model": onnx_path,
+            "scale_values": self.cfg.get("exporter.scale_values"),
+            "mean_values": self.cfg.get("exporter.mean_values"),
+            "reverse_input_channels": self.cfg.get("exporter.reverse_input_channels"),
+            "use_bgr": not self.cfg.get("train.preprocessing.train_rgb"),
+            "input_shape": [1,3] + self.cfg.get("exporter.export_image_size"),
+            "data_type": "f16", #self.cfg.get("exporter.data_type"), # NOTE: change this when modelconverter is updated
+            "output": [{"name":name} for name in self._get_output_names()],
+            "meta":{
+                "description": self.cfg.get("exporter.export_model_name")
+            }
+        }
+        return out_config

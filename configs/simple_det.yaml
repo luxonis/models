@@ -24,7 +24,7 @@ tuner:
     train.batch_size_int: [4, 16, 4]
 
 exporter:
-  export_weights: /home/klemen/luxonis/models/output/1-beige-primate/best_val_metric/map=0.0032_loss=2.6849_00_SimpleDetection.ckpt
+  export_weights: /home/klemen/luxonis/models/output/1-black-impala/best_val_metric/map=0.0271_loss=2.1368_39_SimpleDetection.ckpt
   export_model_name: test-model-3
   onnx:
     opset_version: 12 # opset version of onnx used (int)
@@ -32,7 +32,7 @@ exporter:
   openvino:
     active: False # bool if export to openvino (bool)
   blobconverter:
-    active: True # bool if export to blob (bool)
+    active: False # bool if export to blob (bool)
     shaves: 6 # number of shaves used (int)
   s3_upload:
     active: True # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)

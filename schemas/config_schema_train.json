@@ -33,8 +33,7 @@
                 }
             },
             "required": [
-                "model",
-                "dataset"
+                "model"
             ]
         },
         "modelBlock": {
@@ -509,6 +508,17 @@
                 "dataset_view": {
                     "type": "string",
                     "default": "val"
+                },
+                "display": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "infer_save_directory": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": null
                 }
             }
         },

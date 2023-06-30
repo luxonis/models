@@ -83,6 +83,8 @@ train:
 
 inferer:
   dataset_view: val # view to use for inference (string)
+  display: True # bool if should display inference resutls (bool)
+  infer_save_directory: null # if this is not null then use this as save directory (string|null)
 
 exporter:
   export_weights: null # path to local weights used for export (string)

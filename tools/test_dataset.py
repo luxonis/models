@@ -1,5 +1,6 @@
 import argparse
 import torch
+import os
 from dotenv import load_dotenv
 
 from luxonis_ml import *
@@ -11,8 +12,10 @@ import matplotlib.pyplot as plt
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-cfg", "--config", type=str, required=True, help="Configuration file to use")
-    parser.add_argument("-v", "--view", type=str, default="val", help="Dataset view to use")
     parser.add_argument("--override", default=None, type=str, help="Manually override config parameter")
+    parser.add_argument("--view", type=str, default="val", help="Dataset view to use")
+    parser.add_argument("--no-display", action="store_true", help="Don't display images")
+    parser.add_argument("--save-dir", type=str, default=None, help="Path to save directory, by default don't save")
     args = parser.parse_args()
 
     cfg = Config(args.config)
@@ -42,10 +45,20 @@ if __name__ == "__main__":
         )
 
         ih, iw = image_size[0], image_size[1]
+        
+        save_dir = args.save_dir
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True)
 
+        counter = 0
         for data in pytorch_loader_train:
             imgs, anno_dict = data
             out_imgs = draw_only_labels(imgs, anno_dict, image_size = image_size)
+            
             for i in out_imgs:
                 plt.imshow(i)
-                plt.show()
+                if save_dir is not None:
+                    counter += 1
+                    plt.savefig(os.path.join(save_dir, f"{counter}.png"))
+                if not args.no_display:
+                    plt.show()

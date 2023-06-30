@@ -1,12 +1,14 @@
 import torch
 import cv2
+import os
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
-from typing import Union
+from typing import Union, Optional
+from tqdm import tqdm
 from luxonis_ml import *
 
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.augmentations import ValAugmentations
+from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations, Augmentations
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.head_type import *
@@ -15,12 +17,12 @@ from luxonis_train.utils.visualization import *
 
 
 class Inferer(pl.LightningModule):
-    def __init__(self, cfg: Union[str, dict], args: dict = None):
+    def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):
         """Main API which is used for inference/visualization on the dataset
 
         Args:
             cfg (Union[str, dict]): path to config file or config dict used to setup training
-            args (dict, optional): argument dict provided through command line, used for config overriding
+            args (Optional[dict]): argument dict provided through command line, used for config overriding
         """
         super().__init__()
 
@@ -34,7 +36,7 @@ class Inferer(pl.LightningModule):
         self.load_checkpoint(self.cfg.get("model.pretrained"))
         self.model.eval()
 
-        self.val_augmentations = None
+        self.augmentations = None
 
     def load_checkpoint(self, path: str):
         """ Loads checkpoint weights from provided path """
@@ -51,18 +53,18 @@ class Inferer(pl.LightningModule):
 
         self.load_state_dict(state_dict)
 
+    def override_augmentations(self, aug: object):
+        """ Overrides augmentations used for validation dataset """
+        self.augmentations = aug
+    
     def forward(self, inputs: torch.Tensor):
         """ Forward function used in inference """
         outputs = self.model(inputs)
         return outputs
 
-    def infer(self, display: bool = True, save: bool = False):
-        """Runs inference on all images in the dataset
+    def infer(self):
+        """ Runs inference on all images in the dataset """
 
-        Args:
-            display (bool, optional): Display output for each head. Defaults to True.
-            save (bool, optional): Save output image. Defaults to False.
-        """
         with LuxonisDataset(
             team_name=self.cfg.get("dataset.team_id"),
             dataset_name=self.cfg.get("dataset.dataset_id"),
@@ -70,15 +72,20 @@ class Inferer(pl.LightningModule):
             override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:
 
-            if self.val_augmentations == None:
-                self.val_augmentations = ValAugmentations()
+            view = self.cfg.get("inferer.dataset_view")
+            
+            if self.augmentations == None:
+                if view == "train":
+                    self.augmentations = TrainAugmentations()
+                else:
+                    self.augmentations = ValAugmentations()
 
             loader_val = LuxonisLoader(
                 dataset,
-                view=self.cfg.get("inferer.dataset_view"),
-                augmentations=self.val_augmentations
+                view=view,
+                augmentations=self.augmentations
             )
-            # TODO: Do we want this configurable?
+
             pytorch_loader_val = torch.utils.data.DataLoader(
                 loader_val,
                 batch_size=self.cfg.get("train.batch_size"),
@@ -86,8 +93,15 @@ class Inferer(pl.LightningModule):
                 collate_fn=loader_val.collate_fn
             )
 
+            display = self.cfg.get("inferer.display")
+            save_dir = self.cfg.get("inferer.infer_save_directory")
+
+            if save_dir is not None:
+                os.makedirs(save_dir, exist_ok=True)
+
+            counter = 0
             with torch.no_grad():
-                for data in pytorch_loader_val:
+                for data in tqdm(pytorch_loader_val):
                     inputs = data[0]
                     labels = data[1]
                     outputs = self.forward(inputs)
@@ -101,24 +115,54 @@ class Inferer(pl.LightningModule):
                         output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
                         merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
                         
-                        if display:
-                            for img in merged_imgs:
-                                plt.imshow(img)
-                                plt.title(curr_head_name+f"\n(labels left, outputs right)")
+                        for img in merged_imgs:
+                            counter += 1
+                            plt.imshow(img)
+                            plt.title(curr_head_name+f"\n(labels left, outputs right)")
+                            if save_dir is not None:
+                                plt.savefig(os.path.join(save_dir, f"{counter}.png"))
+                            if display:
                                 plt.show()
-                        if save:
-                            raise NotImplementedError()
 
-    def infer_image(self, img: torch.Tensor, display: bool = True, save: bool = False):
-        """Runs inference on a single image
+
+    def infer_image(self, img: np.ndarray, augmentations: Optional[Augmentations] = None, 
+        display: bool = True, save_path: Optional[str] = None):
+        """ Runs inference on single image
 
         Args:
-            img (torch.tensor): Tensor of shape (C x H x W) and dtype uint8.
-            display (bool, optional): Display output for each head. Defaults to True.
-            save (bool, optional): Save output image. Defaults to False.
-
-        Raises:
-            NotImplementedError: Not implemented yet
+            img (np.ndarray): Input image of shape (H x W x C) and dtype uint8.
+            augmentations (Optional[Augmentations], optional): Instance of augmentation class. If None use ValAugmentations(). Defaults to None.
+            display (bool, optional): Control if want to display output. Defaults to True.
+            save_path (Optional[str], optional): Path for saving the output, will generate separate image for each model head. If None then don't save. Defaults to None.
         """
-        # first need to run img through augmentation, then through model and after similar to infer()
-        raise NotImplementedError()
+
+        if augmentations == None:
+            augmentations = ValAugmentations()
+
+        # IMG IN RGB HWC
+        transformed = augmentations.transform(
+            image = img,
+            bboxes = [],
+            bbox_classes = [],
+            keypoints = [],
+            keypoints_classes = []
+        )
+        inputs = torch.unsqueeze(transformed["image"], dim=0)
+        outputs = self.forward(inputs)
+
+        for i, output in enumerate(outputs):
+            curr_head = self.model.heads[i]
+            curr_head_name = get_head_name(curr_head, i)
+
+            output_img = draw_on_images(inputs, output, curr_head, is_label=False)[0]  
+            
+            if save_path is not None:
+                path, save_type = save_path.rsplit(".", 1) # get desired save type (e.g. .png, .jpg, ...)
+                # use cv2 for saving to avoid paddings
+                save_img = cv2.cvtColor(output_img, cv2.COLOR_RGB2BGR)
+                cv2.imwrite(path+f"_{curr_head_name}.{save_type}", save_img)
+
+            if display:
+                plt.imshow(output_img)
+                plt.title(curr_head_name)
+                plt.show()

@@ -3,7 +3,7 @@ import warnings
 import torch
 import os
 import optuna
-from typing import Union
+from typing import Union, Optional
 from dotenv import load_dotenv
 from copy import deepcopy
 from pytorch_lightning.utilities import rank_zero_only
@@ -16,12 +16,12 @@ from luxonis_train.models import ModelLightningModule
 from luxonis_ml import *
 
 class Tuner:
-    def __init__(self, cfg: Union[str, dict], args: dict = None):
+    def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):
         """Main API which is used to perform hyperparameter tunning
 
         Args:
             cfg (Union[str, dict]): path to config file or config dict used to setup training
-            args (dict, optional): argument dict provided through command line, used for config overriding
+            args (Optional[dict]): argument dict provided through command line, used for config overriding
         """
         self.cfg_data = cfg
         self.args = args

@@ -7,8 +7,8 @@ model:
     is_4head: False
 
 dataset:
-  team_id: luxonis # TODO
-  dataset_id: coco_sample_people  # TODO
+  team_id: luxonis_team_id #luxonis # TODO
+  dataset_id: 649fc9f39b1845dd49e393c2 #coco_sample_people  # TODO
 
 logger:
   is_wandb: False 

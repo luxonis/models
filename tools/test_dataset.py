@@ -25,8 +25,8 @@ if __name__ == "__main__":
     image_size = cfg.get("train.preprocessing.train_image_size")
 
     with LuxonisDataset(
-        team_name=cfg.get("dataset.team_id"),
-        dataset_name=cfg.get("dataset.dataset_id"),
+        team_id=cfg.get("dataset.team_id"),
+        dataset_id=cfg.get("dataset.dataset_id"),
         bucket_type=cfg.get("dataset.bucket_type"),
         override_bucket_type=cfg.get("dataset.override_bucket_type")
     ) as dataset:

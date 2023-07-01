@@ -77,8 +77,8 @@ class Trainer:
         """
 
         with LuxonisDataset(
-            team_name=self.cfg.get("dataset.team_id"),
-            dataset_name=self.cfg.get("dataset.dataset_id"),
+            team_id=self.cfg.get("dataset.team_id"),
+            dataset_id=self.cfg.get("dataset.dataset_id"),
             bucket_type=self.cfg.get("dataset.bucket_type"),
             override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:
@@ -149,8 +149,8 @@ class Trainer:
         """
 
         with LuxonisDataset(
-            team_name=self.cfg.get("dataset.team_id"),
-            dataset_name=self.cfg.get("dataset.dataset_id"),
+            team_id=self.cfg.get("dataset.team_id"),
+            dataset_id=self.cfg.get("dataset.dataset_id"),
             bucket_type=self.cfg.get("dataset.bucket_type"),
             override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:

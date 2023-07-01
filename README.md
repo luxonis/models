@@ -138,7 +138,8 @@ Here you can change everything related to actual training of the model.
 
 We use [Albumentations](https://albumentations.ai/docs/) library for `augmentations`. [Here](https://albumentations.ai/docs/api_reference/full_reference/#pixel-level-transforms) you can see a list of all pixel level augmentations supported, and [here](https://albumentations.ai/docs/api_reference/full_reference/#spatial-level-transforms) you see all spatial level transformations. In config you can specify any augmentation from this lists and their params.
 
-For `callbacks` Pytorch Lightning is used and you can check [here](https://lightning.ai/docs/pytorch/stable/extensions/callbacks.html) for parameter definitions.
+For `callbacks` Pytorch Lightning is used and you can check [here](https://lightning.ai/docs/pytorch/stable/extensions/callbacks.html) for parameter definitions. We also provide you with two additional callbacks for automatically running test and export on train finish (`test_on_finish` and `export_on_finish` respectively). If `export_on_finish` is used then we will use config from the `exporter` block (explained [here](#exporting)) but for `export_weights` we will use the best checkpoint (based on validation loss) from the current run.
+
 
 For `optimizers` we use Pytorch library. You can see [here](https://pytorch.org/docs/stable/optim.html) all available optimizers and schedulers.
 
@@ -170,14 +171,16 @@ train:
   use_rich_text: True # bool if use rich text for console printing
 
   callbacks: # callback specific parameters (check PL docs)
-    use_device_stats_monitor: False
+    test_on_finish: False # bool if should run test when train loop finishes (bool)
+    export_on_finish: False # bool if should run export when train loop finishes - should specify config block (bool)
+    use_device_stats_monitor: False # bool if should use device stats monitor during training (bool)
     model_checkpoint:
       save_top_k: 3
     early_stopping:
       active: True
-      monitor: val_loss
+      monitor: val_loss/loss
       mode: min
-      patience: 3
+      patience: 5
       verbose: True
 
   optimizers: # optimizers specific parameters (check Pytorch docs)

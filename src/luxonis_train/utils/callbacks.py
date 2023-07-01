@@ -1,6 +1,6 @@
+import pytorch_lightning as pl
 from pytorch_lightning.callbacks import RichProgressBar
 from rich.table import Table
-from rich.rule import Rule
 
 class LuxonisProgressBar(RichProgressBar):
     """ Custom rich text progress bar based on RichProgressBar from Pytorch Lightning"""
@@ -46,3 +46,52 @@ class LuxonisProgressBar(RichProgressBar):
                 table.add_row(metric_name, value)
             self._console.print(table)
         self._console.rule(style="bold magenta")
+
+
+class TestOnTrainEnd(pl.Callback):
+    """ Callback that performs test on pl_module when train ends """
+    def on_train_end(self, trainer, pl_module):
+        from luxonis_train.utils.config import Config
+        from luxonis_train.utils.augmentations import ValAugmentations
+        from luxonis_ml import LuxonisDataset, LuxonisLoader
+        from torch.utils.data import DataLoader
+
+        cfg = Config()
+        with LuxonisDataset(
+            team_id=cfg.get("dataset.team_id"),
+            dataset_id=cfg.get("dataset.dataset_id"),
+            bucket_type=cfg.get("dataset.bucket_type"),
+            override_bucket_type=cfg.get("dataset.override_bucket_type")
+        ) as dataset:
+            loader_test = LuxonisLoader(
+                dataset,
+                view=cfg.get("dataset.test_view"),
+                augmentations=ValAugmentations()
+            )
+            pytorch_loader_test = DataLoader(
+                loader_test,
+                batch_size=cfg.get("train.batch_size"),
+                num_workers=cfg.get("train.num_workers"),
+                collate_fn=loader_test.collate_fn
+            )
+            trainer.test(pl_module, pytorch_loader_test)
+
+
+class ExportOnTrainEnd(pl.Callback):
+    """ Callback that performs export on train end with best weights according to the validation loss """
+    def on_train_end(self, trainer, pl_module):
+        from luxonis_train.core import Exporter
+
+        model_checkpoint_callbacks = [
+            c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)
+        ]
+        # NOTE: assume that first checkpoint callback is based on val loss 
+        best_model_path = model_checkpoint_callbacks[0].best_model_path
+
+        # override export_weights path with path to currently best weights
+        override = f"exporter.export_weights {best_model_path}"
+        exporter = Exporter(
+            cfg="", # singleton instance already present
+            args={"override": override}
+        )
+        exporter.export()

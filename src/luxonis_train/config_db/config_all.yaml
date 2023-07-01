@@ -53,7 +53,9 @@ train:
   use_rich_text: True # bool if use rich text for console printing
 
   callbacks: # callback specific parameters (check PL docs)
-    use_device_stats_monitor: False
+    test_on_finish: False # bool if should run test when train loop finishes (bool)
+    export_on_finish: False # bool if should run export when train loop finishes - should specify config block (bool)
+    use_device_stats_monitor: False # bool if should use device stats monitor during training (bool)
     model_checkpoint:
       save_top_k: 3
     early_stopping:

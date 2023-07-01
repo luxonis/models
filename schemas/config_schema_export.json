@@ -376,6 +376,14 @@
                     "type": "object",
                     "additionalItems": false,
                     "properties": {
+                        "test_on_finish": {
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "export_on_finish": {
+                            "type": "boolean",
+                            "default": false
+                        },
                         "use_device_stats_monitor": {
                             "type": "boolean",
                             "default": false

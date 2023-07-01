@@ -126,6 +126,14 @@ class ModelLightningModule(pl.LightningModule):
             from pytorch_lightning.callbacks import RichModelSummary
             callbacks.append(RichModelSummary())
 
+        if self.cfg.get("train.callbacks.test_on_finish"):
+            from luxonis_train.utils.callbacks import TestOnTrainEnd
+            callbacks.append(TestOnTrainEnd())
+
+        if self.cfg.get("train.callbacks.export_on_finish"):
+            from luxonis_train.utils.callbacks import ExportOnTrainEnd
+            callbacks.append(ExportOnTrainEnd())
+
         return callbacks
 
     def configure_optimizers(self):

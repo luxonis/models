@@ -24,6 +24,8 @@ RUN pip install --no-cache-dir pillow
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir .
 
+RUN pip install awscli
+
 # # Set the entrypoint command for the container
 RUN chown -R luxonis:luxonis /home/luxonis
 RUN chmod +x ./entrypoint.sh

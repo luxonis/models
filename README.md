@@ -12,7 +12,9 @@ The work on this project is in an MVP state, so it may be missing some critical 
   - [Logger](#logger)
   - [Dataset](#dataset)
   - [Train](#train)
+  - [Initialization](#initialization)
 - [Training](#training)
+- [Tuning](#tuning)
 - [Inference](#inference)
 - [Exporting](#exporting)
 - [Test Dataset](#test-dataset)
@@ -104,15 +106,15 @@ trainer:
 This library uses [LuxonisTrackerPL](https://github.com/luxonis/luxonis-ml/blob/b2399335efa914ef142b1b1a5db52ad90985c539/src/luxonis_ml/ops/tracker.py#L152) for managing different loggers. You can configure it like this: 
 ```yaml
 logger:
-  project_name: null # name of the project used for logging (string)
+  project_name: null # name of the project used for logging (string|null)
+  project_id: null # id of the project used for logging (relevant if using MLFlow) (string|null)
   run_name: null # name of the run, if empty then auto-generate (string|null)
+  run_id: null # id of already create run (relevant if using MLFlow) (string|null)
   save_directory: output # path to the save directory (string)
   is_tensorboard: True # bool if use tensorboard (bool)
   is_wandb: False # bool if use WanDB (bool)
   wandb_entity: null # name of WanDB entity (string|null)
   is_mlflow: False # bool if use MLFlow (bool)
-  mlflow_tracking_uri: null # name of MLFlow tracking uri (string|null)
-  # is_sweep: False # bool if is sweep (not implemented yet) (bool)
   logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 ```
 ### Dataset
@@ -122,8 +124,8 @@ To store and load the data we use LuxonisDataset and LuxonisLoader. For configur
 
 ```yaml
 dataset:
-  team_name: null # team under which you can find all datasets (string)
-  dataset_name: null # name of the dataset (string)
+  team_id: null # team under which you can find all datasets (string)
+  dataset_id: null # id of the dataset (string)
   bucket_type: local # underlying storage for images, which can be local or an AWS bucket (local|aws)
   override_bucket_type: False # option to change underlying storage from saved setting in DB (bool)
   train_view: train # view to use for training (string)
@@ -136,7 +138,8 @@ Here you can change everything related to actual training of the model.
 
 We use [Albumentations](https://albumentations.ai/docs/) library for `augmentations`. [Here](https://albumentations.ai/docs/api_reference/full_reference/#pixel-level-transforms) you can see a list of all pixel level augmentations supported, and [here](https://albumentations.ai/docs/api_reference/full_reference/#spatial-level-transforms) you see all spatial level transformations. In config you can specify any augmentation from this lists and their params.
 
-For `callbacks` Pytorch Lightning is used and you can check [here](https://lightning.ai/docs/pytorch/stable/extensions/callbacks.html) for parameter definitions.
+For `callbacks` Pytorch Lightning is used and you can check [here](https://lightning.ai/docs/pytorch/stable/extensions/callbacks.html) for parameter definitions. We also provide you with two additional callbacks for automatically running test and export on train finish (`test_on_finish` and `export_on_finish` respectively). If `export_on_finish` is used then we will use config from the `exporter` block (explained [here](#exporting)) but for `export_weights` we will use the best checkpoint (based on validation loss) from the current run.
+
 
 For `optimizers` we use Pytorch library. You can see [here](https://pytorch.org/docs/stable/optim.html) all available optimizers and schedulers.
 
@@ -145,9 +148,10 @@ For `optimizers` we use Pytorch library. You can see [here](https://pytorch.org/
 train:
   preprocessing:
     train_image_size: [256, 256] # image size used for training [height, width] (list)
+    keep_aspect_ratio: True # bool if keep aspect ration while resizing (bool)
     train_rgb: True # bool if train on rgb or bgr (bool)
     normalize:
-      use_normalize: True # bool if use normalization (bool)
+      active: True # bool if use normalization (bool)
       params: # params for normalization (dict|null)
     augmentations: # list of Albumentations augmentations
       # - name: Rotate
@@ -156,6 +160,7 @@ train:
 
   batch_size: 32 # batch size used for trainig (int)
   accumulate_grad_batches: 1 # number of batches for gradient accumulation (int)
+  use_weighted_sampler: False # bool if use WeightedRandomSampler for training, only works with classification tasks (bool)
   epochs: 100 # number of training epochs (int)
   num_workers: 2 # number of workers for data loading (int)
   train_metrics_interval: -1 # frequency of computing metrics on train data, -1 if don't perform (int)
@@ -166,14 +171,16 @@ train:
   use_rich_text: True # bool if use rich text for console printing
 
   callbacks: # callback specific parameters (check PL docs)
-    use_device_stats_monitor: False
+    test_on_finish: False # bool if should run test when train loop finishes (bool)
+    export_on_finish: False # bool if should run export when train loop finishes - should specify config block (bool)
+    use_device_stats_monitor: False # bool if should use device stats monitor during training (bool)
     model_checkpoint:
       save_top_k: 3
     early_stopping:
       active: True
-      monitor: val_loss
+      monitor: val_loss/loss
       mode: min
-      patience: 3
+      patience: 5
       verbose: True
 
   optimizers: # optimizers specific parameters (check Pytorch docs)
@@ -194,6 +201,18 @@ train:
     weights: [1,1] # list of ints for specific loss weight (list[int])
     # learn_weights: False # bool if weights should be learned (not implemented yet) (bool)
 ```
+
+### Initialization
+You can initialize config object by passing one of:
+- Python dictionary
+- Path to local .yaml file
+- Path to MLFlow artifact with config.json file. This path has to be formated like this: `mlflow://<experiment_id>/<run_id>`
+After that you can create a Config object like:
+```python
+from luxonis_train.utils.config import Config
+cfg = Config(data)
+```
+***Note**: Config is a singleton object, so once created, you can initialize it without a path/dictionary and access its data. If you want to delete it you can call `Config.clear_instance()`.*
 
 ## Training
 Once you've configured your `custom.yaml` file you can train the model using this command:
@@ -222,15 +241,44 @@ You can also override train or validation augmentations like this:
 ```python
 my_train_aug = my_custom_train_aug()
 my_val_aug = my_custom_val_aug()
-trainer = Trainer(args_dict, cfg)
+trainer = Trainer(cfg, args_dict)
 trainer.override_train_augmentations(aug=my_train_aug)
 trainer.override_val_augmentations(aug=my_val_aug)
 ```
 
 To run training in another thread use this:
 ```python
-trainer = Trainer(args_dict, cfg)
+trainer = Trainer(cfg, args_dict)
 trainer.train(new_thread=True)
+```
+
+## Tuning
+To improve training performance you can use `Tuner` for hyperparameter optimization. There are some study related parameters that you can change for initialization. To do the actual tuning you have to setup a `tuner.params` block in the config file where you specify which parameters to tune and the ranges from which the values should be chosen. An example of this block is shown below. The key should be in the format: `key1.key2.key3_<type>` where type can be one of `[categorical, float, int, loguniform, uniform]` (for more information about specific type check out [Optuna documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.Trial.html)).
+
+```yaml
+tuner:
+  study_name: "test-study" # name of the study (string)
+  use_pruner: True # if should use MedianPruner (bool)
+  n_trials: 3 # number of trials for each process (int)
+  timeout: 600 # stop study after the given number of seconds (int)
+  storage:
+    active: True # if should use storage to make study persistant (bool)
+    type: remote # type of storage, "local" or "remote" (string)
+  params: # (key, value) pairs for tunning
+```
+
+Example of params for tuner block:
+```yaml
+tuner:
+  params:
+    train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
+    train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
+    train.batch_size_int: [4, 16, 4]
+```
+
+When a `tuner` block is specified, you can start tuning like:
+```
+python3 tools/tune.py -cfg configs/custom.yaml
 ```
 
 ## Inference
@@ -243,10 +291,21 @@ You can also change on which part of the dataset the inference will run. This is
 ```yaml
 inferer:
   dataset_view: val # view to use for inference (string)
+  display: True # bool if should display inference resutls (bool)
+  infer_save_directory: null # if this is not null then use this as save directory (string|null)
 ```
 
+If you want to run Inferer one single image you can do that like this:
+```python
+inferer = Inferer(args.cfg, args_dict)
+inferer.infer_image(img)
+```
+
+
 ## Exporting
-We support export to ONNX, openVINO and .blob format which is used for OAK cameras. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
+We support export to ONNX, openVINO and .blob format which is used for OAK cameras. By default we only export to ONNX and you should use [modelconverter](TODO) repository for other formats. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
+
+There is also an option to upload .ckpt, .onnx and config.yaml files to S3 bucket. To do this you have to specify `bucket` and `upload_directory` to configure S3 upload location.
 
 ```yaml
 exporter:
@@ -254,18 +313,22 @@ exporter:
   export_save_directory: output_export # path to save directory of exported models (string)
   export_image_size: [256, 256] # image size used for export [height, width] (list)
   export_model_name: model # name of the exported model (string)
-  onnx: 
+  data_type: FP16 # data type used for openVino conversion (string)
+  reverse_input_channels: True # bool if reverse input shapes (bool)
+  scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
+  mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
+  onnx:
     opset_version: 12 # opset version of onnx used (int)
     dynamic_axes: null # define if dynamic input shapes are used (dict)
   openvino:
-    data_type: FP16 # data type used for openVino conversion (string)
-    reverse_input_channels: True # bool if reverse input shapes (bool)
-    scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
-    mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
+    active: False # bool if export to openvino (bool)
   blobconverter:
-    data_type: FP16 # data type used for blob conversion (string)
+    active: False # bool if export to blob (bool)
     shaves: 6 # number of shaves used (int)
-    openvino_version: 2022.1 # openvino version (string)
+  s3_upload:
+    active: False # bool if upload .ckpt, .onnx and config file to S3 bucket (bool)
+    bucket: null # name of the S3 bucket (string)
+    upload_directory: null # location of directory for upload (string)
 ```
 
 Once you have the config file ready you can export the model like this:

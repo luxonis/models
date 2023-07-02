@@ -4,12 +4,10 @@ from albumentations.pytorch import ToTensorV2
 import numpy as np
 import cv2
 import torch
-from typing import Union
 
 from luxonis_train.utils.config import Config
 from luxonis_train.models.heads import *
 from luxonis_train.utils.head_type import *
-from luxonis_train.utils.head_utils import generate_blaze_heatmap
 
 class Augmentations:
     def __init__(self):
@@ -20,18 +18,26 @@ class Augmentations:
     def _parse_cfg(self, cfg_aug: dict):
         """ Parses provided config and returns Albumentations Compose object"""
         image_size = self.cfg["train_image_size"]
-        
+
         # Always perform Resize
-        augmentations = [A.Resize(image_size[0], image_size[1])]
+        if self.cfg["keep_aspect_ratio"]:
+            resize = A.Sequential([
+                A.LongestMaxSize(max_size=max(image_size), interpolation=1),
+                A.PadIfNeeded(min_height=image_size[0], min_width=image_size[1], border_mode=0, value=(0,0,0)),
+            ], p=1)
+        else: 
+            resize = A.Resize(image_size[0], image_size[1])
+
+        augmentations = [resize]
         if cfg_aug:
             for aug in cfg_aug:
                 augmentations.append(
                     eval(aug["name"])(**aug.get("params", {}))
                 )
         augmentations.append(ToTensorV2())
-        
+  
         return A.Compose(
-            augmentations, 
+            augmentations,
             bbox_params=A.BboxParams(format="coco", label_fields=["bbox_classes"]),
             keypoint_params=A.KeypointParams(format="xy", label_fields=["keypoints_classes"], remove_invisible=False),
         )
@@ -48,7 +54,7 @@ class Augmentations:
 
         classes = anno_dict.get("class", torch.zeros(1))
 
-        seg = anno_dict.get("segmentation", torch.zeros((1, *img_in.shape[1:])))
+        seg = anno_dict.get("segmentation", torch.zeros((1, *img_in.shape[:-1])))
         masks = [m.numpy() for m in seg]
 
         # COCO format in albumentations is [x,y,w,h] non-normalized
@@ -82,24 +88,10 @@ class Augmentations:
             post_augment_process(transformed, keypoints, 
                 keypoints_classes, use_rgb=self.cfg["train_rgb"])
 
-        custom_labels = self.create_custom_labels(final_image, final_bboxes, final_masks, final_keypoints)
-        custom_labels = custom_labels[0] if len(custom_labels) else None # NOTE: only supports one custom label per model for now (aka. one head with custom labels)
-
         out_annotations = create_out_annotations(present_annotations, classes=classes, bboxes=final_bboxes,
-            masks=final_masks, keypoints=final_keypoints, custom_labels=custom_labels)
+            masks=final_masks, keypoints=final_keypoints)
 
         return final_image, out_annotations
-
-    def create_custom_labels(self, image: np.ndarray, bboxes: torch.Tensor, final_masks: torch.Tensor, final_keypoints: torch.Tensor):
-        custom_labels = []
-        for head in self.cfg_all.get("model.heads"):
-            curr_head_name = head["name"]
-            curr_head_type = eval(curr_head_name).type
-            if isinstance(curr_head_type, CustomHeadType):
-                if "blazeheatmap" in curr_head_name.lower():
-                    heatmap = generate_blaze_heatmap(final_keypoints)
-                    custom_labels.append(heatmap)
-        return custom_labels
 
 class TrainAugmentations(Augmentations):
     def __init__(self):
@@ -170,7 +162,7 @@ def check_bboxes(bboxes: torch.Tensor):
     return bboxes
 
 def create_out_annotations(present_annotations: list, classes: torch.Tensor, bboxes: torch.Tensor,
-    masks: torch.Tensor, keypoints: torch.Tensor, custom_labels: Union[None, torch.Tensor]):
+    masks: torch.Tensor, keypoints: torch.Tensor):
     """ Create dictionary of output annotations """
     out_annotations = {}
     if "class" in present_annotations:
@@ -181,6 +173,4 @@ def create_out_annotations(present_annotations: list, classes: torch.Tensor, bbo
         out_annotations["segmentation"] = masks
     if "keypoints" in present_annotations:
         out_annotations["keypoints"] = keypoints
-    if custom_labels:
-        out_annotations["custom"] = custom_labels
     return out_annotations

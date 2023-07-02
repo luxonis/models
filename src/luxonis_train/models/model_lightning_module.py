@@ -126,6 +126,14 @@ class ModelLightningModule(pl.LightningModule):
             from pytorch_lightning.callbacks import RichModelSummary
             callbacks.append(RichModelSummary())
 
+        if self.cfg.get("train.callbacks.test_on_finish"):
+            from luxonis_train.utils.callbacks import TestOnTrainEnd
+            callbacks.append(TestOnTrainEnd())
+
+        if self.cfg.get("train.callbacks.export_on_finish"):
+            from luxonis_train.utils.callbacks import ExportOnTrainEnd
+            callbacks.append(ExportOnTrainEnd())
+
         return callbacks
 
     def configure_optimizers(self):
@@ -135,14 +143,14 @@ class ModelLightningModule(pl.LightningModule):
         optimizer = init_optimizer(
             model_params=self.model.parameters(), 
             name=optimizer_name, 
-            **cfg_optimizer["optimizer"]["params"] if cfg_optimizer["optimizer"]["params"] else {}
+            **cfg_optimizer["optimizer"]["params"]
         )
         
         scheduler_name = cfg_optimizer["scheduler"]["name"]
         scheduler = init_scheduler(
             optimizer=optimizer,
             name=scheduler_name,
-            **cfg_optimizer["scheduler"]["params"] if cfg_optimizer["scheduler"]["params"] else {}
+            **cfg_optimizer["scheduler"]["params"]
         )
         return [optimizer], [scheduler]
 
@@ -432,8 +440,7 @@ class ModelLightningModule(pl.LightningModule):
         """ Checks if train eval should be performed on current epoch based on configured train_metrics_interval"""
         train_metric_interval = self.cfg.get("train.train_metrics_interval")
         # add +1 to current_epoch because starting epoch is at 0
-        return train_metric_interval != -1 and (self.current_epoch+1) % train_metric_interval == 0 and \
-                self.current_epoch != 0
+        return train_metric_interval != -1 and (self.current_epoch+1) % train_metric_interval == 0
 
     def _print_metric_warning(self, text:str):
         """ Prints warning in the console for running metric computation (which can take quite long) """

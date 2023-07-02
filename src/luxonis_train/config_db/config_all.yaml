@@ -7,20 +7,20 @@ trainer:
   verbose: True # print all intermidiate results in console (bool)
 
 logger:
-  project_name: null # name of the project used for logging (string)
+  project_name: null # name of the project used for logging (string|null)
+  project_id: null # id of the project used for logging (relevant if using MLFlow) (string|null)
   run_name: null # name of the run, if empty then auto-generate (string|null)
+  run_id: null # id of already create run (relevant if using MLFlow) (string|null)
   save_directory: output # path to the save directory (string)
   is_tensorboard: True # bool if use tensorboard (bool)
   is_wandb: False # bool if use WanDB (bool)
   wandb_entity: null # name of WanDB entity (string|null)
   is_mlflow: False # bool if use MLFlow (bool)
-  mlflow_tracking_uri: null # name of MLFlow tracking uri (string|null)
-  # is_sweep: False # bool if is sweep (not implemented) (bool)
   logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 
 dataset:
-  team_name: null # team under which you can find all datasets (string)
-  dataset_name: null # name of the dataset (string)
+  team_id: null # team under which you can find all datasets (string)
+  dataset_id: null # id of the dataset (string)
   bucket_type: local # underlying storage for images, which can be local or an AWS bucket (local|aws)
   override_bucket_type: False # option to change underlying storage from saved setting in DB (bool)
   train_view: train # view to use for training (string)
@@ -30,9 +30,10 @@ dataset:
 train:
   preprocessing:
     train_image_size: [256, 256] # image size used for training [height, width] (list)
+    keep_aspect_ratio: True # bool if keep aspect ration while resizing (bool)
     train_rgb: True # bool if train on rgb or bgr (bool)
     normalize:
-      use_normalize: True # bool if use normalization (bool)
+      active: True # bool if use normalization (bool)
       params: # params for normalization (dict|null)
     augmentations: # list of Albumentations augmentations
       # - name: Rotate
@@ -41,6 +42,7 @@ train:
 
   batch_size: 32 # batch size used for trainig (int)
   accumulate_grad_batches: 1 # number of batches for gradient accumulation (int)
+  use_weighted_sampler: False # bool if use WeightedRandomSampler for training, only works with classification tasks (bool)
   epochs: 100 # number of training epochs (int)
   num_workers: 2 # number of workers for data loading (int)
   train_metrics_interval: -1 # frequency of computing metrics on train data, -1 if don't perform (int)
@@ -51,7 +53,9 @@ train:
   use_rich_text: True # bool if use rich text for console printing
 
   callbacks: # callback specific parameters (check PL docs)
-    use_device_stats_monitor: False
+    test_on_finish: False # bool if should run test when train loop finishes (bool)
+    export_on_finish: False # bool if should run export when train loop finishes - should specify config block (bool)
+    use_device_stats_monitor: False # bool if should use device stats monitor during training (bool)
     model_checkpoint:
       save_top_k: 3
     early_stopping:
@@ -81,21 +85,37 @@ train:
 
 inferer:
   dataset_view: val # view to use for inference (string)
+  display: True # bool if should display inference resutls (bool)
+  infer_save_directory: null # if this is not null then use this as save directory (string|null)
 
 exporter:
   export_weights: null # path to local weights used for export (string)
   export_save_directory: output_export # path to save directory of exported models (string)
   export_image_size: [256, 256] # image size used for export [height, width] (list)
   export_model_name: model # name of the exported model (string)
+  data_type: FP16 # data type used for openVino conversion (string)
+  reverse_input_channels: True # bool if reverse input shapes (bool)
+  scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
+  mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
   onnx:
     opset_version: 12 # opset version of onnx used (int)
     dynamic_axes: null # define if dynamic input shapes are used (dict)
   openvino:
-    data_type: FP16 # data type used for openVino conversion (string)
-    reverse_input_channels: True # bool if reverse input shapes (bool)
-    scale_values: [58.395, 57.120, 57.375] # list of scale values (list[int|float])
-    mean_values: [123.675, 116.28, 103.53] # list of mean values (list[int|float])
+    active: False # bool if export to openvino (bool)
   blobconverter:
-    data_type: FP16 # data type used for blob conversion (string)
+    active: False # bool if export to blob (bool)
     shaves: 6 # number of shaves used (int)
-    openvino_version: 2022.1 # openvino version (string)
+  s3_upload:
+    active: False # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)
+    bucket: null # name of the s3 bucket (string)
+    upload_directory: null # location of directory for upload (string)
+
+tuner:
+  study_name: "test-study" # name of the study (string)
+  use_pruner: True # if should use MedianPruner (bool)
+  n_trials: 3 # number of trials for each process (int)
+  timeout: null # stop study after the given number of seconds (null|int)
+  storage:
+    active: True # if should use storage to make study persistant (bool)
+    type: remote # type of storage, "local" or "remote" (string)
+  params: # (key, value) pairs for tunning

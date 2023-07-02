@@ -444,12 +444,12 @@ class ConfigValuesTestCases(unittest.TestCase):
             reset_env()
             with self.subTest(i=i):
                 cfg = Config(user_cfg_dict)
-                initial_cfg = deepcopy(cfg._data)
+                initial_cfg = cfg.get_data()
                 cfg.override_config(override_str)
                 current_val = cfg.get(key)
                 self.assertEqual(current_val, new_val)
                 cfg.override_config(f"{key} {previous_val}")
-                self.assertEqual(cfg._data, initial_cfg)
+                self.assertEqual(cfg.get_data(), initial_cfg)
 
 
 if __name__ == "__main__":

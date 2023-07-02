@@ -1,8 +1,13 @@
 import io
-from setuptools import setup
+from setuptools import setup, find_packages
 
 with open('requirements.txt') as f:
     required = f.readlines()
+
+export_packages = [
+    "blobconverter>=1.3.0",
+    # "openvino-dev==2022.1.0" # problematic because of numpy version
+]
 
 setup(
     name="luxonis-train",
@@ -15,10 +20,13 @@ setup(
     author="Luxonis",
     author_email="support@luxonis.com",
     license="MIT",
-    packages=["luxonis_train"],
-    package_dir={"":"."},
-    install_requires=required,
+    packages=find_packages(where="src"),
+    package_dir={'': 'src'},  # https://stackoverflow.com/a/67238346/5494277
     include_package_data=True,
+    install_requires=required,
+    extras_require={
+        "export": export_packages,
+    },
     project_urls={
         "Bug Tracker": "https://github.com/luxonis/models/issues",
         "Source Code": "https://github.com/luxonis/models/tree/dev",

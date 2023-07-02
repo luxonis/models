@@ -1,5 +1,5 @@
 import argparse
-from luxonis_train.core import Exporter
+from luxonis_train.core import Tuner
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -7,6 +7,6 @@ if __name__ == "__main__":
     parser.add_argument("--override", default=None, type=str, help="Manually override config parameter")
     args = parser.parse_args()
     args_dict = vars(args)
-
-    exporter = Exporter(args.config, args_dict)
-    exporter.export()
+    
+    trainer = Tuner(args.config, args_dict)
+    trainer.tune()

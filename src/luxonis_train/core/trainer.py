@@ -2,8 +2,9 @@ import os
 import torch
 import pytorch_lightning as pl
 import threading
+import warnings
 from copy import deepcopy
-from typing import Union
+from typing import Union, Optional
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
 from luxonis_ml import *
@@ -15,13 +16,13 @@ from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentatio
 from luxonis_train.utils.head_type import *
 
 class Trainer:
-    def __init__(self, cfg: Union[str, dict], args: dict = None):
+    def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):
         """Main API which is used to create the model, setup pytorch lightning environment
         and perform training based on provided arguments and config.
 
         Args:
             cfg (Union[str, dict]): path to config file or config dict used to setup training
-            args (dict, optional): argument dict provided through command line, used for config overriding
+            args (Optional[dict]): argument dict provided through command line, used for config overriding
         """
 
         self.cfg = Config(cfg)
@@ -37,7 +38,11 @@ class Trainer:
         load_dotenv() # loads env variables for mlflow logging
         logger_params = deepcopy(cfg_logger.copy())
         logger_params.pop("logged_hyperparams")
-        logger = LuxonisTrackerPL(rank=self.rank, **logger_params)
+        logger = LuxonisTrackerPL(
+            rank=self.rank,
+            mlflow_tracking_uri=os.getenv("MLFLOW_TRACKING_URI"), # read seperately from env vars
+            **logger_params
+        )
         logger.log_hyperparams(hparams)
 
         self.run_save_dir = os.path.join(cfg_logger["save_directory"], logger.run_name)
@@ -72,8 +77,10 @@ class Trainer:
         """
 
         with LuxonisDataset(
-            team_name=self.cfg.get("dataset.team_name"),
-            dataset_name=self.cfg.get("dataset.dataset_name")
+            team_id=self.cfg.get("dataset.team_id"),
+            dataset_id=self.cfg.get("dataset.dataset_id"),
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:
 
             if self.train_augmentations == None:
@@ -84,12 +91,24 @@ class Trainer:
                 view=self.cfg.get("dataset.train_view"),
                 augmentations=self.train_augmentations
             )
+
+            sampler = None
+            if self.cfg.get("train.use_weighted_sampler"):
+                classes_count = dataset.get_classes_count()
+                if len(classes_count) == 0:
+                    warnings.warn("WeightedRandomSampler only available for classification tasks. Using default sampler instead.")
+                else:
+                    weights = [1/i for i in classes_count.values()]
+                    num_samples = sum(classes_count.values())
+                    sampler = torch.utils.data.WeightedRandomSampler(weights, num_samples)
+
             pytorch_loader_train = torch.utils.data.DataLoader(
                 loader_train,
                 batch_size=self.cfg.get("train.batch_size"),
                 num_workers=self.cfg.get("train.num_workers"),
                 collate_fn=loader_train.collate_fn,
-                drop_last=self.cfg.get("train.skip_last_batch")
+                drop_last=self.cfg.get("train.skip_last_batch"),
+                sampler=sampler
             )
 
             if self.val_augmentations == None:
@@ -130,8 +149,10 @@ class Trainer:
         """
 
         with LuxonisDataset(
-            team_name=self.cfg.get("dataset.team_name"),
-            dataset_name=self.cfg.get("dataset.dataset_name")
+            team_id=self.cfg.get("dataset.team_id"),
+            dataset_id=self.cfg.get("dataset.dataset_id"),
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:
 
             if self.test_augmentations == None:

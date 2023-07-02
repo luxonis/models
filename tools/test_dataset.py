@@ -18,6 +18,8 @@ if __name__ == "__main__":
     parser.add_argument("--save-dir", type=str, default=None, help="Path to save directory, by default don't save")
     args = parser.parse_args()
 
+    load_dotenv()
+
     cfg = Config(args.config)
     if args.override:
         cfg.override_config(args.override)

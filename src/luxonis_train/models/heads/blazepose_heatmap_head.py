@@ -36,7 +36,7 @@ if __name__ == "__main__":
     backbone.eval()
 
     shapes = [224, 256, 384, 512]
-    shapes = [224]
+
     for shape in shapes:
         print("\nShape", shape)
         x = torch.zeros(1, 3, shape, shape)

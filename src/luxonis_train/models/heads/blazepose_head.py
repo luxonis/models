@@ -32,10 +32,14 @@ class BlazePoseHead(nn.Module):
 
         self.conv15 = nn.Sequential(
             nn.Conv2d(192, self.n_classes, 1, 1, 0, bias=False),
-            nn.Sigmoid()
+            nn.Sigmoid(),
+            nn.Flatten()
         )
-        self.mlp_head_x = nn.Linear(64, int(256 * 2))
-        self.mlp_head_y = nn.Linear(64, int(256 * 2))
+
+        flat_size = 192*(self.original_in_shape[2]//32) ** 2 # assumes square input shape divisible by 32
+        self.mlp_head_x = nn.Linear(flat_size, self.n_classes)
+        self.mlp_head_y = nn.Linear(flat_size, self.n_classes)
+        self.mlp_head_vis = nn.Linear(flat_size, self.n_classes)
 
     def forward(self, x):
         y0, y1, y2, y3, x0 = x
@@ -50,11 +54,15 @@ class BlazePoseHead(nn.Module):
         out = self.conv14(out) + y3
         out = self.conv15_a1(out)
         out = self.conv15(out)
-        # x = rearrange(x, 'b c h w -> b c (h w)')
-        # pred_x = self.mlp_head_x(x)
-        # pred_y = self.mlp_head_y(x)
-        # return pred_x, pred_y
-        return out
+        # rearrange(x, 'b c h w -> b c (h w)')
+        print("out", out.shape)
+        # b,c,h,w = out.shape
+        # out = out.view(b,c,h*w)
+        pred_x = self.mlp_head_x(out)
+        pred_y = self.mlp_head_y(out)
+        pred_vis = self.mlp_head_vis(out)
+        
+        return [pred_x, pred_y, pred_vis]
 
 if __name__ == "__main__":
     import torch
@@ -62,18 +70,16 @@ if __name__ == "__main__":
     from luxonis_train.utils.general import dummy_input_run
 
     backbone = BlazePose()
-    backbone_out_shapes = dummy_input_run(backbone, [1,3,224,224])
+    backbone_out_shapes = dummy_input_run(backbone, [1,3,256,256])
     backbone.eval()
 
-    shapes = [224]
+    shapes = [256]
     for shape in shapes:
         print("\nShape", shape)
         x = torch.zeros(1, 3, shape, shape)
         outs = backbone(x)
         head = BlazePoseHead(prev_out_shape=backbone_out_shapes, n_classes=17, original_in_shape=x.shape)
         head.eval()
-        print(head)
-        break
         outs = head(outs)
         for i in range(len(outs)):
             print(f"Output {i}:")

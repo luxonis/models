@@ -8,19 +8,24 @@ model:
 
 dataset:
   team_id: luxonis_team_id #luxonis # TODO
-  dataset_id: 649fc9f39b1845dd49e393c2 #coco_sample_people  # TODO
+  dataset_id: 64a12b820fd2e43e43282983 #649fc9f39b1845dd49e393c2 #coco_sample_people  # TODO
+
+# dataset:
+#   bucket_type: aws
+#   team_id: 2af31474-a342-49c9-8fa4-786ac83a43a3
+#   dataset_id: 64a079d8028d6439d136495d
 
 logger:
   is_wandb: False 
   wandb_entity: luxonis
   project_name: ml-ops-train
   project_id: null #19
-  is_mlflow: True
+  is_mlflow: False #True
 
 train:
   callbacks:
     test_on_finish: False #True
-    export_on_finish: True
+    export_on_finish: False #True
 
 tuner:
   params:

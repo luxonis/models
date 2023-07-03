@@ -7,8 +7,9 @@ model:
     is_4head: False
 
 dataset:
-  team_id: luxonis_team_id #luxonis # TODO
-  dataset_id: 649fc9f39b1845dd49e393c2 #coco_sample_people  # TODO
+  team_id: 2af31474-a342-49c9-8fa4-786ac83a43a3 #luxonis_team_id #luxonis # TODO
+  dataset_id: 64a079d8028d6439d136495d #coco_sample_people  # TODO
+  bucket_type: aws
 
 logger:
   is_wandb: False 
@@ -41,5 +42,5 @@ exporter:
     shaves: 6 # number of shaves used (int)
   s3_upload:
     active: True # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)
-    bucket: luxonis-test-bucket # name of the s3 bucket (string)
-    upload_directory: luxonis-train # location of directory for upload (string)
+    # bucket: luxonis-test-bucket # name of the s3 bucket (string)
+    # upload_directory: luxonis-train # location of directory for upload (string)

@@ -655,29 +655,6 @@
                                 "string"
                             ]
                         }
-                    },
-                    "if": {
-                        "properties": {
-                            "active": {
-                                "const": true
-                            }
-                        }
-                    },
-                    "then": {
-                        "properties": {
-                            "bucket": {
-                                "type": "string"
-                            },
-                            "upload_directory": {
-                                "type": [
-                                    "string"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "bucket",
-                            "upload_directory"
-                        ]
                     }
                 }
             },

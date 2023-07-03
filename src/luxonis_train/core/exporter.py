@@ -3,8 +3,10 @@ import os
 import onnx
 import onnxsim
 import pytorch_lightning as pl
+import warnings
 from typing import Union, Optional
 from pathlib import Path
+from dotenv import load_dotenv
 
 from luxonis_train.utils.config import Config
 from luxonis_train.models import Model
@@ -21,6 +23,8 @@ class Exporter(pl.LightningModule):
             args (Optional[dict]): argument dict provided through command line, used for config overriding
         """
         super().__init__()
+
+        load_dotenv()
 
         self.cfg = Config(cfg)
         if args and args["override"]:
@@ -126,7 +130,15 @@ class Exporter(pl.LightningModule):
         print(f"Finished exporting. Files saved in: {base_path}")
 
         if self.cfg.get("exporter.s3_upload.active"):
-            self._upload_to_s3(onnx_path)
+            if None not in [self.cfg.get("logger.project_id"), self.cfg.get("logger.run_id")]:
+                warnings.warn("Using current MLFlow run for upload instead of specified bucket.")
+                bucket = os.getenv("MLFLOW_S3_BUCKET")
+                base_key = f'{self.cfg.get("logger.project_id")}/{self.cfg.get("logger.run_id")}/artifacts'
+            else:
+                bucket = self.cfg.get("exporter.s3_upload.bucket")
+                base_key = f"{self.cfg.get('exporter.s3_upload.upload_directory')}/{self.cfg.get('exporter.export_model_name')}"
+                
+            self._upload_to_s3(onnx_path, bucket, base_key)
 
     def _get_output_names(self):
         """ Gets output names for each head """
@@ -142,44 +154,45 @@ class Exporter(pl.LightningModule):
                 output_names.append(f"output{i}")
         return output_names
 
-    def _upload_to_s3(self, onnx_path):
+    def _upload_to_s3(self, onnx_path, bucket, base_key):
         """ Uploads .pt, .onnx and current config.yaml to specified s3 bucket """
+        if None in [bucket, base_key]:
+            raise KeyError("Bucket or base_key not specified. Check 's3_upload' in exporter.")
+
         import boto3
         import yaml
-        from dotenv import load_dotenv
+
         print("Started upload to S3...")
 
-        load_dotenv()
         s3_client = boto3.client("s3",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
             endpoint_url=os.getenv("AWS_S3_ENDPOINT_URL")
         )
-        base_upload_key = f"{self.cfg.get('exporter.s3_upload.upload_directory')}/{self.cfg.get('exporter.export_model_name')}"
         
         # upload .ckpt file
         s3_client.upload_file(
             Filename=self.cfg.get("exporter.export_weights"),
-            Bucket=self.cfg.get("exporter.s3_upload.bucket"),
-            Key=f"{base_upload_key}/{self.cfg.get('exporter.export_model_name')}.ckpt")
+            Bucket=bucket,
+            Key=f"{base_key}/{self.cfg.get('exporter.export_model_name')}.ckpt")
         
         # upload .onnx file
         s3_client.upload_file(
             Filename=onnx_path,
-            Bucket=self.cfg.get("exporter.s3_upload.bucket"),
-            Key=f"{base_upload_key}/{self.cfg.get('exporter.export_model_name')}.onnx")
+            Bucket=bucket,
+            Key=f"{base_key}/{self.cfg.get('exporter.export_model_name')}.onnx")
         
         # upload config.yaml
         self.cfg.save_data("config.yaml") # create temporary file
         s3_client.upload_file(
             Filename="config.yaml",
-            Bucket=self.cfg.get("exporter.s3_upload.bucket"),
-            Key=f"{base_upload_key}/config.yaml")
+            Bucket=bucket,
+            Key=f"{base_key}/config.yaml")
         os.remove("config.yaml") # delete temporary file
 
         # generate and upload export_config.yaml compatible with modelconverter
-        onnx_path = f"s3://{self.cfg.get('exporter.s3_upload.bucket')}/" + \
-            f"{base_upload_key}/{self.cfg.get('exporter.export_model_name')}.onnx"
+        onnx_path = f"s3://{bucket}/" + \
+            f"{base_key}/{self.cfg.get('exporter.export_model_name')}.onnx"
         modelconverter_config = self._get_modelconverter_config(onnx_path)
         
         with open("config_export.yaml", "w+") as f:
@@ -187,11 +200,11 @@ class Exporter(pl.LightningModule):
         
         s3_client.upload_file(
             Filename="config_export.yaml",
-            Bucket=self.cfg.get("exporter.s3_upload.bucket"),
-            Key=f"{base_upload_key}/config_export.yaml")
+            Bucket=bucket,
+            Key=f"{base_key}/config_export.yaml")
         os.remove("config_export.yaml") # delete temporary file
         
-        print(f"Files uploaded to: s3://{self.cfg.get('exporter.s3_upload.bucket')}/{base_upload_key}")
+        print(f"Files uploaded to: s3://{bucket}/{base_key}")
 
     def _get_modelconverter_config(self, onnx_path: str):
         """ Generates export config from input config that is

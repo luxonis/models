@@ -43,7 +43,15 @@ class Model(nn.Module):
                     original_in_shape = dummy_input_shape,
                     **head["params"],
                 )
-            self.heads.append(curr_head)
+            if isinstance(curr_head, IKeypoint):
+                self.heads.append(curr_head)
+                s = cfg.get("train.preprocessing.train_image_size")[0]
+                curr_head.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, 3, s, s))[-1]])  # forward
+                print(f'{curr_head.stride=}')
+                curr_head.anchors /= curr_head.stride.view(-1, 1, 1)
+                curr_head.check_anchor_order()
+            else:
+                self.heads.append(curr_head)
 
     def forward(self, x: torch.Tensor):
         """ Models forward method

@@ -1,9 +1,61 @@
 import torch
+import math
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 import warnings
+
+
+class ImplicitA(nn.Module):
+    def __init__(self, channel):
+        super(ImplicitA, self).__init__()
+        self.channel = channel
+        self.implicit = nn.Parameter(torch.zeros(1, channel, 1, 1))
+        nn.init.normal_(self.implicit, std=.02)
+
+    def forward(self, x):
+        return self.implicit.expand_as(x) + x
+
+
+class ImplicitM(nn.Module):
+    def __init__(self, channel):
+        super(ImplicitM, self).__init__()
+        self.channel = channel
+        self.implicit = nn.Parameter(torch.ones(1, channel, 1, 1))
+        nn.init.normal_(self.implicit, mean=1., std=.02)
+
+    def forward(self, x):
+        return self.implicit.expand_as(x) * x
+
+
+def autopad(k, p=None):  # kernel, padding
+    # Pad to 'same'
+    if p is None:
+        p = k // 2 if isinstance(k, int) else [x // 2 for x in k]  # auto-pad
+    return p
+
+
+class YoloV7Conv(nn.Module):
+    # Standard convolution
+    def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):
+        super().__init__()
+        self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p), groups=g, bias=False)
+        self.bn = nn.BatchNorm2d(c2)
+        if act != "ReLU":
+            self.act = nn.SiLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
+        else:
+            self.act = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        return self.act(self.bn(self.conv(x)))
+
+    def fuseforward(self, x):
+        return self.act(self.conv(x))
+
+def YoloV7DWConv(c1, c2, k=1, s=1, act=True):
+    # Depthwise convolution
+    return YoloV7Conv(c1, c2, k, s, g=math.gcd(c1, c2), act=act)
 
 class ConvModule(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, 

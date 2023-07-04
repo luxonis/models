@@ -37,9 +37,17 @@ class ModelLightningModule(pl.LightningModule):
         # for each head get its loss
         self.losses = nn.ModuleList()
         for head in self.cfg.get("model.heads"):
-            self.losses.append(
-                init_loss(head["loss"]["name"], **head["loss"]["params"])
-            )
+            if head["loss"]["name"] == "YoloV7PoseLoss":
+                for _head in self.model.heads:
+                    if isinstance(_head.type, KeyPointDetection):
+                        self.losses.append(
+                            init_loss(head["loss"]["name"], model=_head)
+                        )
+                        break
+            else:
+                self.losses.append(
+                    init_loss(head["loss"]["name"], **head["loss"]["params"])
+                )
 
         # for each head initialize its metrics
         self.metrics = nn.ModuleDict()
@@ -324,14 +332,14 @@ class ModelLightningModule(pl.LightningModule):
 
     def on_train_epoch_end(self):
         """ Performs train epoch end operations """
-        epoch_train_loss = np.mean([step_output["loss"] for step_output in self.training_step_outputs])
+        epoch_train_loss = np.mean([step_output["loss"].item() for step_output in self.training_step_outputs])
         self.log("train_loss/loss", epoch_train_loss, sync_dist=True)
 
         if self.cfg.get("train.losses.log_sub_losses"):
             for key in self.training_step_outputs[0]:
                 if key == "loss":
                     continue
-                epoch_sub_loss = np.mean([step_output[key] for step_output in self.training_step_outputs])
+                epoch_sub_loss = np.mean([step_output[key].item() for step_output in self.training_step_outputs])
                 self.log(f"train_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console
@@ -352,14 +360,14 @@ class ModelLightningModule(pl.LightningModule):
 
     def on_validation_epoch_end(self):
         """ Performs validation epoch end operations """
-        epoch_val_loss = np.mean([step_output["loss"] for step_output in self.validation_step_outputs])
+        epoch_val_loss = np.mean([step_output["loss"].item() for step_output in self.validation_step_outputs])
         self.log("val_loss/loss", epoch_val_loss, sync_dist=True)
         
         if self.cfg.get("train.losses.log_sub_losses"):
             for key in self.validation_step_outputs[0]:
                 if key == "loss":
                     continue
-                epoch_sub_loss = np.mean([step_output[key] for step_output in self.validation_step_outputs])
+                epoch_sub_loss = np.mean([step_output[key].item() for step_output in self.validation_step_outputs])
                 self.log(f"val_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console
@@ -379,14 +387,14 @@ class ModelLightningModule(pl.LightningModule):
         self.validation_step_outputs.clear()
 
     def on_test_epoch_end(self):
-        epoch_test_loss = np.mean([step_output["loss"] for step_output in self.test_step_outputs])
+        epoch_test_loss = np.mean([step_output["loss"].item() for step_output in self.test_step_outputs])
         self.log("test_loss/loss", epoch_test_loss, sync_dist=True)
 
         if self.cfg.get("train.losses.log_sub_losses"):
             for key in self.test_step_outputs[0]:
                 if key == "loss":
                     continue
-                epoch_sub_loss = np.mean([step_output[key] for step_output in self.test_step_outputs])
+                epoch_sub_loss = np.mean([step_output[key].item() for step_output in self.test_step_outputs])
                 self.log(f"test_loss/{key}", epoch_sub_loss, sync_dist=True)
 
         metric_results = {} # used for printing to console

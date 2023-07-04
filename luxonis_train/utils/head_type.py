@@ -42,8 +42,8 @@ class InstanceSegmentation():
         
 class KeyPointDetection():
     def __init__(self):
-        self._main_metric = None
-    
+        self._main_metric = 'map'
+
     @property
     def main_metric(self):
         return self._main_metric

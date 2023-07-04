@@ -29,6 +29,17 @@ def get_head_name(head: torch.nn.Module, idx: int):
     " Returns generated head name based on its class and id """
     return head.__class__.__name__ + f"_{idx}"
 
+
+def xywh2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
+    # Make sure boxes is a tensor
+
+    # Convert to center format (cxcywh)
+    boxes_center = boxes.clone()
+    boxes_center[:, 0] = boxes[:, 0] + boxes[:, 2] / 2  # cx = x + w/2
+    boxes_center[:, 1] = boxes[:, 1] + boxes[:, 3] / 2  # cy = y + h/2
+    return boxes_center
+
+
 def get_current_label(head_type: object, labels: dict):
     """ Returns the right type of labels depending on head type """
     present_annotations = labels.keys()
@@ -47,6 +58,17 @@ def get_current_label(head_type: object, labels: dict):
     elif isinstance(head_type, KeyPointDetection):
         if "keypoints" not in present_annotations:
             raise RuntimeError("Keypoints labels not avaliable but needed for training.")
-        return labels["keypoints"]
+        if "bbox" not in present_annotations:
+            raise RuntimeError("Bbox labels not avaliable but needed for training.")
+        kpts = labels["keypoints"]
+        boxes = labels["bbox"]
+        nkpts = (kpts.shape[1] - 2) // 3
+        targets = torch.zeros((len(boxes), nkpts * 2 + 6))
+        targets[:, :2] = boxes[:, :2]
+        targets[:, 2:6] = xywh2cxcywh(boxes[:, 2:])
+        targets[:,6::2] = kpts[:,2::3] # insert kp x coordinates
+        targets[:,7::2] = kpts[:,3::3] # insert kp y coordinates
+        return targets
+
     else:
         raise RuntimeError(f"No labels for head type {head_type}.")

@@ -26,6 +26,7 @@ Since this package relys on `luxonis-ml` library you should first install this a
 ### Install as a package
 If you want to use classes from this library anywhere you can install `luxonis-train` as a package like this:
 ```
+git clone -b dev git@github.com:luxonis/models.git && models
 python3 -m pip install -e .
 ```
 

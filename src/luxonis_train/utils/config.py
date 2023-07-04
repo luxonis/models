@@ -4,7 +4,7 @@ import warnings
 import json
 import re
 from typing import Union
-from luxonis_ml import LuxonisDataset
+from luxonis_ml.data import LuxonisDataset
 from copy import deepcopy
 
 class Config:
@@ -333,7 +333,7 @@ class Config:
                 self._data["train"]["preprocessing"]["augmentations"]):
             self._data["train"]["preprocessing"]["augmentations"] = []
         if self._data["train"]["preprocessing"]["normalize"]["active"]:
-            normalize_present = any(filter(lambda x: x["name"], self._data["train"]["preprocessing"]["augmentations"]))
+            normalize_present = any(filter(lambda x: x["name"]=="Normalize", self._data["train"]["preprocessing"]["augmentations"]))
             if not normalize_present:
                 self._data["train"]["preprocessing"]["augmentations"].append({
                     "name":"Normalize",
@@ -341,7 +341,7 @@ class Config:
                         if "params" in self._data["train"]["preprocessing"]["normalize"] and \
                             self._data["train"]["preprocessing"]["normalize"]["params"] else {}
                 })
-        
+
         # handle optimizer and scheduler params - set to empty dict if None
         if not self._data["train"]["optimizers"]["optimizer"]["params"]:
             self._data["train"]["optimizers"]["optimizer"]["params"] ={}

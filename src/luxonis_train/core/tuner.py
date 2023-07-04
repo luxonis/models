@@ -8,12 +8,13 @@ from dotenv import load_dotenv
 from copy import deepcopy
 from pytorch_lightning.utilities import rank_zero_only
 from optuna.integration import PyTorchLightningPruningCallback
+from luxonis_ml.tracker import LuxonisTrackerPL
+from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
 from luxonis_train.utils.config import Config
 from luxonis_train.utils.callbacks import LuxonisProgressBar
-from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations
 from luxonis_train.models import ModelLightningModule
-from luxonis_ml import *
 
 class Tuner:
     def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):
@@ -126,7 +127,12 @@ class Tuner:
             loader_train = LuxonisLoader(
                 dataset,
                 view=self.cfg.get("dataset.train_view"),
-                augmentations=TrainAugmentations()
+                augmentations=TrainAugmentations(
+                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                    keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
+                )
             )
 
             sampler = None
@@ -151,7 +157,12 @@ class Tuner:
             loader_val = LuxonisLoader(
                 dataset,
                 view=self.cfg.get("dataset.val_view"),
-                augmentations=ValAugmentations()
+                augmentations=ValAugmentations(
+                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                    keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
+                )
             )
             pytorch_loader_val = torch.utils.data.DataLoader(
                 loader_val,

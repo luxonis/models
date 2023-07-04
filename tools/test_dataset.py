@@ -1,13 +1,13 @@
 import argparse
 import torch
 import os
-from dotenv import load_dotenv
-
-from luxonis_ml import *
-from luxonis_train.utils.config import Config
-from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations
-from luxonis_train.utils.visualization import *
 import matplotlib.pyplot as plt
+from dotenv import load_dotenv
+from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
+
+from luxonis_train.utils.config import Config
+from luxonis_train.utils.visualization import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -31,7 +31,18 @@ if __name__ == "__main__":
         override_bucket_type=cfg.get("dataset.override_bucket_type")
     ) as dataset:
     
-        augmentations = TrainAugmentations() if args.view == "train" else ValAugmentations()
+        augmentations = TrainAugmentations(
+            image_size=cfg.get("train.preprocessing.train_image_size"),
+            augmentations=cfg.get("train.preprocessing.augmentations"),
+            train_rgb=cfg.get("train.preprocessing.train_rgb"),
+            keep_aspect_ratio=cfg.get("train.preprocessing.keep_aspect_ratio")
+        ) if args.view == "train" else ValAugmentations(
+            image_size=cfg.get("train.preprocessing.train_image_size"),
+            augmentations=cfg.get("train.preprocessing.augmentations"),
+            train_rgb=cfg.get("train.preprocessing.train_rgb"),
+            keep_aspect_ratio=cfg.get("train.preprocessing.keep_aspect_ratio")
+        )
+
         loader_train = LuxonisLoader(
             dataset,
             view=args.view,

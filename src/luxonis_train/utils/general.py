@@ -1,7 +1,6 @@
 import math
 import torch
 from luxonis_train.utils.head_type import *
-from luxonis_ml import *
 
 def make_divisible(x: int, divisor: int):
     """ Upward revision the value x to make it evenly divisible by the divisor. """

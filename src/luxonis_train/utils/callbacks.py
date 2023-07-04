@@ -51,10 +51,10 @@ class LuxonisProgressBar(RichProgressBar):
 class TestOnTrainEnd(pl.Callback):
     """ Callback that performs test on pl_module when train ends """
     def on_train_end(self, trainer, pl_module):
-        from luxonis_train.utils.config import Config
-        from luxonis_train.utils.augmentations import ValAugmentations
-        from luxonis_ml import LuxonisDataset, LuxonisLoader
         from torch.utils.data import DataLoader
+        from luxonis_ml.data import LuxonisDataset
+        from luxonis_ml.loader import LuxonisLoader, ValAugmentations
+        from luxonis_train.utils.config import Config
 
         cfg = Config()
         with LuxonisDataset(
@@ -66,7 +66,12 @@ class TestOnTrainEnd(pl.Callback):
             loader_test = LuxonisLoader(
                 dataset,
                 view=cfg.get("dataset.test_view"),
-                augmentations=ValAugmentations()
+                augmentations=ValAugmentations(
+                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                    keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
+                )
             )
             pytorch_loader_test = DataLoader(
                 loader_test,

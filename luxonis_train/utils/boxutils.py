@@ -1,6 +1,8 @@
 import torch
 import torchvision
 import time
+from torchvision.ops import box_convert
+
 
 def dist2bbox(distance, anchor_points, box_format='xyxy'):
     '''Transform distance(ltrb) to box(xywh or xyxy).'''
@@ -23,6 +25,7 @@ def bbox2dist(anchor_points, bbox, reg_max):
     dist = torch.cat([lt, rb], -1).clip(0, reg_max - 0.01)
     return dist
 
+# ! Has side effects, might cause bugs. Better use torchvision.ops.box_convert
 def xywh2xyxy_yolo(bboxes):
     '''Transform bbox(xywh)-[x_center, y_center, width, height] to box(xyxy).'''
     bboxes[..., 0] = bboxes[..., 0] - bboxes[..., 2] * 0.5
@@ -31,6 +34,7 @@ def xywh2xyxy_yolo(bboxes):
     bboxes[..., 3] = bboxes[..., 1] + bboxes[..., 3]
     return bboxes
 
+# ! Has side effects, might cause bugs. Better use torchvision.ops.box_convert
 def xywh2xyxy_coco(bboxes):
     '''Transform bbox(xywh)-[x_min, y_min, width, height] to box(xyxy).'''
     bboxes[..., 2] = bboxes[..., 0] + bboxes[..., 2]
@@ -51,36 +55,23 @@ def box_iou(box1, box2):
     """
 
     def box_area(box):
-        # box = 4xn
         return (box[2] - box[0]) * (box[3] - box[1])
 
     area1 = box_area(box1.T)
     area2 = box_area(box2.T)
 
     # inter(N,M) = (rb(N,M,2) - lt(N,M,2)).clamp(0).prod(2)
-    inter = (torch.min(box1[:, None, 2:], box2[:, 2:]) - torch.max(box1[:, None, :2], box2[:, :2])).clamp(0).prod(2)
-    return inter / (area1[:, None] + area2 - inter)  # iou = inter / (area1 + area2 - inter)
+    inter = (torch.min(box1[:, None, 2:], box2[:, 2:]
+                       ) - torch.max(box1[:, None, :2], box2[:, :2])).clamp(0).prod(2)
+    return inter / (area1[:, None] + area2 - inter)
 
 
-def xywh2xyxy(x):
-    y = x.clone()
-    y[:, 0] = x[:, 0] - x[:, 2] / 2  # top left x
-    y[:, 1] = x[:, 1] - x[:, 3] / 2  # top left y
-    y[:, 2] = x[:, 0] + x[:, 2] / 2  # bottom right x
-    y[:, 3] = x[:, 1] + x[:, 3] / 2  # bottom right y
-    return y
-
-
-def non_max_suppression_kpts(prediction, conf_thresh=0.03, iou_thresh=0.30, nc=1):
+# * This can be merged with non_max_suppression
+def non_max_suppression_kpts(prediction, conf_thresh=0.03,
+                             iou_thresh=0.30, nc=1, max_det=300,
+                             max_wh=4096, time_limit=10.0, max_nms=30000,
+                             redundant=True, merge=False):
     xc = prediction[..., 4] > conf_thresh  # candidates
-
-    # Settings
-    max_wh = 4096  # (pixels) minimum and maximum box width and height
-    max_det = 300  # maximum number of detections per image
-    max_nms = 30000  # maximum number of boxes into torchvision.ops.nms()
-    time_limit = 10.0  # seconds to quit after
-    redundant = True  # require redundant detections
-    merge = False  # use merge-NMS
 
     t = time.time()
     output = [torch.zeros((0,6), device=prediction.device)] * prediction.shape[0]
@@ -92,14 +83,13 @@ def non_max_suppression_kpts(prediction, conf_thresh=0.03, iou_thresh=0.30, nc=1
             continue
 
         # Compute conf
-        x[:, 5:5+nc] *= x[:, 4:5]  # conf = obj_conf * cls_conf
+        x[:, 5: 5 + nc] *= x[:, 4:5]  # conf = obj_conf * cls_conf
 
         # Box (center x, center y, width, height) to (x1, y1, x2, y2)
-        box = xywh2xyxy_yolo(x[:, :4])
-        box = x[:, :4]
+        box = box_convert(x[:, :4], in_fmt='cxcywh', out_fmt='xyxy')
 
-        kpts = x[:, 5+nc:]
-        conf, j = x[:, 5:5+nc].max(1, keepdim=True)
+        kpts = x[:, 5 + nc:]
+        conf, j = x[:, 5: 5 + nc].max(1, keepdim=True)
         x = torch.cat((box, conf, j.float(), kpts), 1)[conf.view(-1) > conf_thresh]
 
 

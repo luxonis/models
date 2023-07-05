@@ -33,7 +33,8 @@ def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False,
 
     iou = inter / union
     if GIoU or DIoU or CIoU:
-        cw = torch.max(b1_x2, b2_x2) - torch.min(b1_x1, b2_x1)  # convex (smallest enclosing box) width
+        # convex (smallest enclosing box) width
+        cw = torch.max(b1_x2, b2_x2) - torch.min(b1_x1, b2_x1)
         ch = torch.max(b1_y2, b2_y2) - torch.min(b1_y1, b2_y1)  # convex height
         if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
             c2 = cw ** 2 + ch ** 2 + eps  # convex diagonal squared
@@ -42,7 +43,8 @@ def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False,
             if DIoU:
                 return iou - rho2 / c2  # DIoU
             elif CIoU:  # https://github.com/Zzh-tju/DIoU-SSD-pytorch/blob/master/utils/box/box_utils.py#L47
-                v = (4 / math.pi ** 2) * torch.pow(torch.atan(w2 / h2) - torch.atan(w1 / h1), 2)
+                v = (4 / math.pi ** 2) * torch.pow(
+                    torch.atan(w2 / h2) - torch.atan(w1 / h1), 2)
                 with torch.no_grad():
                     alpha = v / (v - iou + (1 + eps))
                 return iou - (rho2 / c2 + v * alpha)  # CIoU
@@ -81,37 +83,53 @@ class FocalLoss(nn.Module):
 
 class YoloV7PoseLoss(nn.Module):
     # Compute losses
-    def __init__(self, model):
+    def __init__(self, model, cls_pw=1.0,
+                 obj_pw=1.0, gamma=2,
+                 alpha=0.25, label_smoothing=0.0,
+                 box_weight=0.05, kpt_weight=0.10,
+                 kptv_weight=0.6, cls_weight=0.6,
+                 obj_weight=0.7, anchor_t=4.0, **_):
         super().__init__()
-        device = next(model.parameters()).device  # get model device
-        h = model.hyp  # hyperparameters
+        device = next(model.parameters()).device
 
+        self.box_weight = box_weight
+        self.kpt_weight = kpt_weight
+        self.cls_weight = cls_weight
+        self.obj_weight = obj_weight
+        self.kptv_weight = kptv_weight
+        self.anchor_t = anchor_t
         # Define criteria
-        self.BCEcls = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['cls_pw']], device=device))
-        self.BCEobj = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['obj_pw']], device=device))
-        self.focal_loss = FocalLoss(alpha=h['fl_alpha'], gamma=h['fl_gamma'])
+        self.BCEcls = nn.BCEWithLogitsLoss(
+            pos_weight=torch.tensor([cls_pw], device=device))
+        self.BCEobj = nn.BCEWithLogitsLoss(
+            pos_weight=torch.tensor([obj_pw], device=device))
+        self.focal_loss = FocalLoss(alpha=alpha, gamma=gamma)
 
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
-        self.cp, self.cn = smooth_BCE(eps=h.get('label_smoothing', 0.0))  # positive, negative BCE targets
+        # positive, negative BCE targets
+        self.cp, self.cn = smooth_BCE(eps=label_smoothing)
 
-        det = model  # Detect() module
-        self.balance = {3: [4.0, 1.0, 0.4]}.get(det.nl, [4.0, 1.0, 0.25, 0.06, .02])  # P3-P7
+        self.balance = {
+            3: [4.0, 1.0, 0.4]
+        }.get(model.nl, [4.0, 1.0, 0.25, 0.06, .02])  # P3-P7
         self.ssi = 0  # stride 16 index
-        self.gr, self.hyp = model.gr, h
-        self.nkpt = det.nkpt
-        self.nc = det.nc
-        self.na = det.na
-        self.nl = det.nl
-        self.anchors = det.anchors
+        self.gr = model.gr
+        self.nkpt = model.n_keypoints
+        self.nc = model.n_classes
+        self.na = model.na
+        self.nl = model.nl
+        self.anchors = model.anchors
 
     def __call__(self, kpt_pred, kpt, **_):
-        # validation model output is kpt, features. The loss only needs features.
+        # eval model output is (kpt, features). The loss only needs features.
         if isinstance(kpt_pred, tuple):
             kpt_pred = kpt_pred[1]
         kpt_pred[0].shape[0]  # batch size
         device = kpt_pred[0].device
-        lcls, lbox, lobj, lkpt, lkptv = torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device)
-        tcls, tbox, tkpt, indices, anchors = self.build_targets(kpt_pred, kpt)  # targets
+        lcls, lbox, lobj, lkpt, lkptv = [
+            torch.zeros(1, device=device) for _ in range(5)
+        ]
+        tcls, tbox, tkpt, indices, anchors = self.build_targets(kpt_pred, kpt)
         kpt = kpt.to(device)
 
         # Losses
@@ -126,8 +144,8 @@ class YoloV7PoseLoss(nn.Module):
                 # Regression
                 pxy = ps[:, :2].sigmoid() * 2. - 0.5
                 pwh = (ps[:, 2:4].sigmoid() * 2) ** 2 * anchors[i].to(device)
-                pbox = torch.cat((pxy, pwh), 1)  # predicted box
-                iou = bbox_iou(pbox.T, tbox[i].to(device), x1y1x2y2=False, CIoU=True)  # iou(prediction, target)
+                pbox = torch.cat((pxy, pwh), 1)
+                iou = bbox_iou(pbox.T, tbox[i].to(device), x1y1x2y2=False, CIoU=True)
                 lbox += (1.0 - iou).mean()  # iou loss
                 #Direct kpt prediction
                 pkpt_x = ps[:, 5 + self.nc::3] * 2. - 0.5
@@ -137,26 +155,30 @@ class YoloV7PoseLoss(nn.Module):
                 tkpt[i] = tkpt[i].to(device)
                 kpt_mask = (tkpt[i][:, 0::2] != 0)
                 lkptv += self.BCEcls(pkpt_score, kpt_mask.float())
-                d = (pkpt_x-tkpt[i][:,0::2])**2 + (pkpt_y-tkpt[i][:,1::2])**2
-                kpt_loss_factor = (torch.sum(kpt_mask != 0) + torch.sum(kpt_mask == 0))/torch.sum(kpt_mask != 0)
+                d = (pkpt_x-tkpt[i][:,0::2]) ** 2 + (pkpt_y - tkpt[i][:, 1::2]) ** 2
+                kpt_loss_factor = (torch.sum(kpt_mask != 0) + torch.sum(kpt_mask == 0)
+                                   ) / torch.sum(kpt_mask != 0)
                 lkpt += kpt_loss_factor * (torch.log(d + 1 + 1e-9) * kpt_mask).mean()
                 # Objectness
-                tobj[b, a, gj, gi] = (1.0 - self.gr) + self.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio
+                tobj[b, a, gj, gi] = (
+                    (1.0 - self.gr)
+                    + self.gr * iou.detach().clamp(0).type(tobj.dtype)
+                )
 
                 # Classification
                 if self.nc > 1:  # cls loss (only if multiple classes)
-                    t = torch.full_like(ps[:, 5:5+self.nc], self.cn, device=device)  # targets
+                    t = torch.full_like(ps[:, 5:5+self.nc], self.cn, device=device)
                     t[range(n), tcls[i]] = self.cp
                     lcls += self.BCEcls(ps[:, 5:5+self.nc], t)  # BCE
 
 
             obji = self.BCEobj(pi[..., 4], tobj)
             lobj += obji * self.balance[i]  # obj loss
-        lbox *= self.hyp['box']
-        lobj *= self.hyp['obj']
-        lcls *= self.hyp['cls']
-        lkptv *= self.hyp['cls']
-        lkpt *= self.hyp['kpt']
+        lbox *= self.box_weight
+        lobj *= self.obj_weight
+        lcls *= self.cls_weight
+        lkptv *= self.kptv_weight
+        lkpt *= self.kpt_weight
 
         return (lbox + lobj + lcls + lkpt + lkptv).reshape([])
 
@@ -182,7 +204,7 @@ class YoloV7PoseLoss(nn.Module):
             if nt:
                 # Matches
                 r = t[:, :, 4:6] / anchors[:, None]  # wh ratio
-                j = torch.max(r, 1. / r).max(2)[0] < self.hyp['anchor_t']  # compare
+                j = torch.max(r, 1. / r).max(2)[0] < self.anchor_t  # compare
                 t = t[j]  # filter
 
                 # Offsets
@@ -214,7 +236,9 @@ class YoloV7PoseLoss(nn.Module):
             )
             tbox.append(torch.cat((gxy - gij, gwh), 1))  # box
             for kpt in range(self.nkpt):
-                t[:, 6 + 2 * kpt: 6 + 2 * (kpt + 1)][t[:, 6 + 2 * kpt: 6 + 2 * (kpt + 1)] != 0] -= gij[t[:,6+2*kpt: 6+2*(kpt+1)] !=0]
+                low = 6 + 2 * kpt
+                high = 6 + 2 * (kpt + 1)
+                t[:, low: high][t[:, low: high] != 0] -= gij[t[:, low: high] !=0]
             tkpt.append(t[:, 6:-1])
             anch.append(anchors[a])  # anchors
             tcls.append(c)  # class

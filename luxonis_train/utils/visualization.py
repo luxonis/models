@@ -18,18 +18,18 @@ def draw_on_images(imgs: torch.Tensor, data: torch.Tensor, head: torch.nn.Module
     Args:
         imgs (torch.Tensor): batch of images (NCHW format)
         data (torch.Tensor): output or label data
-        head (torch.nn.Module): head used for generating outputs 
+        head (torch.nn.Module): head used for generating outputs
         is_label (bool, optional): flag if visualizing labels. Defaults to False.
         return_numpy (bool, optional): flag if should return images in numpy format (HWC). Defaults to True.
 
     Returns:
-        list[Union[torch.Tensor, np.ndarray]]: list of images with visualizations 
+        list[Union[torch.Tensor, np.ndarray]]: list of images with visualizations
             (either torch tensors in CHW or numpy arrays in HWC format)
     """
 
     out_imgs = []
     unormalize_images = kwargs.get("unormalize", True)
-    
+
     if isinstance(head, YoloV6Head) and not is_label:
         if "conf_thres" not in kwargs:
             kwargs["conf_thres"] = 0.3
@@ -62,7 +62,7 @@ def draw_on_images(imgs: torch.Tensor, data: torch.Tensor, head: torch.nn.Module
 
     return out_imgs
 
-def draw_only_labels(imgs: torch.tensor, anno_dict: dict, image_size: tuple, 
+def draw_only_labels(imgs: torch.tensor, anno_dict: dict, image_size: tuple,
     return_numpy: bool = True, **kwargs):
     """ Draw all present labels on batch on images
 
@@ -73,7 +73,7 @@ def draw_only_labels(imgs: torch.tensor, anno_dict: dict, image_size: tuple,
         return_numpy (bool, optional): flag if should return images in numpy format (HWC). Defaults to True.
 
     Returns:
-        list[Union[torch.Tensor, np.ndarray]]: list of images with visualizations 
+        list[Union[torch.Tensor, np.ndarray]]: list of images with visualizations
             (either torch tensors in CHW or numpy arrays in HWC format)
     """
     iw, ih = image_size
@@ -86,7 +86,7 @@ def draw_only_labels(imgs: torch.tensor, anno_dict: dict, image_size: tuple,
         curr_out_imgs = []
         if unormalize_images:
             curr_img = unnormalize(curr_img, to_uint8=True)
-        
+
         for label_type in anno_dict:
             if label_type == "class":
                 curr_img_class = torch_img_to_numpy(curr_img)
@@ -119,7 +119,7 @@ def draw_only_labels(imgs: torch.tensor, anno_dict: dict, image_size: tuple,
                 keypoints_points[:,0] *= iw
                 keypoints_points[:,1] *= ih
                 keypoints_visibility = keypoints_flat[:,2]
-                
+
                 # torchvision expects format [num_instances, K, 2]
                 out_keypoints = torch.reshape(keypoints_points, (-1, 17, 2)).int()
                 curr_img_keypoints = draw_keypoints(curr_img, out_keypoints, colors="red")
@@ -131,7 +131,7 @@ def draw_only_labels(imgs: torch.tensor, anno_dict: dict, image_size: tuple,
             )
         else:
             curr_out_merged = torch.cat(curr_out_imgs, dim=-1) # horizontal concat
-        
+
         out_imgs.append(curr_out_merged)
     return out_imgs
 
@@ -180,7 +180,7 @@ def _draw_on_image(img: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
 
             if label_map:
                 labels_list = [label_map[i] for i in labels]
-            
+
             img = draw_bounding_boxes(img, bboxs, labels=labels_list if label_map else None)
             return img
 
@@ -198,16 +198,16 @@ def _draw_on_image(img: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
             img = draw_keypoints(img, kpts, colors='red')
             return img
         else:
-            data = data.unsqueeze(0)
             kpts = non_max_suppression_kpts(
-                data,
+                data.unsqueeze(0),
                 conf_thresh=0.25,
                 iou_thresh=0.45
             )[0]
             bboxes = kpts[:, :4]
             img = draw_bounding_boxes(img, bboxes)
             kpts = kpts[:, 6:].reshape(-1, 7, 3)
-            img = draw_keypoints(img, kpts, colors='red')
+            img = draw_keypoints(img, kpts, colors='red',
+                                 connectivity=head.connectivity)  # type: ignore
 
             return img
 
@@ -223,7 +223,7 @@ def seg_output_to_bool(data: torch.Tensor, binary_threshold: float = 0.5):
             masks[i] = classes == i
     return masks
 
-def unnormalize(img: torch.Tensor, original_mean: tuple = (0.485, 0.456, 0.406), 
+def unnormalize(img: torch.Tensor, original_mean: tuple = (0.485, 0.456, 0.406),
         original_std: tuple = (0.229, 0.224, 0.225), to_uint8: bool = False):
     """ Unnormalizes image back to original values, optionally converts it to uin8"""
     mean = np.array(original_mean)
@@ -233,7 +233,7 @@ def unnormalize(img: torch.Tensor, original_mean: tuple = (0.485, 0.456, 0.406),
     out_img = F.normalize(img, mean=new_mean,std=new_std)
     if to_uint8:
         out_img = torch.clamp(out_img.mul(255), 0, 255).to(torch.uint8)
-    return out_img    
+    return out_img
 
 def torch_img_to_numpy(img: torch.Tensor, cvt_color: bool = False):
     """ Converts torch image (CHW) to numpy array (HWC). Optionally also converts colors. """

@@ -5,10 +5,11 @@ import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 from typing import Union, Optional
 from tqdm import tqdm
-from luxonis_ml import *
+from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.loader import LuxonisLoader
+from luxonis_ml.loader import TrainAugmentations, ValAugmentations, Augmentations
 
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations, Augmentations
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.head_type import *
@@ -76,9 +77,19 @@ class Inferer(pl.LightningModule):
             
             if self.augmentations == None:
                 if view == "train":
-                    self.augmentations = TrainAugmentations()
+                    self.augmentations = TrainAugmentations(
+                        image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                        augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                        train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                        keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
+                    )
                 else:
-                    self.augmentations = ValAugmentations()
+                    self.augmentations = ValAugmentations(
+                        image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                        augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                        train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                        keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
+                    )
 
             loader_val = LuxonisLoader(
                 dataset,
@@ -137,7 +148,12 @@ class Inferer(pl.LightningModule):
         """
 
         if augmentations == None:
-            augmentations = ValAugmentations()
+            augmentations = ValAugmentations(
+                image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
+            )
 
         # IMG IN RGB HWC
         transformed = augmentations.transform(

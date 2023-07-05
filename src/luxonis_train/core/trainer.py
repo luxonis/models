@@ -7,12 +7,13 @@ from copy import deepcopy
 from typing import Union, Optional
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
-from luxonis_ml import *
+from luxonis_ml.tracker import LuxonisTrackerPL
+from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.augmentations import TrainAugmentations, ValAugmentations
 from luxonis_train.utils.head_type import *
 
 class Trainer:
@@ -84,7 +85,12 @@ class Trainer:
         ) as dataset:
 
             if self.train_augmentations == None:
-                self.train_augmentations = TrainAugmentations()
+                self.train_augmentations = TrainAugmentations(
+                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                    keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
+                )
 
             loader_train = LuxonisLoader(
                 dataset,
@@ -112,7 +118,12 @@ class Trainer:
             )
 
             if self.val_augmentations == None:
-                self.val_augmentations = ValAugmentations()
+                self.val_augmentations = ValAugmentations(
+                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                    keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
+                )
 
             loader_val = LuxonisLoader(
                 dataset,
@@ -156,7 +167,12 @@ class Trainer:
         ) as dataset:
 
             if self.test_augmentations == None:
-                self.test_augmentations = ValAugmentations()
+                self.test_augmentations = ValAugmentations(
+                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                    keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
+                )
 
             loader_test = LuxonisLoader(
                 dataset,

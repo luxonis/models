@@ -26,6 +26,7 @@ Since this package relys on `luxonis-ml` library you should first install this a
 ### Install as a package
 If you want to use classes from this library anywhere you can install `luxonis-train` as a package like this:
 ```
+git clone -b dev git@github.com:luxonis/models.git && cd models
 python3 -m pip install -e .
 ```
 
@@ -305,7 +306,7 @@ inferer.infer_image(img)
 ## Exporting
 We support export to ONNX, openVINO and .blob format which is used for OAK cameras. By default we only export to ONNX and you should use [modelconverter](TODO) repository for other formats. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
 
-There is also an option to upload .ckpt, .onnx and config.yaml files to S3 bucket. To do this you have to specify `bucket` and `upload_directory` to configure S3 upload location.
+There is also an option to upload .ckpt, .onnx and config.yaml files to S3 bucket. To do this you have to specify `bucket` and `upload_directory` to configure S3 upload location. If `Config` was initialized with MLFlow path ([look here for options](#initialization)) then files are uploaded to that run as artifacts instead of using specified `bucket` and `upload_directory`.
 
 ```yaml
 exporter:

@@ -84,7 +84,7 @@ def postprocess_for_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn
             return output, labels
     elif isinstance(head.type, KeyPointDetection):
         if isinstance(head, IKeypoint):
-            output, labels = yolov7_pose_to_metrics(output, labels, head)
+            output, labels = yolov7_pose_to_metrics(output[0], labels, head)
             return output, labels
 
 

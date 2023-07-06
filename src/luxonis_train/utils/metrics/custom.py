@@ -17,4 +17,4 @@ class ObjectKeypointSimilarity(Metric):
 
     def compute(self):
         # return self.correct.float() / self.total
-        return 1
+        return torch.tensor([1])

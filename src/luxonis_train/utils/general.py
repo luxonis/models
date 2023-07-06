@@ -58,6 +58,7 @@ def get_current_label(head_type: object, labels: dict):
         targets[:, 2:6] = xywh2cxcywh(boxes[:, 2:])
         targets[:,6::2] = kpts[:,2::3] # insert kp x coordinates
         targets[:,7::2] = kpts[:,3::3] # insert kp y coordinates
-        return labels["keypoints"]
+        #return labels["keypoints"]
+        return targets
     else:
         raise RuntimeError(f"No labels for head type {head_type}.")

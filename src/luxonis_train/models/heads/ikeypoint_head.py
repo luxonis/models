@@ -55,9 +55,10 @@ class IKeypoint(nn.Module):
         self.na = len(anchors[0]) // 2  # number of anchors
         self.grid = [torch.zeros(1)] * self.nl  # init grid
         self.flip_test = False
+
         a = torch.tensor(anchors).float().view(self.nl, -1, 2)
-        self.register_buffer('anchors', a)  # shape(nl,na,2)
-        self.register_buffer('anchor_grid', a.clone().view(self.nl, 1, -1, 1, 1, 2))
+        self.anchors = a # shape(nl,na,2)
+        self.anchor_grid = a.clone().view(self.nl, 1, -1, 1, 1, 2)
         self.m = nn.ModuleList(nn.Conv2d(x, self.no_det * self.na, 1) for x in ch)
 
         self.ia = nn.ModuleList(ImplicitA(x) for x in ch)
@@ -66,38 +67,38 @@ class IKeypoint(nn.Module):
         self.m_kpt = nn.ModuleList(
             nn.Sequential(
                 ConvModule(x, x, kernel_size=3, padding=autopad(3), groups=math.gcd(x,x),
-                    actication=nn.SiLU()),
+                    activation=nn.SiLU()),
                 ConvModule(x,x,kernel_size=1, padding=autopad(1), activation=nn.SiLU()),
                 
                 ConvModule(x, x, kernel_size=3, padding=autopad(3), groups=math.gcd(x,x),
-                    actication=nn.SiLU()),
+                    activation=nn.SiLU()),
                 ConvModule(x,x,kernel_size=1, padding=autopad(1), activation=nn.SiLU()),
                 
                 ConvModule(x, x, kernel_size=3, padding=autopad(3), groups=math.gcd(x,x),
-                    actication=nn.SiLU()),
+                    activation=nn.SiLU()),
                 ConvModule(x,x,kernel_size=1, padding=autopad(1), activation=nn.SiLU()),
 
                 ConvModule(x, x, kernel_size=3, padding=autopad(3), groups=math.gcd(x,x),
-                    actication=nn.SiLU()),
+                    activation=nn.SiLU()),
                 ConvModule(x,x,kernel_size=1, padding=autopad(1), activation=nn.SiLU()),
 
                 ConvModule(x, x, kernel_size=3, padding=autopad(3), groups=math.gcd(x,x),
-                    actication=nn.SiLU()),
+                    activation=nn.SiLU()),
                 ConvModule(x,x,kernel_size=1, padding=autopad(1), activation=nn.SiLU()),
 
                 ConvModule(x, x, kernel_size=3, padding=autopad(3), groups=math.gcd(x,x),
-                    actication=nn.SiLU()),
+                    activation=nn.SiLU()),
                 nn.Conv2d(x, self.no_kpt * self.na, 1)
             ) for x in ch
         )
 
         self.inplace = inplace  # use in-place ops (e.g. slice assignment)
-
-        self.stride = torch.tensor([self.original_in_shape[2] / x.shape[-2] 
-            for x in prev_out_shape[-1]]
+        self.stride = torch.tensor([self.original_in_shape[2] / x[2] 
+            for x in prev_out_shape]
         )
         self.anchors /= self.stride.view(-1, 1, 1)
         self._check_anchor_order()
+
 
     def forward(self, inputs):
         z = []  # inference output

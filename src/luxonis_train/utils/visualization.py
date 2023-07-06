@@ -198,7 +198,7 @@ def _draw_on_image(img: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
             bboxes[:, [0, 2]] *= img.shape[2]
             bboxes[:, [1, 3]] *= img.shape[1]
             img = draw_bounding_boxes(img, bboxes)
-            kpts = data[:, 6:].reshape(-1, 7, 2)
+            kpts = data[:, 6:].reshape(-1, 17, 2) # TODO: remove hardcoded n_keypoints
             kpts[:, :, 0] *= img.shape[2]
             kpts[:, :, 1] *= img.shape[1]
             img = draw_keypoints(img, kpts, colors='red')
@@ -211,9 +211,9 @@ def _draw_on_image(img: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
             )[0]
             bboxes = kpts[:, :4]
             img = draw_bounding_boxes(img, bboxes)
-            kpts = kpts[:, 6:].reshape(-1, 7, 3)
+            kpts = kpts[:, 6:].reshape(-1, 17, 3) # TODO: remove hardcoded n_keypoints
             img = draw_keypoints(img, kpts, colors='red', connectivity=head.connectivity)  # type: ignore
-            raise img
+            return img
 
 def seg_output_to_bool(data: torch.Tensor, binary_threshold: float = 0.5):
     """ Converts seg head output to 2D boolean mask for visualization"""

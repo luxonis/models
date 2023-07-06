@@ -23,7 +23,8 @@ def dummy_input_run(module: torch.nn.Module, input_shape: list, multi_input: boo
         return shapes
     else:
         return [list(out.shape)]
-    
+
+
 def get_head_name(head: torch.nn.Module, idx: int):
     " Returns generated head name based on its class and id """
     return head.__class__.__name__ + f"_{idx}"
@@ -46,6 +47,17 @@ def get_current_label(head_type: object, labels: dict):
     elif isinstance(head_type, KeyPointDetection):
         if "keypoints" not in present_annotations:
             raise RuntimeError("Keypoints labels not avaliable but needed for training.")
+        
+        # TODO: this works for this specific keypoint head but might not be general enough
+        from luxonis_train.utils.boxutils import xywh2cxcywh
+        kpts = labels["keypoints"]
+        boxes = labels["bbox"]
+        nkpts = (kpts.shape[1] - 2) // 3
+        targets = torch.zeros((len(boxes), nkpts * 2 + 6))
+        targets[:, :2] = boxes[:, :2]
+        targets[:, 2:6] = xywh2cxcywh(boxes[:, 2:])
+        targets[:,6::2] = kpts[:,2::3] # insert kp x coordinates
+        targets[:,7::2] = kpts[:,3::3] # insert kp y coordinates
         return labels["keypoints"]
     else:
         raise RuntimeError(f"No labels for head type {head_type}.")

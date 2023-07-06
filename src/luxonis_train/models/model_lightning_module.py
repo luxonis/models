@@ -36,9 +36,11 @@ class ModelLightningModule(pl.LightningModule):
 
         # for each head get its loss
         self.losses = nn.ModuleList()
-        for head in self.cfg.get("model.heads"):
+        for i, head in enumerate(self.cfg.get("model.heads")):
+            # pass config params + head instance attributes
+            params = {**head["loss"]["params"], "head_attributes":self.model.heads[i].__dict__}
             self.losses.append(
-                init_loss(head["loss"]["name"], **head["loss"]["params"])
+                init_loss(name = head["loss"]["name"], **params)
             )
 
         # for each head initialize its metrics

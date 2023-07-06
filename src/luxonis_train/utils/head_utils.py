@@ -1,6 +1,6 @@
 import torch
 from luxonis_train.utils.assigners.anchor_generator import generate_anchors
-from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression
+from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression_bbox
 
 # utils specific to some head (preprocessing or postprocessing functions)
 
@@ -21,6 +21,6 @@ def yolov6_out2box(output: tuple, head: torch.nn.Module, **kwargs):
     conf_thres = kwargs.get("conf_thres", 0.001)
     iou_thres = kwargs.get("iou_thres", 0.6)
 
-    output_nms = non_max_suppression(output_merged, conf_thres=conf_thres, iou_thres=iou_thres)
+    output_nms = non_max_suppression_bbox(output_merged, conf_thres=conf_thres, iou_thres=iou_thres)
 
     return output_nms

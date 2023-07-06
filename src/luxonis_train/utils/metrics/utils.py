@@ -2,11 +2,13 @@ import torch
 import torch.nn as nn
 import torchmetrics
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
+from torchvision.ops import box_convert
 
+from .custom import ObjectKeypointSimilarity
 from luxonis_train.utils.head_type import *
 from luxonis_train.models.heads import *
 from luxonis_train.utils.head_utils import yolov6_out2box
-from luxonis_train.utils.boxutils import xywh2xyxy_coco
+from luxonis_train.utils.boxutils import non_max_suppression_kpts
 
 """
 Default average method for different metrics:
@@ -51,6 +53,10 @@ def init_metrics(head: nn.Module):
         collection = torchmetrics.MetricCollection({
             "mAP": MeanAveragePrecision(box_format="xyxy")
         })
+    elif isinstance(head.type, KeyPointDetection):
+        collection = torchmetrics.MetricCollection({
+            "oks": ObjectKeypointSimilarity()
+        })
 
     return nn.ModuleDict({
         "train_metrics": collection,
@@ -76,6 +82,10 @@ def postprocess_for_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn
         if isinstance(head, YoloV6Head):
             output, labels = yolov6_to_metrics(output, labels, head)
             return output, labels
+    elif isinstance(head.type, KeyPointDetection):
+        if isinstance(head, IKeypoint):
+            output, labels = yolov7_pose_to_metrics(output, labels, head)
+            return output, labels
 
 
 def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Module):
@@ -94,7 +104,7 @@ def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Modul
         })
 
         curr_labels = labels[labels[:,0]==i]
-        curr_bboxs = xywh2xyxy_coco(curr_labels[:, 2:])
+        curr_bboxs = box_convert(curr_labels[:, 2:], "xywh", "xyxy")
         curr_bboxs[:, 0::2] *= image_size[1]
         curr_bboxs[:, 1::2] *= image_size[0]
         labels_list.append({
@@ -102,4 +112,27 @@ def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Modul
             "labels": curr_labels[:,1]
         })
 
+    return output_list, labels_list
+
+def yolov7_pose_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Module):
+    labels = labels.to(output.device)
+    nms = non_max_suppression_kpts(output)
+    output_list = []
+    labels_list = []
+    image_size = head.original_in_shape[2:]
+    for i in range(len(nms)):
+        output_list.append({
+            "boxes": nms[i][:, :4],
+            "scores": nms[i][:, 4],
+            "labels": nms[i][:, 5],
+        })
+
+        curr_labels = labels[labels[:, 0] == i]
+        curr_bboxs = box_convert(curr_labels[:, 2: 6], "cxcywh", "xyxy")
+        curr_bboxs[:, 0::2] *= image_size[1]
+        curr_bboxs[:, 1::2] *= image_size[0]
+        labels_list.append({
+            "boxes": curr_bboxs,
+            "labels": curr_labels[:, 1],
+        })
     return output_list, labels_list

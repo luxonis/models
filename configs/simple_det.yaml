@@ -16,12 +16,12 @@ logger:
   wandb_entity: luxonis
   project_name: ml-ops-train
   project_id: null #19
-  is_mlflow: True
+  is_mlflow: False #True
 
 train:
   callbacks:
     test_on_finish: False #True
-    export_on_finish: True
+    export_on_finish: False #True
 
 tuner:
   params:

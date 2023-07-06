@@ -2,12 +2,13 @@ import torch
 import cv2
 import numpy as np
 from torchvision.utils import draw_bounding_boxes, draw_segmentation_masks, draw_keypoints
+from torchvision.ops import box_convert
 import torchvision.transforms.functional as F
 
 from luxonis_train.utils.head_type import *
 from luxonis_train.models.heads import *
-from luxonis_train.utils.boxutils import xywh2xyxy_coco
 from luxonis_train.utils.head_utils import yolov6_out2box
+from luxonis_train.utils.boxutils import non_max_suppression_kpts
 
 
 def draw_on_images(imgs: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
@@ -44,8 +45,11 @@ def draw_on_images(imgs: torch.Tensor, data: torch.Tensor, head: torch.nn.Module
         # special cases to get labels of current image for object and keypoint detection
         if isinstance(head.type, ObjectDetection) and is_label:
             curr_data = data[data[:,0]==i]
-        elif isinstance(head.type, KeyPointDetection) and is_label:
-            curr_data = data[data[:,0]==i][:,1:]
+        elif isinstance(head.type, KeyPointDetection):
+            if is_label:
+                curr_data = data[data[:,0]==i]
+            else:
+                curr_data = data[0][i]
         else:
             curr_data = data[i]
 
@@ -101,7 +105,7 @@ def draw_only_labels(imgs: torch.tensor, anno_dict: dict, image_size: tuple,
             if label_type == "bbox":
                 curr_label = anno_dict[label_type]
                 curr_label = curr_label[curr_label[:,0]==i]
-                bboxs = xywh2xyxy_coco(curr_label[:, 2:])
+                bboxs = box_convert(curr_label[:,2:], "xywh", "xyxy")
                 bboxs[:, 0::2] *= iw
                 bboxs[:, 1::2] *= ih
                 curr_img_bbox = draw_bounding_boxes(curr_img, bboxs)
@@ -172,7 +176,7 @@ def _draw_on_image(img: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
 
         if isinstance(head, YoloV6Head):
             if is_label:
-                bboxs = xywh2xyxy_coco(data[:, 2:])
+                bboxs = box_convert(data[:, 2:], "xywh", "xyxy")
                 bboxs[:, 0::2] *= img_shape[1]
                 bboxs[:, 1::2] *= img_shape[0]
                 labels = data[:,1].int()
@@ -188,21 +192,28 @@ def _draw_on_image(img: torch.Tensor, data: torch.Tensor, head: torch.nn.Module,
 
     elif isinstance(head.type, KeyPointDetection):
         if is_label:
-            keypoints_flat = torch.reshape(data[:,1:], (-1,3))
-            keypoints_points = keypoints_flat[:,:2]
-            keypoints_points[:,0] *= img_shape[1]
-            keypoints_points[:,1] *= img_shape[0]
-            #TODO: do we want to visualize based on visibility? now it just draws all (false point at 0,0 for invisible points)
-            keypoints_visibility = keypoints_flat[:,2]
-
-            # torchvision expects format [num_instances, K, 2]
-            out_keypoints = torch.reshape(keypoints_points, (-1, 17, 2)).int()
-            img = draw_keypoints(img, out_keypoints, colors="red")
+            bboxes = box_convert(
+                data[:, 2:6], in_fmt='cxcywh', out_fmt='xyxy'
+            )
+            bboxes[:, [0, 2]] *= img.shape[2]
+            bboxes[:, [1, 3]] *= img.shape[1]
+            img = draw_bounding_boxes(img, bboxes)
+            kpts = data[:, 6:].reshape(-1, 7, 2)
+            kpts[:, :, 0] *= img.shape[2]
+            kpts[:, :, 1] *= img.shape[1]
+            img = draw_keypoints(img, kpts, colors='red')
             return img
         else:
-            # TODO: need to implement this but don't have a keypoint yet to check what is the output from it
-            # probably have to do something very similar than for labels
-            raise NotImplementedError()
+            kpts = non_max_suppression_kpts(
+                data.unsqueeze(0),
+                conf_thresh=0.25,
+                iou_thresh=0.45
+            )[0]
+            bboxes = kpts[:, :4]
+            img = draw_bounding_boxes(img, bboxes)
+            kpts = kpts[:, 6:].reshape(-1, 7, 3)
+            img = draw_keypoints(img, kpts, colors='red', connectivity=head.connectivity)  # type: ignore
+            raise img
 
 def seg_output_to_bool(data: torch.Tensor, binary_threshold: float = 0.5):
     """ Converts seg head output to 2D boolean mask for visualization"""

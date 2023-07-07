@@ -90,7 +90,7 @@ def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Modul
         output_list.append({
             "boxes": output_nms[i][:,:4],
             "scores": output_nms[i][:,4],
-            "labels": output_nms[i][:,5]
+            "labels": output_nms[i][:,5].int()
         })
 
         curr_labels = labels[labels[:,0]==i]
@@ -99,7 +99,7 @@ def yolov6_to_metrics(output: torch.Tensor, labels: torch.Tensor, head: nn.Modul
         curr_bboxs[:, 1::2] *= image_size[0]
         labels_list.append({
             "boxes": curr_bboxs,
-            "labels": curr_labels[:,1]
+            "labels": curr_labels[:,1].int()
         })
-
+        
     return output_list, labels_list

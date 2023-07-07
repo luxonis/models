@@ -536,7 +536,11 @@
             "additionalProperties": false,
             "properties": {
                 "export_weights": {
-                    "type": "string"
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": null
                 },
                 "export_save_directory": {
                     "type": "string",
@@ -657,10 +661,7 @@
                         }
                     }
                 }
-            },
-            "required": [
-                "export_weights"
-            ]
+            }
         },
         "tunerBlock": {
             "type": "object",

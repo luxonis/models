@@ -16,7 +16,7 @@ logger:
   wandb_entity: luxonis
   project_name: ml-ops-train
   project_id: null #19
-  is_mlflow: True
+  is_mlflow: False
 
 train:
   callbacks:

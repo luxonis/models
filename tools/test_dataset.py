@@ -22,8 +22,9 @@ if __name__ == "__main__":
     if args.override:
         cfg.override_config(args.override)
 
-    image_size = cfg.get("train.preprocessing.train_image_size")
+    load_dotenv()
 
+    image_size = cfg.get("train.preprocessing.train_image_size")
     with LuxonisDataset(
         team_id=cfg.get("dataset.team_id"),
         dataset_id=cfg.get("dataset.dataset_id"),
@@ -32,12 +33,12 @@ if __name__ == "__main__":
     ) as dataset:
     
         augmentations = TrainAugmentations(
-            image_size=cfg.get("train.preprocessing.train_image_size"),
+            image_size=image_size,
             augmentations=cfg.get("train.preprocessing.augmentations"),
             train_rgb=cfg.get("train.preprocessing.train_rgb"),
             keep_aspect_ratio=cfg.get("train.preprocessing.keep_aspect_ratio")
         ) if args.view == "train" else ValAugmentations(
-            image_size=cfg.get("train.preprocessing.train_image_size"),
+            image_size=image_size,
             augmentations=cfg.get("train.preprocessing.augmentations"),
             train_rgb=cfg.get("train.preprocessing.train_rgb"),
             keep_aspect_ratio=cfg.get("train.preprocessing.keep_aspect_ratio")

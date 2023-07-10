@@ -322,8 +322,13 @@ def reparameterize_model(model: torch.nn.Module) -> nn.Module:
 
 class MobileOne(nn.Module):
 
-    def __init__(self, variant="s0"):
-        super(MobileOne, self).__init__()
+    def __init__(self, variant: str = "s0"):
+        """MobileOne backbone
+
+        Args:
+            variant (str, optional): Variant from ['s0', 's1', 's2', 's3', 's4']. Defaults to "s0".
+        """
+        super().__init__()
         variant_params = PARAMS[variant]
         self.backbone = MobileOne_(**variant_params)
         self.is_inference = False

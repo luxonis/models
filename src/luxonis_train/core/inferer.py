@@ -1,6 +1,7 @@
 import torch
 import cv2
 import os
+import numpy as np
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 from typing import Union, Optional
@@ -12,9 +13,7 @@ from luxonis_ml.loader import TrainAugmentations, ValAugmentations, Augmentation
 from luxonis_train.utils.config import Config
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
-from luxonis_train.utils.head_type import *
-from luxonis_train.utils.general import *
-from luxonis_train.utils.visualization import *
+from luxonis_train.utils.visualization import draw_outputs, draw_labels
 
 
 class Inferer(pl.LightningModule):
@@ -110,20 +109,23 @@ class Inferer(pl.LightningModule):
             if save_dir is not None:
                 os.makedirs(save_dir, exist_ok=True)
 
+            unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+            cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
             counter = 0
             with torch.no_grad():
                 for data in tqdm(pytorch_loader_val):
                     inputs = data[0]
-                    labels = data[1]
+                    label_dict = data[1]
                     outputs = self.forward(inputs)
 
                     for i, output in enumerate(outputs):
                         curr_head = self.model.heads[i]
-                        curr_head_name = get_head_name(curr_head, i)
-                        curr_label = get_current_label(curr_head.type, labels)
-
-                        label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
-                        output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
+                        curr_head_name = curr_head.get_name(i)
+                        
+                        label_imgs = draw_labels(imgs=inputs, label_dict=label_dict, label_keys=curr_head.label_types,
+                            unnormalize_img=unnormalize_img, cvt_color=cvt_color)
+                        output_imgs = draw_outputs(imgs=inputs, output=output, head=curr_head,
+                            unnormalize_img=unnormalize_img, cvt_color=cvt_color)
                         merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
                         
                         for img in merged_imgs:
@@ -166,11 +168,15 @@ class Inferer(pl.LightningModule):
         inputs = torch.unsqueeze(transformed["image"], dim=0)
         outputs = self.forward(inputs)
 
+        unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+        cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
+        
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
-            curr_head_name = get_head_name(curr_head, i)
+            curr_head_name = curr_head.get_name(i)
 
-            output_img = draw_on_images(inputs, output, curr_head, is_label=False)[0]  
+            output_img = draw_outputs(imgs=inputs, output=output, head=curr_head, 
+                unnormalize_img=unnormalize_img, cvt_color=cvt_color)[0]  
             
             if save_path is not None:
                 path, save_type = save_path.rsplit(".", 1) # get desired save type (e.g. .png, .jpg, ...)

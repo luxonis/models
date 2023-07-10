@@ -6,17 +6,24 @@ import torch
 import torch.nn as nn
 
 from luxonis_train.models.modules import ConvModule
-from luxonis_train.utils.head_type import *
+from luxonis_train.models.heads.base_heads import BaseSegmentationHead
 
-class BiSeNetHead(nn.Module):
-    def __init__(self, prev_out_shape, n_classes, c1=256, upscale_factor=8, is_aux=False, **kwargs) -> None:
-        super(BiSeNetHead, self).__init__()
+class BiSeNetHead(BaseSegmentationHead):
+    def __init__(self, n_classes: int, prev_out_shapes: list, original_in_shape: list, attach_index: int = -1, 
+        c1: int = 256, upscale_factor: int = 8, is_aux: bool = False, **kwargs):
+        """ BiSeNet segmentation head
 
-        self.n_classes = n_classes
-        self.type = SemanticSegmentation()
-        self.original_in_shape = kwargs["original_in_shape"]
-        self.attach_index = kwargs.get("attach_index", -1)
-        self.prev_out_shape = prev_out_shape[self.attach_index]
+        Args:
+            n_classes (int): NUmber of classes
+            prev_out_shapes (list): List of shapes of previous outputs
+            original_in_shape (list): Original inpuut shape to the model
+            attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
+            c1 (int, optional): Number of input channels. Defaults to 256.
+            upscale_factor (int, optional): Factor used for upscaling input. Defaults to 8.
+            is_aux (bool, optional): Either use 256 for intermediate channels or 64. Defaults to False.
+        """
+        super().__init__(n_classes=n_classes, prev_out_shapes=prev_out_shapes, original_in_shape=original_in_shape,
+            attach_index=attach_index)
 
         ch = 256 if is_aux else 64
         c2 = n_classes * upscale_factor * upscale_factor
@@ -28,8 +35,8 @@ class BiSeNetHead(nn.Module):
         x = self.conv_1x1(self.conv_3x3(x[self.attach_index]))
         return self.upscale(x)
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     from luxonis_train.models.backbones import ContextSpatial
 
     backbone = ContextSpatial()

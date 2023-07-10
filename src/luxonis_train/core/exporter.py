@@ -11,8 +11,6 @@ from dotenv import load_dotenv
 from luxonis_train.utils.config import Config
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
-from luxonis_train.utils.head_type import *
-
 
 class Exporter(pl.LightningModule):
     def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):
@@ -47,7 +45,7 @@ class Exporter(pl.LightningModule):
         state_dict = torch.load(path)["state_dict"]
         # remove weights that are not part of the model
         removed = []
-        for key in state_dict.keys():
+        for key in list(state_dict.keys()):
             if not key.startswith("model"):
                 removed.append(key)
                 state_dict.pop(key)
@@ -144,14 +142,11 @@ class Exporter(pl.LightningModule):
         """ Gets output names for each head """
         output_names = []
         for i, head in enumerate(self.model.heads):
-            if isinstance(head, YoloV6Head):
-                output_names.extend(["output1_yolov6r2", "output2_yolov6r2", "output3_yolov6r2"])
-                if head.is_4head:
-                    output_names.extend(["output4_yolov6r2"])
-            elif isinstance(head.type, SemanticSegmentation):
-                output_names.append("segmentation")
+            curr_output = head.get_output_names(i)
+            if isinstance(curr_output, str):
+                output_names.append(curr_output)
             else:
-                output_names.append(f"output{i}")
+                output_names.extend(curr_output)
         return output_names
 
     def _upload_to_s3(self, onnx_path, bucket, base_key):

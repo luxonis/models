@@ -31,7 +31,7 @@ class YoloV6Loss(nn.Module):
             **kwargs
         ):
         super(YoloV6Loss, self).__init__()
-        print(kwargs)
+
         is_4head = kwargs.get("head_attributes").get("is_4head", False)
         if fpn_strides is None:
             self.fpn_strides = [4, 8, 16, 32] if is_4head else [8, 16, 32]

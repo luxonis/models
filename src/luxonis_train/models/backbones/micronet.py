@@ -325,8 +325,13 @@ micronet_settings = {
 
 
 class MicroNet(nn.Module):
-    def __init__(self, variant: str = 'M1') -> None:
-        super(MicroNet, self).__init__()
+    def __init__(self, variant: str = 'M1'):
+        """MicroNet backbone
+
+        Args:
+            variant (str, optional): Variant from ['M1', 'M2', 'M3']. Defaults to 'M1'.
+        """
+        super().__init__()
         self.inplanes = 64
 
         assert variant in micronet_settings.keys(), f"MicroNet model name should be in {list(micronet_settings.keys())}"

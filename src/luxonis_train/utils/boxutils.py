@@ -24,13 +24,6 @@ def bbox2dist(anchor_points, bbox, reg_max):
     dist = torch.cat([lt, rb], -1).clip(0, reg_max - 0.01)
     return dist
 
-def xywh2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
-    """ Convert from xywh to cxcywh """
-    boxes_center = boxes.clone()
-    boxes_center[:, 0] = boxes[:, 0] + boxes[:, 2] / 2  # cx = x + w/2
-    boxes_center[:, 1] = boxes[:, 1] + boxes[:, 3] / 2  # cy = y + h/2
-    return boxes_center
-
 def bbox_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, box_format: str = "xywh", 
     iou_type: str = "none", eps: float = 1e-7):
     """Caclulate iou between boxs

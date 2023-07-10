@@ -16,5 +16,5 @@ model:
         params:
 
 dataset:
-  team_id: luxonis # TODO
-  dataset_id: ppsr # TODO
+  team_id: luxonis_team_id # TODO
+  dataset_id: 649fc9f39b1845dd49e393c2 # TODO

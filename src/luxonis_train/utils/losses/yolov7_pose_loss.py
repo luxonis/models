@@ -51,10 +51,9 @@ class YoloV7PoseLoss(nn.Module):
         self.nl = head_attributes.get("nl")
         self.anchors = head_attributes.get("anchors")
 
-    def __call__(self, kpt_pred, kpt, **kwargs):
-        # eval model output is (kpt, features). The loss only needs features.
-        if isinstance(kpt_pred, tuple):
-            kpt_pred = kpt_pred[1]
+    def forward(self, kpt_pred, kpt, **kwargs):
+        # model output is (kpt, features). The loss only needs features.
+        kpt_pred = kpt_pred[1]
         kpt_pred[0].shape[0]  # batch size
         device = kpt_pred[0].device
         lcls, lbox, lobj, lkpt, lkptv = [
@@ -111,7 +110,17 @@ class YoloV7PoseLoss(nn.Module):
         lkptv *= self.kptv_weight
         lkpt *= self.kpt_weight
 
-        return (lbox + lobj + lcls + lkpt + lkptv).reshape([])
+        loss = (lbox + lobj + lcls + lkpt + lkptv).reshape([])
+        
+        sub_losses = {
+            "lbox": lbox.detach(),
+            "lobj": lobj.detach(),
+            "lcls": lcls.detach(),
+            "lkptv": lkptv.detach(),
+            "lkpt": lkpt.detach()
+        }
+
+        return loss, sub_losses
 
     def build_targets(self, p, targets):
         na, nt = self.na, targets.shape[0]  # number of anchors, targets

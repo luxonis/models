@@ -23,7 +23,7 @@ The work on this project is in an MVP state, so it may be missing some critical 
 ## Installation:
 To install this library you can commands below:
 ```bash
-git clone git@github.com:luxonis/models.git && cd models
+git clone -b dev git@github.com:luxonis/models.git && cd models
 python3 -m pip install .
 ```
 ***Note**: This will also install `luxonis-ml` library.*

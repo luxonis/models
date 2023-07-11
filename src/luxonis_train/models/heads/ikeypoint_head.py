@@ -97,6 +97,9 @@ class IKeypoint(BaseHead):
         z = []  # inference output
         x = []  # layer outputs
 
+        if self.anchor_grid.device != inputs[0].device:
+            self.anchor_grid = self.anchor_grid.to(inputs[0].device)
+
         for i in range(self.nl):
             x.append(torch.cat(
                 (self.im[i](self.m[i](self.ia[i](inputs[i]))),
@@ -134,7 +137,7 @@ class IKeypoint(BaseHead):
         # returns Tuple[kpt, features]
         return torch.cat(z, 1), x
 
-    def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
+    def postprocess_for_loss(self, output: tuple, label_dict: dict):
         kpts = label_dict[LabelType.KEYPOINT]
         boxes = label_dict[LabelType.BOUNDINGBOX]
         nkpts = (kpts.shape[1] - 2) // 3
@@ -145,7 +148,7 @@ class IKeypoint(BaseHead):
         label[:,7::2] = kpts[:,3::3] # insert kp y coordinates
         return output, label
 
-    def postprocess_for_metric(self, output: torch.Tensor, label_dict: dict):
+    def postprocess_for_metric(self, output: tuple, label_dict: dict):
         kpts = label_dict[LabelType.KEYPOINT]
         boxes = label_dict[LabelType.BOUNDINGBOX]
         nkpts = (kpts.shape[1] - 2) // 3
@@ -166,7 +169,7 @@ class IKeypoint(BaseHead):
                 "labels": nms[i][:, 5],
             })
 
-            curr_label = label[label[:, 0] == i]
+            curr_label = label[label[:, 0] == i].to(nms[i].device)
             curr_bboxs = box_convert(curr_label[:, 2: 6], "cxcywh", "xyxy")
             curr_bboxs[:, 0::2] *= image_size[1]
             curr_bboxs[:, 1::2] *= image_size[0]
@@ -181,7 +184,7 @@ class IKeypoint(BaseHead):
         metric_mapping = {"map": 0, "oks": 1}
         return (output_list_map, output_list_oks), (label_list_map, label_list_oks), metric_mapping
 
-    def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
+    def draw_output_to_img(self, img: torch.Tensor, output: tuple, idx: int):
         curr_output = output[0][idx]
         nms = non_max_suppression_kpts(curr_output.unsqueeze(0), conf_thresh=0.25, iou_thresh=0.45)[0]
         bboxes = nms[:, :4]

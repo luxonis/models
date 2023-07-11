@@ -70,11 +70,11 @@ class YoloV6Head(BaseObjectDetection):
 
         return [x, cls_score_list, reg_distri_list]
 
-    def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
+    def postprocess_for_loss(self, output: tuple, label_dict: dict):
         label = label_dict[self.label_types[0]]
         return output, label
 
-    def postprocess_for_metric(self, output: torch.Tensor, label_dict: dict):
+    def postprocess_for_metric(self, output: tuple, label_dict: dict):
         label = label_dict[self.label_types[0]]
         
         output_nms = self._out2box(output)
@@ -100,7 +100,7 @@ class YoloV6Head(BaseObjectDetection):
 
         return output_list, label_list, None
 
-    def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
+    def draw_output_to_img(self, img: torch.Tensor, output: tuple, idx: int):
         curr_output = self._out2box(output, conf_thres=0.3, iou_thres=0.6)
         curr_output = curr_output[idx]
         bboxs = curr_output[:,:4]

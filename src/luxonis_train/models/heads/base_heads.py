@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import cv2
-from typing import List
+from typing import List, Union
 from torchvision.utils import draw_segmentation_masks
 
 from luxonis_train.utils.visualization import torch_img_to_numpy, numpy_to_torch_img, seg_output_to_bool
@@ -32,7 +32,7 @@ class BaseHead(nn.Module):
         """ torch.nn.Module forward method """
         raise NotImplementedError
 
-    def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
+    def postprocess_for_loss(self, output: Union[tuple, torch.Tensor], label_dict: dict):
         """ Performs postprocessing on output and label for loss function input
 
         Args:
@@ -45,7 +45,7 @@ class BaseHead(nn.Module):
         """
         raise NotImplementedError        
 
-    def postprocess_for_metric(self, output: torch.Tensor, label_dict: dict):
+    def postprocess_for_metric(self, output: Union[tuple, torch.Tensor], label_dict: dict):
         """Performs postprocessing on output and label for metric comput input
 
         Args:
@@ -60,7 +60,7 @@ class BaseHead(nn.Module):
         """
         raise NotImplementedError
 
-    def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
+    def draw_output_to_img(self, img: torch.Tensor, output: Union[tuple, torch.Tensor], idx: int):
         """Draws model output to an img
 
         Args:
@@ -199,7 +199,10 @@ class BaseSegmentationHead(BaseHead):
         return output, label, None
 
     def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
-        masks = seg_output_to_bool(output[idx]).cpu()
+        masks = seg_output_to_bool(output[idx])
+        # NOTE: we have to push everything to cpu manually before draw_segmentation_masks (torchvision bug?)
+        masks = masks.cpu()
+        img = img.cpu()
         img = draw_segmentation_masks(img, masks, alpha=0.4)
         return img
 

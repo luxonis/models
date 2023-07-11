@@ -83,7 +83,10 @@ def draw_labels(imgs: torch.tensor, label_dict: dict, label_keys: list = None, r
 
             if label_key == LabelType.SEGMENTATION:
                 curr_label = label_dict[label_key][i]
-                masks = curr_label.bool().cpu()
+                masks = curr_label.bool()
+                # NOTE: we have to push everything to cpu manually before draw_segmentation_masks (torchvision bug?)
+                masks = masks.cpu()
+                curr_img = curr_img.cpu()
                 curr_img_seg = draw_segmentation_masks(curr_img, masks, alpha=0.4)
                 if overlay:
                     curr_img = curr_img_seg

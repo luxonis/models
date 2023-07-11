@@ -16,5 +16,6 @@ model:
         params:
 
 dataset:
-  team_name: luxonis
-  dataset_name: ppsr
+  team_id: 2af31474-a342-49c9-8fa4-786ac83a43a3
+  dataset_id: 64a079d8028d6439d136495d
+  bucket_type: aws

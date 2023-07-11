@@ -24,7 +24,7 @@ model:
     - name: IKeypoint
       params:
         n_classes: 1
-        n_keypoints: 17 #7
+        n_keypoints: 17
         anchors:
           - [12,16, 19,36, 40,28]  # P3/8
           - [36,75, 76,55, 72,146]  # P4/16
@@ -34,11 +34,5 @@ model:
         params:
 
 dataset:
-  # team_id: luxonis_team_id # TODO
-  # dataset_id: 649fc9f39b1845dd49e393c2 # TODO
-  bucket_type: aws
-  team_id: 2af31474-a342-49c9-8fa4-786ac83a43a3
-  dataset_id: 64a079d8028d6439d136495d
-
-exporter:
-  export_weights: /home/klemen/luxonis/models/output/1-azure-gayal/best_val_metric/map=0.0022_loss=2.1203_54_SimpleKeypoint.ckpt
+  team_id: # TODO
+  dataset_id: # TODO

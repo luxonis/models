@@ -1,5 +1,7 @@
 import torch
 from torchmetrics import Metric
+import warnings
+
 
 class ObjectKeypointSimilarity(Metric):
     def __init__(self):
@@ -17,4 +19,7 @@ class ObjectKeypointSimilarity(Metric):
 
     def compute(self):
         # return self.correct.float() / self.total
-        return torch.tensor([1])
+        warnings.warn(
+            "ObjectKeypointSimilarity metric not yet implemented. Returning default value 1."
+        )
+        return torch.ones(1)

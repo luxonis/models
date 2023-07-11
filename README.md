@@ -1,11 +1,11 @@
 # Luxonis training library
-Luxonis training library (luxonis-train) is intended for training deep learning models that can run fast on OAK products. We currently support image classification (multi-class and multi-label), semantic segmentation and object detection tasks. The library also depends on `Luxonis Dataset Format`, which you can see [here](https://github.com/luxonis/luxonis-ml). The main idea is that the user can quickly build a model, that can run on edge devices, by defining model components through config or choose from predefined models, and train it.
+Luxonis training library (luxonis-train) is intended for training deep learning models that can run fast on OAK products. We currently support image classification (multi-class and multi-label), semantic segmentation, object detection and keypoint detection tasks. The library also depends on `Luxonis Dataset Format`, which you can see [here](https://github.com/luxonis/luxonis-ml). The main idea is that the user can quickly build a model, that can run on edge devices, by defining model components through config or choose from predefined models, and train it.
 
 The work on this project is in an MVP state, so it may be missing some critical features or have some issues - please report any feedback!
 
 **Table of contents:**
 - [Installation](#installation)
-  - [Install as a package](#install-as-a-package)
+  - [Environment variables](#environment-variables)
 - [Configuration](#configuration)
   - [Model](#model)
   - [Trainer](#trainer)
@@ -21,14 +21,41 @@ The work on this project is in an MVP state, so it may be missing some critical 
 
 
 ## Installation:
-Since this package relys on `luxonis-ml` library you should first install this as specified [here](https://github.com/luxonis/luxonis-ml/tree/main#installation-and-setup).
-
-### Install as a package
-If you want to use classes from this library anywhere you can install `luxonis-train` as a package like this:
-```
+To install this library you can commands below:
+```bash
 git clone -b dev git@github.com:luxonis/models.git && cd models
-python3 -m pip install -e .
+python3 -m pip install .
 ```
+***Note**: This will also install `luxonis-ml` library.*
+
+### Environment variables:
+This library can be also integrated with some cloud services and for these you need to set credentials in your environment. If you are working with LuxonisDataset that is stored on S3 you need to specify this env variables:
+```bash
+AWS_ACCESS_KEY_ID=**********
+AWS_SECRET_ACCESS_KEY=**********
+AWS_S3_ENDPOINT_URL=**********
+```
+
+If you want to use MLFlow for logging and storing artifacts you also need to specify MLFlow related env variables like this:
+```bash
+MLFLOW_CLOUDFLARE_ID=**********
+MLFLOW_CLOUDFLARE_SECRET=**********
+MLFLOW_S3_BUCKET=**********
+MLFLOW_S3_ENDPOINT_URL=**********
+MLFLOW_TRACKING_URI=**********
+```
+
+And if you are using WanDB for logging you have to sign-in first in your environment.
+
+Lastly there is an option for remote storage when using Tuner. Here we use POSTGRES and to connect to the databse you need to specify folowing env variables:
+```bash
+POSTGRES_USER=**********
+POSTGRES_PASSWORD=**********
+POSTGRES_HOST=**********
+POSTGRES_PORT=**********
+POSTGRES_DB=**********
+```
+
 
 ## Configuration:
 Most of the work is done through a `config.yaml` file, which you must pass as an argument to the Trainer. Config file consists of a few major blocks that are described below. You can create your own config or use/edit one of the already made ones.
@@ -304,7 +331,7 @@ inferer.infer_image(img)
 
 
 ## Exporting
-We support export to ONNX, openVINO and .blob format which is used for OAK cameras. By default we only export to ONNX and you should use [modelconverter](TODO) repository for other formats. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
+We support export to ONNX, openVINO and .blob format which is used for OAK cameras. By default we only export to ONNX and you should use **Luxonis modelconverter repository** (still in development) for other formats. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
 
 There is also an option to upload .ckpt, .onnx and config.yaml files to S3 bucket. To do this you have to specify `bucket` and `upload_directory` to configure S3 upload location. If `Config` was initialized with MLFlow path ([look here for options](#initialization)) then files are uploaded to that run as artifacts instead of using specified `bucket` and `upload_directory`.
 

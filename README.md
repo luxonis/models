@@ -23,7 +23,7 @@ The work on this project is in an MVP state, so it may be missing some critical 
 ## Installation:
 To install this library you can commands below:
 ```bash
-git clone -b dev git@github.com:luxonis/models.git && cd models
+git clone git@github.com:luxonis/models.git && cd models
 python3 -m pip install .
 ```
 ***Note**: This will also install `luxonis-ml` library.*
@@ -63,7 +63,7 @@ Most of the work is done through a `config.yaml` file, which you must pass as an
 ### Model:
 This is the most important block, that **must be always defined by the user**. There are two different ways you can create the model. 
 
-In the first one you defined `backbone`, `neck` and list of `heads`, where you choose each module from a list of supported ones (list of all [backbones](./luxonis_train/models/backbones/README.md), [necks](./luxonis_train/models/necks/README.md) and [heads](./luxonis_train/models/heads/README.md)). If `n_classes` is not set for the head or is set to `null` then this value will be inherited from the dataset.
+In the first one you defined `backbone`, `neck` and list of `heads`, where you choose each module from a list of supported ones (list of all [backbones](./src/luxonis_train/models/backbones/README.md), [necks](./src/luxonis_train/models/necks/README.md) and [heads](./src/luxonis_train/models/heads/README.md)). If `n_classes` is not set for the head or is set to `null` then this value will be inherited from the dataset.
 
 ***Note**: Every model must have 1 bacbone and at least 1 head (neck is optional).*
 
@@ -94,7 +94,7 @@ model:
         params: # params specific to this loss function (dict)
 ```
 
-The second use case is choosing from a list of predefined model arhitectures ([list](./luxonis_train/models/README.md)) and optionally adding additional heads. In this case you define model block in config like this:
+The second use case is choosing from a list of predefined model arhitectures ([list](./src/luxonis_train/models/README.md)) and optionally adding additional heads. In this case you define model block in config like this:
 
 ```yaml
 model:
@@ -114,7 +114,7 @@ model:
         params: # params specific to this loss function (dict)
 ```
 
-You can see the list of all currently supported loss functions and their parameters [here](./luxonis_train/utils/losses/README.md).
+You can see the list of all currently supported loss functions and their parameters [here](./src/luxonis_train/utils/losses/README.md).
 #### Advanced configuration:
 Every head also supports the `attach_index` parameter which specifies on which backbone/neck layer should the head attach to. Layers are indexed from 0 to N where N is the last layer (closest to the head). By default `attach_index` is set to -1 for all heads which means that the head attaches to the last previous layer (Python list index convention is used here).
 
@@ -255,7 +255,7 @@ python3 tools/train.py -cfg configs/custom.yaml --override "train.batch_size 8 t
 where key and value are space separated and sub-keys are dot(`.`) separated. If structure is of type list then key/sub-key should be a number (e.g. `train.preprocessing.augmentations.0.name RotateCustom`).
 
 ## Customize Trainer through API
-Before trainig the model you can also additionaly configure it with the use of our [Trainer](./luxonis_train/core/trainer.py) API. Look at [train.py](./tools/train.py) to see how Trainer is initialized. 
+Before trainig the model you can also additionaly configure it with the use of our [Trainer](./src/luxonis_train/core/trainer.py) API. Look at [train.py](./tools/train.py) to see how Trainer is initialized. 
 
 From there you can override the loss function for specific head by calling: 
 ```python

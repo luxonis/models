@@ -1,0 +1,44 @@
+model:
+  name: SimpleKeypoint
+  type: 
+  pretrained: 
+
+  backbone:
+    name: EfficientRep
+    pretrained:
+    params:
+      channels_list: [64, 128, 256, 512, 1024]
+      num_repeats: [1, 6, 12, 18, 6]
+      depth_mul: 0.33
+      width_mul: 0.25
+
+  neck:
+    name: RepPANNeck
+    params:
+      channels_list: [256, 128, 128, 256, 256, 512]
+      num_repeats: [12, 12, 12, 12]
+      depth_mul: 0.33
+      width_mul: 0.25
+
+  heads:
+    - name: IKeypoint
+      params:
+        n_classes: 1
+        n_keypoints: 17 #7
+        anchors:
+          - [12,16, 19,36, 40,28]  # P3/8
+          - [36,75, 76,55, 72,146]  # P4/16
+          - [142,110, 192,243, 459,401]  # P5/32
+      loss:
+        name: YoloV7PoseLoss
+        params:
+
+dataset:
+  # team_id: luxonis_team_id # TODO
+  # dataset_id: 649fc9f39b1845dd49e393c2 # TODO
+  bucket_type: aws
+  team_id: 2af31474-a342-49c9-8fa4-786ac83a43a3
+  dataset_id: 64a079d8028d6439d136495d
+
+exporter:
+  export_weights: /home/klemen/luxonis/models/output/1-azure-gayal/best_val_metric/map=0.0022_loss=2.1203_54_SimpleKeypoint.ckpt

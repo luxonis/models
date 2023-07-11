@@ -14,12 +14,9 @@ from luxonis_train.utils.config import Config
 from luxonis_train.utils.losses import init_loss
 from luxonis_train.utils.optimizers import init_optimizer
 from luxonis_train.utils.schedulers import init_scheduler
-from luxonis_train.utils.losses import *
-from luxonis_train.utils.metrics import init_metrics, postprocess_for_metrics
-from luxonis_train.utils.head_type import *
-from luxonis_train.utils.general import *
-from luxonis_train.utils.visualization import *
-
+from luxonis_train.utils.metrics import init_metrics
+from luxonis_train.utils.visualization import draw_outputs, draw_labels
+from luxonis_train.utils.constants import LabelType
 
 class ModelLightningModule(pl.LightningModule):
     def __init__(self, save_dir: str):
@@ -36,15 +33,17 @@ class ModelLightningModule(pl.LightningModule):
 
         # for each head get its loss
         self.losses = nn.ModuleList()
-        for head in self.cfg.get("model.heads"):
+        for i, head in enumerate(self.cfg.get("model.heads")):
+            # pass config params + head instance attributes
+            params = {**head["loss"]["params"], "head_attributes":self.model.heads[i].__dict__}
             self.losses.append(
-                init_loss(head["loss"]["name"], **head["loss"]["params"])
+                init_loss(name = head["loss"]["name"], **params)
             )
 
         # for each head initialize its metrics
         self.metrics = nn.ModuleDict()
         for i, curr_head in enumerate(self.model.heads):
-            self.metrics[get_head_name(curr_head, i)] = init_metrics(curr_head)
+            self.metrics[curr_head.get_name(i)] = init_metrics(curr_head)
 
         # load pretrained weights if defined
         if self.cfg.get("model.pretrained"):
@@ -84,7 +83,7 @@ class ModelLightningModule(pl.LightningModule):
         """ Configures Pytorch Lightning callbacks """  
         self.min_val_loss_checkpoints_path = f"{self.save_dir}/min_val_loss"
         self.best_val_metric_checkpoints_path = f"{self.save_dir}/best_val_metric"
-        self.main_metric = self.model.heads[0].type.main_metric
+        self.main_metric = self.model.heads[0].main_metric
         
         loss_checkpoint = ModelCheckpoint(
             monitor = "val_loss/loss",
@@ -177,7 +176,7 @@ class ModelLightningModule(pl.LightningModule):
     def training_step(self, train_batch: tuple, batch_idx: int):
         """ Performs one step of training with provided batch """
         inputs = train_batch[0]
-        labels = train_batch[1]
+        label_dict = train_batch[1]
         
         outputs = self.forward(inputs)
 
@@ -185,10 +184,10 @@ class ModelLightningModule(pl.LightningModule):
         sub_losses = [] # list of Tuple(loss_name, value)
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
-            curr_head_name = get_head_name(curr_head, i)
-            curr_label = get_current_label(curr_head.type, labels)
+            curr_head_name = curr_head.get_name(i)
+            output_loss, label_loss = curr_head.postprocess_for_loss(output, label_dict)
             curr_loss = self.losses[i](
-                output, curr_label, 
+                output_loss, label_loss, 
                 epoch=self.current_epoch,
                 step=self.global_step,
             )
@@ -203,21 +202,27 @@ class ModelLightningModule(pl.LightningModule):
 
             with torch.no_grad(): 
                 if self._is_train_eval_epoch():  
-                    output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
-                    curr_metrics.update(output_processed, curr_label_processed)
+                    output_metrics, label_metrics, metric_mapping = curr_head.postprocess_for_metric(output, label_dict)
+                    if metric_mapping is None:
+                        curr_metrics.update(output_metrics, label_metrics)
+                    else:
+                        for k, v in metric_mapping.items():
+                            curr_metrics[k].update(output_metrics[v], label_metrics[v])
 
                     # images for visualization and logging
                     if batch_idx == 0:
-                        label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
-                        output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
+                        unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+                        cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
+                        label_imgs = draw_labels(imgs=inputs, label_dict=label_dict, label_keys=curr_head.label_types,
+                            unnormalize_img=unnormalize_img, cvt_color=cvt_color, overlay=True)
+                        output_imgs = draw_outputs(imgs=inputs, output=output, head=curr_head)
                         merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
                         
                         num_log_images = self.cfg.get("train.num_log_images")
                         log_imgs = merged_imgs[:num_log_images]
 
                         for i, img in enumerate(log_imgs):
-                            # self.logger.log_image(f"train_image/{curr_head_name}_img{i}", img, step=self.global_step)
                             self.logger.log_image(f"train_image/{curr_head_name}_img{i}", img, step=self.current_epoch)
 
         step_output = {
@@ -232,19 +237,19 @@ class ModelLightningModule(pl.LightningModule):
     def validation_step(self, val_batch: tuple, batch_idx: int):
         """ Performs one step of validation with provided batch """
         inputs = val_batch[0]
-        labels = val_batch[1]
+        label_dict = val_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
         sub_losses = []
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
-            curr_head_name = get_head_name(curr_head, i)
-            curr_label = get_current_label(curr_head.type, labels)
+            curr_head_name = curr_head.get_name(i)
+            output_loss, label_loss = curr_head.postprocess_for_loss(output, label_dict)
             curr_loss = self.losses[i](
-                output, curr_label,
+                output_loss, label_loss, 
                 epoch=self.current_epoch,
-                step=self.global_step
+                step=self.global_step,
             )
             # if returned loss is tuple
             if isinstance(curr_loss, tuple):
@@ -255,14 +260,23 @@ class ModelLightningModule(pl.LightningModule):
             
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
-            output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["val_metrics"]
-            curr_metrics.update(output_processed, curr_label_processed)
+            output_metrics, label_metrics, metric_mapping = curr_head.postprocess_for_metric(output, label_dict)
+            if metric_mapping is None:
+                curr_metrics.update(output_metrics, label_metrics)
+            else:
+                for k, v in metric_mapping.items():
+                    curr_metrics[k].update(output_metrics[v], label_metrics[v])
+
             
             # images for visualization and logging
             if batch_idx == 0:
-                label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
-                output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
+                unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+                cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
+                label_imgs = draw_labels(imgs=inputs, label_dict=label_dict, label_keys=curr_head.label_types,
+                    unnormalize_img=unnormalize_img, cvt_color=cvt_color, overlay=True)
+                output_imgs = draw_outputs(imgs=inputs, output=output, head=curr_head)
+
                 merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
                 
                 num_log_images = self.cfg.get("train.num_log_images")
@@ -283,17 +297,17 @@ class ModelLightningModule(pl.LightningModule):
     def test_step(self, test_batch: tuple, batch_idx: int):
         """ Performs one step of test with provided batch """
         inputs = test_batch[0]
-        labels = test_batch[1]
+        label_dict = test_batch[1]
         outputs = self.forward(inputs)
 
         loss = 0
         sub_losses = []
         for i, output in enumerate(outputs):
             curr_head = self.model.heads[i]
-            curr_head_name = get_head_name(curr_head, i)
-            curr_label = get_current_label(curr_head.type, labels)
+            curr_head_name = curr_head.get_name(i)
+            output_loss, label_loss = curr_head.postprocess_for_loss(output, label_dict)
             curr_loss = self.losses[i](
-                output, curr_label,
+                output_loss, label_loss,
                 epoch=self.current_epoch,
                 step=self.global_step
             )
@@ -306,14 +320,21 @@ class ModelLightningModule(pl.LightningModule):
             
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
             
-            output_processed, curr_label_processed = postprocess_for_metrics(output, curr_label, curr_head)
             curr_metrics = self.metrics[curr_head_name]["test_metrics"]
-            curr_metrics.update(output_processed, curr_label_processed)
+            output_metrics, label_metrics, metric_mapping = curr_head.postprocess_for_metric(output, label_dict)
+            if metric_mapping is None:
+                curr_metrics.update(output_metrics, label_metrics)
+            else:
+                for k, v in metric_mapping.items():
+                    curr_metrics[k].update(output_metrics[v], label_metrics[v])
         
             # images for visualization and logging
             if batch_idx == 0:
-                label_imgs = draw_on_images(inputs, curr_label, curr_head, is_label=True)
-                output_imgs = draw_on_images(inputs, output, curr_head, is_label=False)  
+                unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+                cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
+                label_imgs = draw_labels(imgs=inputs, label_dict=label_dict, label_keys=curr_head.label_types,
+                    unnormalize_img=unnormalize_img, cvt_color=cvt_color, overlay=True)
+                output_imgs = draw_outputs(imgs=inputs, output=output, head=curr_head)
                 merged_imgs = [cv2.hconcat([l_img, o_img]) for l_img, o_img in zip(label_imgs, output_imgs)]
                 
                 num_log_images = self.cfg.get("train.num_log_images")
@@ -438,9 +459,9 @@ class ModelLightningModule(pl.LightningModule):
 
     def _is_train_eval_epoch(self):
         """ Checks if train eval should be performed on current epoch based on configured train_metrics_interval"""
-        train_metric_interval = self.cfg.get("train.train_metrics_interval")
+        train_metrics_interval = self.cfg.get("train.train_metrics_interval")
         # add +1 to current_epoch because starting epoch is at 0
-        return train_metric_interval != -1 and (self.current_epoch+1) % train_metric_interval == 0
+        return train_metrics_interval != -1 and (self.current_epoch+1) % train_metrics_interval == 0
 
     def _print_metric_warning(self, text:str):
         """ Prints warning in the console for running metric computation (which can take quite long) """

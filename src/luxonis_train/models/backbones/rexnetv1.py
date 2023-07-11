@@ -54,9 +54,19 @@ class LinearBottleneck(nn.Module):
 
 
 class ReXNetV1_lite(nn.Module):
-    def __init__(self, fix_head_stem=False, divisible_value=8, input_ch=16,
-            final_ch=164, multiplier=1.0, kernel_conf='333333'):
-        super(ReXNetV1_lite, self).__init__()
+    def __init__(self, fix_head_stem: bool = False, divisible_value: int = 8, input_ch: int = 16,
+            final_ch: int = 164, multiplier: float = 1.0, kernel_conf: str = '333333'):
+        """ReXNetV1_lite backbone
+
+        Args:
+            fix_head_stem (bool, optional): Weather to multiply head stem. Defaults to False.
+            divisible_value (int, optional): Divisor used. Defaults to 8.
+            input_ch (int, optional): Starting channel dimension. Defaults to 16.
+            final_ch (int, optional): Final channel dimension. Defaults to 164.
+            multiplier (float, optional): Channel dimension multiplier. Defaults to 1.0.
+            kernel_conf (str, optional): Kernel sizes encoded as string. Defaults to '333333'.
+        """
+        super().__init__()
 
         self.out_indices = [1,4, 10, 16]
         self.channels = [16, 48, 112, 184]

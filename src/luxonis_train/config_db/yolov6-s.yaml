@@ -27,4 +27,3 @@ heads:
       name: YoloV6Loss
       params:
         iou_type: giou
-        is_4head: False

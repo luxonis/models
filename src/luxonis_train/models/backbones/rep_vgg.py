@@ -157,8 +157,13 @@ def get_RepVGG_func_by_name(name):
 
 
 class RepVGG(nn.Module):
-    def __init__(self, variant="A0"):
-        super(RepVGG, self).__init__()
+    def __init__(self, variant: str = "A0"):
+        """RepVGG baackbone
+        
+        Args:
+            variant (str, optional): Variant from ['A0', 'A1']. Defaults to "A0".
+        """
+        super().__init__()
         assert variant in ["A0", "A1"]
 
         model_create = create_RepVGG_A0 if variant == "A0" else create_RepVGG_A1

@@ -3,26 +3,33 @@
 # License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
 #
 
-
 import torch
 import torch.nn as nn
+from torchvision.ops import box_convert
+from torchvision.utils import draw_bounding_boxes
 
 from .effide_head import EffiDeHead
 # from luxonis_train.models.heads.effide_head import EffiDeHead #import for unit testing 
-from luxonis_train.utils.head_type import ObjectDetection
+from luxonis_train.models.heads.base_heads import BaseObjectDetection
+from luxonis_train.utils.assigners.anchor_generator import generate_anchors
+from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression_bbox
 
-class YoloV6Head(nn.Module):
-    '''Efficient Decoupled Head
-    With hardware-aware degisn, the decoupled head is optimized with
-    hybridchannels methods.
-    '''
-    def __init__(self, prev_out_shape, n_classes, is_4head=False, **kwargs):
-        super(YoloV6Head, self).__init__()
-        self.n_classes = n_classes  # number of classes
-        self.type = ObjectDetection()
-        self.original_in_shape = kwargs["original_in_shape"]
-        self.attach_index = kwargs.get("attach_index", -1) # not used in this head
-        self.prev_out_shape = prev_out_shape
+class YoloV6Head(BaseObjectDetection):
+    def __init__(self, n_classes: int, prev_out_shapes: list, original_in_shape: list, attach_index: int = -1,
+        is_4head: bool = False, **kwargs):
+        """YoloV6 object detection head. With hardware-aware degisn, the decoupled head is optimized with
+            hybridchannels methods.
+
+        Args:
+            n_classes (int): Number of classes
+            prev_out_shapes (list): List of shapes of previous outputs
+            original_in_shape (list): Original input shape to the model
+            attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
+            is_4head (bool, optional): Either build 4 headed architecture or 3 headed one
+                (**Important: Should be same also on backbone and neck**). Defaults to False.
+        """
+        super().__init__(n_classes=n_classes, prev_out_shapes=prev_out_shapes, 
+            original_in_shape=original_in_shape, attach_index=attach_index)
 
         self.no = n_classes + 5 # number of outputs per anchor
         self.is_4head = is_4head
@@ -40,7 +47,7 @@ class YoloV6Head(nn.Module):
         self.head = nn.ModuleList()
         for i in range(self.nl):
             curr_head = EffiDeHead(
-                prev_out_shape=[prev_out_shape[i]],
+                prev_out_shapes=[self.prev_out_shapes[i]],
                 original_in_shape=self.original_in_shape,
                 n_classes=self.n_classes,
                 n_anchors=self.n_anchors
@@ -63,6 +70,49 @@ class YoloV6Head(nn.Module):
 
         return [x, cls_score_list, reg_distri_list]
 
+    def postprocess_for_loss(self, output: tuple, label_dict: dict):
+        label = label_dict[self.label_types[0]]
+        return output, label
+
+    def postprocess_for_metric(self, output: tuple, label_dict: dict):
+        label = label_dict[self.label_types[0]]
+        
+        output_nms = self._out2box(output)
+        image_size = self.original_in_shape[2:]
+
+        output_list = []
+        label_list = []
+        for i in range(len(output_nms)):
+            output_list.append({
+                "boxes": output_nms[i][:,:4],
+                "scores": output_nms[i][:,4],
+                "labels": output_nms[i][:,5]
+            })
+
+            curr_label = label[label[:,0]==i]
+            curr_bboxs = box_convert(curr_label[:, 2:], "xywh", "xyxy")
+            curr_bboxs[:, 0::2] *= image_size[1]
+            curr_bboxs[:, 1::2] *= image_size[0]
+            label_list.append({
+                "boxes": curr_bboxs,
+                "labels": curr_label[:,1]
+            })
+
+        return output_list, label_list, None
+
+    def draw_output_to_img(self, img: torch.Tensor, output: tuple, idx: int):
+        curr_output = self._out2box(output, conf_thres=0.3, iou_thres=0.6)
+        curr_output = curr_output[idx]
+        bboxs = curr_output[:,:4]
+        img = draw_bounding_boxes(img, bboxs)
+        return img
+
+    def get_output_names(self, idx: int):
+        output_names = ["output1_yolov6r2", "output2_yolov6r2", "output3_yolov6r2"]
+        if self.is_4head:
+            output_names.append("output4_yolov6r2")
+        return output_names
+
     def to_deploy(self):
         # change definition of forward()
         def deploy_forward(x):
@@ -76,6 +126,26 @@ class YoloV6Head(nn.Module):
             return outputs
 
         self.forward = deploy_forward
+
+    def _out2box(self, output: tuple, **kwargs):
+        """ Performs post-processing of the YoloV6 output and returns bboxs after NMS"""
+        x, cls_score_list, reg_dist_list = output
+        anchor_points, stride_tensor = generate_anchors(x, self.stride, 
+            self.grid_cell_size, self.grid_cell_offset, is_eval=True)
+        pred_bboxes = dist2bbox(reg_dist_list, anchor_points, box_format="xywh")
+
+        pred_bboxes *= stride_tensor
+        output_merged = torch.cat([
+            pred_bboxes, 
+            torch.ones((x[-1].shape[0], pred_bboxes.shape[1], 1), dtype=pred_bboxes.dtype, device=pred_bboxes.device), 
+            cls_score_list 
+        ], axis=-1)
+
+        conf_thres = kwargs.get("conf_thres", 0.001)
+        iou_thres = kwargs.get("iou_thres", 0.6)
+        output_nms = non_max_suppression_bbox(output_merged, conf_thres=conf_thres, iou_thres=iou_thres)
+
+        return output_nms
 
 
 if __name__ == "__main__":

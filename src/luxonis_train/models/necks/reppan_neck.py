@@ -11,19 +11,20 @@ from luxonis_train.models.modules import RepBlock, ConvModule
 from luxonis_train.utils.general import make_divisible
 
 class RepPANNeck(nn.Module):
-    """RepPANNeck Module
-    EfficientRep is the default backbone of this model.
-    RepPANNeck has the balance of feature fusion ability and hardware efficiency.
-    """
+    def __init__(self, prev_out_shapes: list, channels_list: list, num_repeats: list, 
+            depth_mul: float = 0.33, width_mul: float = 0.25, is_4head: bool = False, **kwargs):
+        """RepPANNeck normally used with YoloV6 model. It has the balance of feature fusion ability and hardware efficiency.
 
-    def __init__(self, prev_out_shape, channels_list=None, num_repeats=None, depth_mul=0.33,
-            width_mul=0.25, is_4head=False):
-        super(RepPANNeck, self).__init__()
-
-        if channels_list is None:
-            raise ValueError("'channel_list' cannot be None")
-        if num_repeats is None:
-            raise ValueError("'num_repeats' cannot be None")
+        Args:
+            prev_out_shapes (list): List of shapes of previous outputs
+            channels_list (list): List of number of channels for each block.
+            num_repeats (list): List of number of repeats of RepBlock
+            depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
+            width_mul (float, optional): Width multiplier. Defaults to 0.25.
+            is_4head (bool, optional): Either build 4 headed architecture or 3 headed one \
+                (**Important: Should be same also on backbone and head**). Defaults to False.
+        """
+        super().__init__()
 
         channels_list = [make_divisible(i * width_mul, 8) for i in channels_list]
         num_repeats = [(max(round(i * depth_mul), 1) if i > 1 else i) for i in num_repeats]
@@ -32,13 +33,13 @@ class RepPANNeck(nn.Module):
         prev_out_start_idx = 1 if self.is_4head else 0
 
         self.Rep_p4 = RepBlock(
-            in_channels=prev_out_shape[prev_out_start_idx+1][1] + channels_list[0],
+            in_channels=prev_out_shapes[prev_out_start_idx+1][1] + channels_list[0],
             out_channels=channels_list[0],
             n=num_repeats[0],
         )
 
         self.Rep_p3 = RepBlock(
-            in_channels=prev_out_shape[prev_out_start_idx][1] + channels_list[1],
+            in_channels=prev_out_shapes[prev_out_start_idx][1] + channels_list[1],
             out_channels=channels_list[1],
             n=num_repeats[1],
         )
@@ -56,7 +57,7 @@ class RepPANNeck(nn.Module):
         )
 
         self.reduce_layer0 = ConvModule(
-            in_channels=prev_out_shape[prev_out_start_idx+2][1],
+            in_channels=prev_out_shapes[prev_out_start_idx+2][1],
             out_channels=channels_list[0],
             kernel_size=1,
             stride=1
@@ -116,7 +117,7 @@ class RepPANNeck(nn.Module):
                 bias=True
             )
             self.Rep_p2 = RepBlock(
-                in_channels=prev_out_shape[prev_out_start_idx-1][1] + 
+                in_channels=prev_out_shapes[prev_out_start_idx-1][1] + 
                     channels_list[1]//2,
                 out_channels=channels_list[1]//2,
                 n=num_repeats[1],

@@ -11,8 +11,13 @@ import torchvision
 
 class MobileNetV2(nn.Module):
 
-    def __init__(self, download_weights=False):
-        super(MobileNetV2, self).__init__()
+    def __init__(self, download_weights: bool = False):
+        """MobileNetV2 backbone
+
+        Args:
+            download_weights (bool, optional): If True download weights from imagenet. Defaults to False.
+        """
+        super().__init__()
         mobilenet_v2 = torchvision.models.mobilenet_v2(weights="DEFAULT" if download_weights else None)
         self.out_indices = [3, 6, 13, 17]
         self.channels = [24, 32, 96, 320]

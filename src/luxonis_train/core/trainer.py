@@ -14,7 +14,6 @@ from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentation
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.head_type import *
 
 class Trainer:
     def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):

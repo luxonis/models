@@ -9,9 +9,13 @@ import torch.nn as nn
 
 
 class EfficientNet(nn.Module):
+    def __init__(self, download_weights: bool = False):
+        """EfficientNet backbone
 
-    def __init__(self, download_weights=False):
-        super(EfficientNet, self).__init__()
+        Args:
+            download_weights (bool, optional): If True download weights from imagenet. Defaults to False.
+        """
+        super().__init__()
         efficientnet_lite0_model = torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_lite0', pretrained=download_weights)
         self.out_indices = [1, 2, 4, 6]
         self.backbone = efficientnet_lite0_model

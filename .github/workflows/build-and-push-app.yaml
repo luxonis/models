@@ -1,0 +1,38 @@
+name: Build and deploy app image
+
+on:
+  push:
+    branches:
+      - docker
+  workflow_dispatch:
+
+jobs:
+  push-store:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+
+      - name: 'Login to GitHub Container Registry'
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: luxonis-ml
+          password: ${{secrets.GHCR_PAT}}
+              
+      - name: Get commit name
+        id: commit
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
+            
+      - name: 'Build Inventory Image'
+        run: |
+          docker build --build-arg GITHUB_TOKEN=${{secrets.GHCR_PAT}} -f docker/Dockerfile . --tag ghcr.io/luxonis/models:${{ steps.extract_branch.outputs.branch }}.${{ steps.commit.outputs.sha_short }}
+          docker push ghcr.io/luxonis/models --all-tags

@@ -61,7 +61,7 @@ def draw_labels(imgs: torch.tensor, label_dict: dict, label_keys: list = None, r
     out_imgs = []
 
     if label_keys is None:
-        label_keys = [e.value for e in LabelType]
+        label_keys = list(label_dict.keys())
 
     for i in range(imgs.shape[0]):
         curr_img = imgs[i]

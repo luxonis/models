@@ -1,0 +1,21 @@
+model:
+  name: SimpleClassification
+  type:
+  pretrained:
+
+  backbone:
+    name: MicroNet
+    pretrained:
+
+  heads:
+    - name: ClassificationHead
+      params:
+        n_classes: null
+      loss: 
+        name: CrossEntropyLoss
+        params:
+
+dataset:
+  team_id: 2af31474-a342-49c9-8fa4-786ac83a43a3
+  dataset_id: 64a079d8028d6439d136495d
+  bucket_type: aws

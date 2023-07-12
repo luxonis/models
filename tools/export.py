@@ -1,5 +1,5 @@
 import argparse
-from luxonis_train.core import Trainer
+from luxonis_train.core import Exporter
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -8,13 +8,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args_dict = vars(args)
 
-    trainer = Trainer(args.config, args_dict)
-    trainer.train()
-
-    # Example: train in new thread
-    # import time
-    # trainer.train(new_thread=True)
-    # while True:
-    #     time.sleep(5)
-    #     print(trainer.get_status())
-    #     print(trainer.get_status_percentage(), trainer.get_save_dir())
+    exporter = Exporter(args.config, args_dict)
+    exporter.export()

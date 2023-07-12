@@ -1,3 +1,10 @@
+demo/*
+output/*
+output_export/*
+
+# database
+*.db
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -127,3 +134,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Datasets
+cifar_ldf/*
+cifar_small_ldf/*
+
+# Venv
+models_venv/*

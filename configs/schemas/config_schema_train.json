@@ -700,7 +700,7 @@
                                 "local",
                                 "remote"
                             ],
-                            "default": "remote"
+                            "default": "local"
                         },
                         "if": {
                             "properties": {

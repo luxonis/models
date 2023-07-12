@@ -5,7 +5,6 @@ The work on this project is in an MVP state, so it may be missing some critical 
 
 **Table of contents:**
 - [Installation](#installation)
-  - [Environment variables](#environment-variables)
 - [Configuration](#configuration)
   - [Model](#model)
   - [Trainer](#trainer)
@@ -18,6 +17,7 @@ The work on this project is in an MVP state, so it may be missing some critical 
 - [Inference](#inference)
 - [Exporting](#exporting)
 - [Test Dataset](#test-dataset)
+- [Credentials](#credentials)
 
 
 ## Installation:
@@ -27,34 +27,6 @@ git clone git@github.com:luxonis/models.git && cd models
 python3 -m pip install .
 ```
 ***Note**: This will also install `luxonis-ml` library.*
-
-### Environment variables:
-This library can be also integrated with some cloud services and for these you need to set credentials in your environment. If you are working with LuxonisDataset that is stored on S3 you need to specify this env variables:
-```bash
-AWS_ACCESS_KEY_ID=**********
-AWS_SECRET_ACCESS_KEY=**********
-AWS_S3_ENDPOINT_URL=**********
-```
-
-If you want to use MLFlow for logging and storing artifacts you also need to specify MLFlow related env variables like this:
-```bash
-MLFLOW_CLOUDFLARE_ID=**********
-MLFLOW_CLOUDFLARE_SECRET=**********
-MLFLOW_S3_BUCKET=**********
-MLFLOW_S3_ENDPOINT_URL=**********
-MLFLOW_TRACKING_URI=**********
-```
-
-And if you are using WanDB for logging you have to sign-in first in your environment.
-
-Lastly there is an option for remote storage when using Tuner. Here we use POSTGRES and to connect to the databse you need to specify folowing env variables:
-```bash
-POSTGRES_USER=**********
-POSTGRES_PASSWORD=**********
-POSTGRES_HOST=**********
-POSTGRES_PORT=**********
-POSTGRES_DB=**********
-```
 
 
 ## Configuration:
@@ -291,7 +263,7 @@ tuner:
   timeout: 600 # stop study after the given number of seconds (int)
   storage:
     active: True # if should use storage to make study persistant (bool)
-    type: remote # type of storage, "local" or "remote" (string)
+    type: local # type of storage, "local" or "remote" (string)
   params: # (key, value) pairs for tunning
 ```
 
@@ -301,7 +273,7 @@ tuner:
   params:
     train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
     train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
-    train.batch_size_int: [4, 16, 4]
+    train.batch_size_int: [4, 4, 16]
 ```
 
 When a `tuner` block is specified, you can start tuning like:
@@ -331,7 +303,9 @@ inferer.infer_image(img)
 
 
 ## Exporting
-We support export to ONNX, openVINO and .blob format which is used for OAK cameras. By default we only export to ONNX and you should use **Luxonis modelconverter repository** (still in development) for other formats. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
+We support export to `ONNX`, `OpenVINO`, and `DepthAI .blob format` which is used for OAK cameras. By default, we only export to ONNX, but you can also export to the other two formats by changing the config (see below). We are developing a separate tool for model converting which will support even more formats (TBA).
+
+For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
 
 There is also an option to upload .ckpt, .onnx and config.yaml files to S3 bucket. To do this you have to specify `bucket` and `upload_directory` to configure S3 upload location. If `Config` was initialized with MLFlow path ([look here for options](#initialization)) then files are uploaded to that run as artifacts instead of using specified `bucket` and `upload_directory`.
 
@@ -368,4 +342,38 @@ python3 tools/export.py -cfg configs/custom.yaml
 There is a helper script avaliable used to quickly test the dataset and examine if labels are correct. The script will go over the images in the dataset (validation part) and display them together with all annotations that are present for this particular sample. You must first define `dataset` block in the config and then use it like this:
 ```
 python3 tools/test_dataset.py -cfg configs/custom.yaml 
+```
+
+## Credentials:
+By default local use is supported. But we also integrate some cloud services which can be primarily used for logging and storing. When these are used, you need to load environment variables to set up the correct credentials.
+
+If you are working with LuxonisDataset that is hosted on S3 you need to specify these env variables:
+```bash
+AWS_ACCESS_KEY_ID=**********
+AWS_SECRET_ACCESS_KEY=**********
+AWS_S3_ENDPOINT_URL=**********
+```
+
+If you want to use MLFlow for logging and storing artifacts you also need to specify MLFlow-related env variables like this:
+```bash
+MLFLOW_S3_BUCKET=**********
+MLFLOW_S3_ENDPOINT_URL=**********
+MLFLOW_TRACKING_URI=**********
+```
+
+There is also an option to host MLFlow on your server and if this is the case then you need to specify also variables related to connecting to the server:
+```bash
+MLFLOW_CLOUDFLARE_ID=**********
+MLFLOW_CLOUDFLARE_SECRET=**********
+```
+
+And if you are using WanDB for logging you have to sign in first in your environment.
+
+Lastly, there is an option for remote storage when using `Tuner`. Here we use POSTGRES and to connect to the database you need to specify the folowing env variables:
+```bash
+POSTGRES_USER=**********
+POSTGRES_PASSWORD=**********
+POSTGRES_HOST=**********
+POSTGRES_PORT=**********
+POSTGRES_DB=**********
 ```

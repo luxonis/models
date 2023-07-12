@@ -117,5 +117,5 @@ tuner:
   timeout: null # stop study after the given number of seconds (null|int)
   storage:
     active: True # if should use storage to make study persistant (bool)
-    type: remote # type of storage, "local" or "remote" (string)
+    type: local # type of storage, "local" or "remote" (string)
   params: # (key, value) pairs for tunning

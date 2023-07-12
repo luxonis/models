@@ -361,12 +361,6 @@ MLFLOW_S3_ENDPOINT_URL=**********
 MLFLOW_TRACKING_URI=**********
 ```
 
-There is also an option to host MLFlow on your server and if this is the case then you need to specify also variables related to connecting to the server:
-```bash
-MLFLOW_CLOUDFLARE_ID=**********
-MLFLOW_CLOUDFLARE_SECRET=**********
-```
-
 And if you are using WanDB for logging you have to sign in first in your environment.
 
 Lastly, there is an option for remote storage when using `Tuner`. Here we use POSTGRES and to connect to the database you need to specify the folowing env variables:

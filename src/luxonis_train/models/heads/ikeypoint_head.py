@@ -166,7 +166,7 @@ class IKeypoint(BaseHead):
             output_list_map.append({
                 "boxes": nms[i][:, :4],
                 "scores": nms[i][:, 4],
-                "labels": nms[i][:, 5],
+                "labels": nms[i][:, 5].int(),
             })
 
             curr_label = label[label[:, 0] == i].to(nms[i].device)
@@ -175,7 +175,7 @@ class IKeypoint(BaseHead):
             curr_bboxs[:, 1::2] *= image_size[0]
             label_list_map.append({
                 "boxes": curr_bboxs,
-                "labels": curr_label[:, 1],
+                "labels": curr_label[:, 1].int(),
             })
         
         output_list_oks, label_list_oks = [], [] # TODO: implement oks and add correct output and labels

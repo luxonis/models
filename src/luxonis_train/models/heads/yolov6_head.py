@@ -86,7 +86,7 @@ class YoloV6Head(BaseObjectDetection):
             output_list.append({
                 "boxes": output_nms[i][:,:4],
                 "scores": output_nms[i][:,4],
-                "labels": output_nms[i][:,5]
+                "labels": output_nms[i][:,5].int()
             })
 
             curr_label = label[label[:,0]==i]
@@ -95,7 +95,7 @@ class YoloV6Head(BaseObjectDetection):
             curr_bboxs[:, 1::2] *= image_size[0]
             label_list.append({
                 "boxes": curr_bboxs,
-                "labels": curr_label[:,1]
+                "labels": curr_label[:,1].int()
             })
 
         return output_list, label_list, None

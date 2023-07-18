@@ -37,9 +37,9 @@ def init_metrics(head: nn.Module):
             metrics["f1"] =  torchmetrics.F1Score(task="multilabel", num_labels=head.n_classes)
         elif head_type == HeadType.SEMANTIC_SEGMENTATION:
             metrics["accuracy"] = torchmetrics.Accuracy(task="binary" if is_binary else "multiclass",
-                num_classes=head.n_classes, ignore_index=0 if is_binary else None)
+                num_classes=head.n_classes)
             metrics["mIoU"] = torchmetrics.JaccardIndex(task="binary" if is_binary else "multiclass",
-                num_classes=head.n_classes, ignore_index=0 if is_binary else None)
+                num_classes=head.n_classes)
         elif head_type == HeadType.OBJECT_DETECTION:
             metrics["map"] = MeanAveragePrecision(box_format="xyxy")
         elif head_type == HeadType.KEYPOINT_DETECTION:

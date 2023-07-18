@@ -125,11 +125,12 @@ class IKeypoint(BaseHead):
             xy = (y[..., 0:2] * 2. - 0.5 + self.grid[i]) * self.stride[i]  # xy
             wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
                 1, self.na, 1, 1, 2) # wh
-            x_kpt[..., 0::3] = (x_kpt[..., ::3] * 2. - 0.5 + kpt_grid_x.repeat(
+            a = (x_kpt[..., ::3] * 2. - 0.5 + kpt_grid_x.repeat(
                 1,1,1,1,self.n_keypoints)) * self.stride[i]  # xy
-            x_kpt[..., 1::3] = (x_kpt[..., 1::3] * 2. - 0.5 + kpt_grid_y.repeat(
+            b = (x_kpt[..., 1::3] * 2. - 0.5 + kpt_grid_y.repeat(
                 1,1,1,1,self.n_keypoints)) * self.stride[i]  # xy
-            x_kpt[..., 2::3] = x_kpt[..., 2::3].sigmoid()
+            c = x_kpt[..., 2::3].sigmoid()
+            x_kpt = torch.stack([a, b, c], dim=-1).view(*a.shape[:-1], -1)
 
             y = torch.cat((xy, wh, y[..., 4:], x_kpt), dim = -1)
             z.append(y.view(bs, -1, self.no))
@@ -190,7 +191,7 @@ class IKeypoint(BaseHead):
         bboxes = nms[:, :4]
         img = draw_bounding_boxes(img, bboxes)
         kpts = nms[:, 6:].reshape(-1, self.n_keypoints, 3)
-        img = draw_keypoints(img, kpts, colors='red', connectivity=self.connectivity)
+        img = draw_keypoints(img, kpts[...,:2], colors='red', connectivity=self.connectivity)
         return img
 
     def get_output_names(self, idx: int):

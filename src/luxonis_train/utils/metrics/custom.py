@@ -59,6 +59,7 @@ class ObjectKeypointSimilarity(Metric):
 
     def compute(self):
         """Torchmetric compute function"""
+        self.kpt_sigmas = self.kpt_sigmas.to(self.device) # explicitly move to current device
         images_oks = torch.zeros(len(self.groundtruth_keypoints))
         # iterate over all images
         for i, (pred_kpts, gt_kpts, gt_scales) in enumerate(

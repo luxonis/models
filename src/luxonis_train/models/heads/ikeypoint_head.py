@@ -244,8 +244,10 @@ class IKeypoint(BaseHead):
         nms = non_max_suppression_kpts(output[0])
         output_list_map = []
         output_list_oks = []
+        output_list_kpt_map = []
         label_list_map = []
         label_list_oks = []
+        label_list_kpt_map = []
         image_size = self.original_in_shape[2:]
 
         for i in range(len(nms)):
@@ -257,6 +259,14 @@ class IKeypoint(BaseHead):
                 }
             )
             output_list_oks.append({"keypoints": nms[i][:, 6:]})
+            output_list_kpt_map.append(
+                {
+                    "boxes": nms[i][:, :4],
+                    "scores": nms[i][:, 4],
+                    "labels": nms[i][:, 5].int(),
+                    "keypoints": nms[i][:, 6:],
+                }
+            )
 
             curr_label = label[label[:, 0] == i].to(nms[i].device)
             curr_bboxs = box_convert(curr_label[:, 2:6], "cxcywh", "xyxy")
@@ -268,7 +278,6 @@ class IKeypoint(BaseHead):
                     "labels": curr_label[:, 1].int(),
                 }
             )
-
             curr_kpts = curr_label[:, 6:]
             curr_kpts[:, 0::3] *= image_size[1]
             curr_kpts[:, 1::3] *= image_size[0]
@@ -276,12 +285,19 @@ class IKeypoint(BaseHead):
             curr_bboxs_heights = curr_bboxs[:, 3] - curr_bboxs[:, 1]
             curr_scales = torch.sqrt(curr_bboxs_widths * curr_bboxs_heights)
             label_list_oks.append({"keypoints": curr_kpts, "scales": curr_scales})
+            label_list_kpt_map.append(
+                {
+                    "boxes": curr_bboxs,
+                    "labels": curr_label[:, 1].int(),
+                    "keypoints": curr_kpts,
+                }
+            )
 
         # metric mapping is needed here because each metrics requires different output/label format
-        metric_mapping = {"map": 0, "oks": 1}
+        metric_mapping = {"map": 0, "oks": 1, "kpt_map": 2}
         return (
-            (output_list_map, output_list_oks),
-            (label_list_map, label_list_oks),
+            (output_list_map, output_list_oks, output_list_kpt_map),
+            (label_list_map, label_list_oks, label_list_kpt_map),
             metric_mapping,
         )
 

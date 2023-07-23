@@ -43,11 +43,11 @@ In the first one you defined `backbone`, `neck` and list of `heads`, where you c
 model:
   name: test_model
   type: # leave this empty (null)
-  pretrained: # local path to weights for whole model (overrides backbone weights) (string)
+  pretrained: # path to weights for whole model (overrides backbone weights) (string)
 
   backbone:
     name: # neme of the backbone (e.g. ResNet18)
-    pretrained: # local path to weights for backbone (string)
+    pretrained: # path to weights for backbone (string)
     params: # params specific to this backbone (dict)
 
   # neck is optional
@@ -72,7 +72,7 @@ The second use case is choosing from a list of predefined model arhitectures ([l
 model:
   name: predefined_model
   type: # name of predefined arhitecture (e.g. YoloV6-n) (string)
-  pretrained: # local path to weights for whole model (string)
+  pretrained: # path to weights for whole model (string)
   params: # model-wise params (dict)
 
   # additional heads are optional, you can define multiple heads
@@ -87,6 +87,13 @@ model:
 ```
 
 You can see the list of all currently supported loss functions and their parameters [here](./src/luxonis_train/utils/losses/README.md).
+
+#### Paths
+You can specify `pretrained` paths under `model` and `backbone` in one of these formats:
+- `local path` (e.g. `path/to/ckpt` or `file://path/to/ckpt`)
+- `s3 path` (e.g. `s3://<bucket>/path/to/ckpt`)
+- `mlflow path` (e.g. `mlflow://<project_id>/<run_id>/path/to/ckpt` - path is relative to base artifacts path).
+
 #### Advanced configuration:
 Every head also supports the `attach_index` parameter which specifies on which backbone/neck layer should the head attach to. Layers are indexed from 0 to N where N is the last layer (closest to the head). By default `attach_index` is set to -1 for all heads which means that the head attaches to the last previous layer (Python list index convention is used here).
 
@@ -138,7 +145,10 @@ Here you can change everything related to actual training of the model.
 
 We use [Albumentations](https://albumentations.ai/docs/) library for `augmentations`. [Here](https://albumentations.ai/docs/api_reference/full_reference/#pixel-level-transforms) you can see a list of all pixel level augmentations supported, and [here](https://albumentations.ai/docs/api_reference/full_reference/#spatial-level-transforms) you see all spatial level transformations. In config you can specify any augmentation from this lists and their params.
 
-For `callbacks` Pytorch Lightning is used and you can check [here](https://lightning.ai/docs/pytorch/stable/extensions/callbacks.html) for parameter definitions. We also provide you with two additional callbacks for automatically running test and export on train finish (`test_on_finish` and `export_on_finish` respectively). If `export_on_finish` is used then we will use config from the `exporter` block (explained [here](#exporting)) but for `export_weights` we will use the best checkpoint (based on validation loss) from the current run.
+For `callbacks` Pytorch Lightning is used and you can check [here](https://lightning.ai/docs/pytorch/stable/extensions/callbacks.html) for parameter definitions. We also provide some additional callbacks:
+- `test_on_finish` - Runs test on the test set with best weights on train finish.
+- `export_on_finish` - Runs Exporter when training finishes with parameters set in `export block`. Export weights are automatically set to best weights based on validation loss and if `override_upload_directory` is set then `exporter.upload.upload_directory` is overridden with current MLFlow run (if active). **Note:** You still have to set `exporter.upload.active` to True for this to take effect.
+- `upload_checkpoint_on_finish` - Uploads currently best checkpoint (based on validation loss) to the specified remote storage. This can be s3, existing MLFlow, or current MLFlow run (for this use `mlflow://` with no project or run id). See [here](#paths) for examples but note that local path is not valid in this case.
 
 
 For `optimizers` we use Pytorch library. You can see [here](https://pytorch.org/docs/stable/optim.html) all available optimizers and schedulers.
@@ -172,10 +182,15 @@ train:
 
   callbacks: # callback specific parameters (check PL docs)
     test_on_finish: False # bool if should run test when train loop finishes (bool)
-    export_on_finish: False # bool if should run export when train loop finishes - should specify config block (bool)
     use_device_stats_monitor: False # bool if should use device stats monitor during training (bool)
+    export_on_finish: # run export when train loop finishes - takes parameters from export block (bool)
+      active: False
+      override_upload_directory: True # if active mlflow run then use it as upload directory (if upload active in export block)
     model_checkpoint:
       save_top_k: 3
+    upload_checkpoint_on_finish: # uploads best checkpoint based on val loss when train loop finishes
+      active: False
+      upload_directory: null # either path to s3 or mlflow, if empty mlflow then use current run - should activate mlflow in logger (string)
     early_stopping:
       active: True
       monitor: val_loss/loss
@@ -205,14 +220,16 @@ train:
 ### Initialization
 You can initialize config object by passing one of:
 - Python dictionary
-- Path to local .yaml file
-- Path to MLFlow artifact with config.json file. This path has to be formated like this: `mlflow://<experiment_id>/<run_id>`
+- Path to local or remote .yaml file. The supported formats for paths can be seen [here](#paths)
+
 After that you can create a Config object like:
 ```python
 from luxonis_train.utils.config import Config
 cfg = Config(data)
 ```
 ***Note**: Config is a singleton object, so once created, you can initialize it without a path/dictionary and access its data. If you want to delete it you can call `Config.clear_instance()`.*
+
+***Note**: If `Config` is initialized with path to an existing MLFlow run and `logger.is_mlflow` is set to True then the logging will continue in this run (meaning no new MLFlow run will be created).* 
 
 ## Training
 Once you've configured your `custom.yaml` file you can train the model using this command:
@@ -307,7 +324,8 @@ We support export to `ONNX`, `OpenVINO`, and `DepthAI .blob format` which is use
 
 For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
 
-There is also an option to upload .ckpt, .onnx and config.yaml files to S3 bucket. To do this you have to specify `bucket` and `upload_directory` to configure S3 upload location. If `Config` was initialized with MLFlow path ([look here for options](#initialization)) then files are uploaded to that run as artifacts instead of using specified `bucket` and `upload_directory`.
+There is also an option to upload .ckpt, .onnx and config.yaml files to remote storage. If this is active you need to specify `upload_directory`. See [here](#paths) for examples but note that local path is not valid in this case. **Note**: This path can be overridden by `train.callbacks.export_on_finish` callback.
+
 
 ```yaml
 exporter:
@@ -327,10 +345,9 @@ exporter:
   blobconverter:
     active: False # bool if export to blob (bool)
     shaves: 6 # number of shaves used (int)
-  s3_upload:
-    active: False # bool if upload .ckpt, .onnx and config file to S3 bucket (bool)
-    bucket: null # name of the S3 bucket (string)
-    upload_directory: null # location of directory for upload (string)
+  upload: # uploads .ckpt, .onnx, config file and modelconverter config file
+    active: False  # bool if upload active (bool)
+    upload_directory: null # either path to s3 or existing mlflow run (string)
 ```
 
 Once you have the config file ready you can export the model like this:

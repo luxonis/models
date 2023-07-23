@@ -16,6 +16,7 @@ from luxonis_train.utils.optimizers import init_optimizer
 from luxonis_train.utils.schedulers import init_scheduler
 from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
+from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
 class ModelLightningModule(pl.LightningModule):
@@ -147,10 +148,27 @@ class ModelLightningModule(pl.LightningModule):
 
             callbacks.append(TestOnTrainEnd())
 
-        if self.cfg.get("train.callbacks.export_on_finish"):
+        if self.cfg.get("train.callbacks.export_on_finish.active"):
             from luxonis_train.utils.callbacks import ExportOnTrainEnd
 
-            callbacks.append(ExportOnTrainEnd())
+            callbacks.append(
+                ExportOnTrainEnd(
+                    override_upload_directory=self.cfg.get(
+                        "train.callbacks.export_on_finish.override_upload_directory"
+                    )
+                )
+            )
+
+        if self.cfg.get("train.callbacks.upload_checkpoint_on_finish.active"):
+            from luxonis_train.utils.callbacks import UploadCheckpointOnTrainEnd
+
+            callbacks.append(
+                UploadCheckpointOnTrainEnd(
+                    upload_directory=self.cfg.get(
+                        "train.callbacks.upload_checkpoint_on_finish.upload_directory"
+                    )
+                )
+            )
 
         return callbacks
 
@@ -175,7 +193,9 @@ class ModelLightningModule(pl.LightningModule):
     def load_checkpoint(self, path: str):
         """Loads checkpoint weights from provided path"""
         print(f"Loading weights from: {path}")
-        state_dict = torch.load(path)["state_dict"]
+        fs = LuxonisFileSystem(path)
+        checkpoint = torch.load(fs.read_to_byte_buffer())
+        state_dict = checkpoint["state_dict"]
         self.load_state_dict(state_dict)
 
     def forward(self, inputs: torch.Tensor):

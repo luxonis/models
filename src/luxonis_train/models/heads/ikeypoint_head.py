@@ -10,9 +10,10 @@ from typing import List
 from torchvision.ops import box_convert
 from torchvision.utils import draw_bounding_boxes, draw_keypoints
 
+from luxonis_ml.loader import LabelType
 from luxonis_train.models.heads.base_heads import BaseHead
 from luxonis_train.models.modules import ConvModule, autopad
-from luxonis_train.utils.constants import HeadType, LabelType
+from luxonis_train.utils.constants import HeadType
 from luxonis_train.utils.boxutils import non_max_suppression_kpts
 
 

@@ -2,9 +2,9 @@ FROM nvcr.io/nvidia/pytorch:23.04-py3
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y git wget python3-dev gcc s3fs ffmpeg libsm6 libxext6 curl libfreetype6-dev libssl-dev libpng-dev
+RUN apt-get update && apt-get install -y git wget python3-dev gcc s3fs ffmpeg libsm6 libxext6 curl libfreetype6-dev libssl-dev libpng-dev --no-install-recommends
 
-RUN pip3 uninstall opencv PIL pillow -y
+RUN pip3 uninstall opencv PIL pillow torch -y
 
 RUN useradd -ms /bin/bash luxonis
 

@@ -248,11 +248,11 @@ class Config:
 
     def _validate_dataset_classes(self):
         """ Validates config to used datasets, overrides n_classes if needed """
+        print(self._data["dataset"]["team_id"])
+        print(self._data["dataset"]["dataset_id"])
         with LuxonisDataset(
             team_id=self._data["dataset"]["team_id"],
             dataset_id=self._data["dataset"]["dataset_id"],
-            bucket_type=self._data["dataset"]["bucket_type"],
-            override_bucket_type=self._data["dataset"]["override_bucket_type"]
         ) as dataset:
             classes, classes_by_task = dataset.get_classes()
             dataset_n_classes = len(classes)

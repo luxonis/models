@@ -1,5 +1,5 @@
 model:
-  name: SimpleDetection
+  name: AdvancedDetectionSegmentation
   type: yolov6-n
   pretrained:
   params:
@@ -16,7 +16,7 @@ model:
 dataset:
   team_id: # TODO
   dataset_id: # TODO
-  
+
 train:
   preprocessing:
     train_image_size: [512,512]

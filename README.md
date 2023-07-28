@@ -1,11 +1,10 @@
 # Luxonis training library
-Luxonis training library (luxonis-train) is intended for training deep learning models that can run fast on OAK products. We currently support image classification (multi-class and multi-label), semantic segmentation and object detection tasks. The library also depends on `Luxonis Dataset Format`, which you can see [here](https://github.com/luxonis/luxonis-ml). The main idea is that the user can quickly build a model, that can run on edge devices, by defining model components through config or choose from predefined models, and train it.
+Luxonis training library (luxonis-train) is intended for training deep learning models that can run fast on OAK products. We currently support image classification (multi-class and multi-label), semantic segmentation, object detection and keypoint detection tasks. The library also depends on `Luxonis Dataset Format`, which you can see [here](https://github.com/luxonis/luxonis-ml). The main idea is that the user can quickly build a model, that can run on edge devices, by defining model components through config or choose from predefined models, and train it.
 
 The work on this project is in an MVP state, so it may be missing some critical features or have some issues - please report any feedback!
 
 **Table of contents:**
 - [Installation](#installation)
-  - [Install as a package](#install-as-a-package)
 - [Configuration](#configuration)
   - [Model](#model)
   - [Trainer](#trainer)
@@ -18,17 +17,17 @@ The work on this project is in an MVP state, so it may be missing some critical 
 - [Inference](#inference)
 - [Exporting](#exporting)
 - [Test Dataset](#test-dataset)
+- [Credentials](#credentials)
 
 
 ## Installation:
-Since this package relys on `luxonis-ml` library you should first install this as specified [here](https://github.com/luxonis/luxonis-ml/tree/main#installation-and-setup).
-
-### Install as a package
-If you want to use classes from this library anywhere you can install `luxonis-train` as a package like this:
-```
+To install this library you can commands below:
+```bash
 git clone -b dev git@github.com:luxonis/models.git && cd models
-python3 -m pip install -e .
+python3 -m pip install .
 ```
+***Note**: This will also install `luxonis-ml` library.*
+
 
 ## Configuration:
 Most of the work is done through a `config.yaml` file, which you must pass as an argument to the Trainer. Config file consists of a few major blocks that are described below. You can create your own config or use/edit one of the already made ones.
@@ -36,7 +35,7 @@ Most of the work is done through a `config.yaml` file, which you must pass as an
 ### Model:
 This is the most important block, that **must be always defined by the user**. There are two different ways you can create the model. 
 
-In the first one you defined `backbone`, `neck` and list of `heads`, where you choose each module from a list of supported ones (list of all [backbones](./luxonis_train/models/backbones/README.md), [necks](./luxonis_train/models/necks/README.md) and [heads](./luxonis_train/models/heads/README.md)). If `n_classes` is not set for the head or is set to `null` then this value will be inherited from the dataset.
+In the first one you defined `backbone`, `neck` and list of `heads`, where you choose each module from a list of supported ones (list of all [backbones](./src/luxonis_train/models/backbones/README.md), [necks](./src/luxonis_train/models/necks/README.md) and [heads](./src/luxonis_train/models/heads/README.md)). If `n_classes` is not set for the head or is set to `null` then this value will be inherited from the dataset.
 
 ***Note**: Every model must have 1 bacbone and at least 1 head (neck is optional).*
 
@@ -67,7 +66,7 @@ model:
         params: # params specific to this loss function (dict)
 ```
 
-The second use case is choosing from a list of predefined model arhitectures ([list](./luxonis_train/models/README.md)) and optionally adding additional heads. In this case you define model block in config like this:
+The second use case is choosing from a list of predefined model arhitectures ([list](./src/luxonis_train/models/README.md)) and optionally adding additional heads. In this case you define model block in config like this:
 
 ```yaml
 model:
@@ -87,7 +86,7 @@ model:
         params: # params specific to this loss function (dict)
 ```
 
-You can see the list of all currently supported loss functions and their parameters [here](./luxonis_train/utils/losses/README.md).
+You can see the list of all currently supported loss functions and their parameters [here](./src/luxonis_train/utils/losses/README.md).
 #### Advanced configuration:
 Every head also supports the `attach_index` parameter which specifies on which backbone/neck layer should the head attach to. Layers are indexed from 0 to N where N is the last layer (closest to the head). By default `attach_index` is set to -1 for all heads which means that the head attaches to the last previous layer (Python list index convention is used here).
 
@@ -228,7 +227,7 @@ python3 tools/train.py -cfg configs/custom.yaml --override "train.batch_size 8 t
 where key and value are space separated and sub-keys are dot(`.`) separated. If structure is of type list then key/sub-key should be a number (e.g. `train.preprocessing.augmentations.0.name RotateCustom`).
 
 ## Customize Trainer through API
-Before trainig the model you can also additionaly configure it with the use of our [Trainer](./luxonis_train/core/trainer.py) API. Look at [train.py](./tools/train.py) to see how Trainer is initialized. 
+Before trainig the model you can also additionaly configure it with the use of our [Trainer](./src/luxonis_train/core/trainer.py) API. Look at [train.py](./tools/train.py) to see how Trainer is initialized. 
 
 From there you can override the loss function for specific head by calling: 
 ```python
@@ -264,7 +263,7 @@ tuner:
   timeout: 600 # stop study after the given number of seconds (int)
   storage:
     active: True # if should use storage to make study persistant (bool)
-    type: remote # type of storage, "local" or "remote" (string)
+    type: local # type of storage, "local" or "remote" (string)
   params: # (key, value) pairs for tunning
 ```
 
@@ -274,7 +273,7 @@ tuner:
   params:
     train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
     train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
-    train.batch_size_int: [4, 16, 4]
+    train.batch_size_int: [4, 4, 16]
 ```
 
 When a `tuner` block is specified, you can start tuning like:
@@ -304,7 +303,9 @@ inferer.infer_image(img)
 
 
 ## Exporting
-We support export to ONNX, openVINO and .blob format which is used for OAK cameras. By default we only export to ONNX and you should use [modelconverter](TODO) repository for other formats. For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
+We support export to `ONNX`, `OpenVINO`, and `DepthAI .blob format` which is used for OAK cameras. By default, we only export to ONNX, but you can also export to the other two formats by changing the config (see below). We are developing a separate tool for model converting which will support even more formats (TBA).
+
+For export you must use the same `model` configuration as in training in addition to `exporter` block in config. In this block you must define `export_weights`, other parameters are optional and can be left as default.
 
 There is also an option to upload .ckpt, .onnx and config.yaml files to S3 bucket. To do this you have to specify `bucket` and `upload_directory` to configure S3 upload location. If `Config` was initialized with MLFlow path ([look here for options](#initialization)) then files are uploaded to that run as artifacts instead of using specified `bucket` and `upload_directory`.
 
@@ -341,4 +342,32 @@ python3 tools/export.py -cfg configs/custom.yaml
 There is a helper script avaliable used to quickly test the dataset and examine if labels are correct. The script will go over the images in the dataset (validation part) and display them together with all annotations that are present for this particular sample. You must first define `dataset` block in the config and then use it like this:
 ```
 python3 tools/test_dataset.py -cfg configs/custom.yaml 
+```
+
+## Credentials:
+By default local use is supported. But we also integrate some cloud services which can be primarily used for logging and storing. When these are used, you need to load environment variables to set up the correct credentials.
+
+If you are working with LuxonisDataset that is hosted on S3 you need to specify these env variables:
+```bash
+AWS_ACCESS_KEY_ID=**********
+AWS_SECRET_ACCESS_KEY=**********
+AWS_S3_ENDPOINT_URL=**********
+```
+
+If you want to use MLFlow for logging and storing artifacts you also need to specify MLFlow-related env variables like this:
+```bash
+MLFLOW_S3_BUCKET=**********
+MLFLOW_S3_ENDPOINT_URL=**********
+MLFLOW_TRACKING_URI=**********
+```
+
+And if you are using WanDB for logging you have to sign in first in your environment.
+
+Lastly, there is an option for remote storage when using `Tuner`. Here we use POSTGRES and to connect to the database you need to specify the folowing env variables:
+```bash
+POSTGRES_USER=**********
+POSTGRES_PASSWORD=**********
+POSTGRES_HOST=**********
+POSTGRES_PORT=**********
+POSTGRES_DB=**********
 ```

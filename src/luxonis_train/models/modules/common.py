@@ -15,6 +15,15 @@ class ConvModule(nn.Sequential):
             activation
         )
 
+def autopad(k, p=None):
+    """ Compute padding based on kernel size
+        Source: https://github.com/WongKinYiu/yolov7/blob/pose/models/common.py
+    """
+    if p is None:
+        p = k // 2 if isinstance(k, int) else [x // 2 for x in k]  # auto-pad
+    return p
+
+
 class Up(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size=2, stride=2):
         """ Upsampling with ConvTranpose2D (similar to U-Net Up block) """

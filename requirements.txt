@@ -9,8 +9,7 @@ torchmetrics>=0.11.0
 torchvision>=0.13.1
 tensorboard>=2.10.1
 rich
-PyQt6
-luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@dev
+luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@3beafa503825b8b1a1d98faaf98312d170f96865
 # tunning related packages
 optuna>=3.2.0
 psycopg2-binary

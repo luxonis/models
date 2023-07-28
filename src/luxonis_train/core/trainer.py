@@ -14,7 +14,6 @@ from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentation
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.head_type import *
 
 class Trainer:
     def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):
@@ -80,8 +79,6 @@ class Trainer:
         with LuxonisDataset(
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=self.cfg.get("dataset.bucket_type"),
-            override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:
 
             if self.train_augmentations == None:
@@ -162,8 +159,6 @@ class Trainer:
         with LuxonisDataset(
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=self.cfg.get("dataset.bucket_type"),
-            override_bucket_type=self.cfg.get("dataset.override_bucket_type")
         ) as dataset:
 
             if self.test_augmentations == None:

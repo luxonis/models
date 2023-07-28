@@ -7,40 +7,5 @@ model:
     is_4head: False
 
 dataset:
-  team_id: testid #2af31474-a342-49c9-8fa4-786ac83a43a3 #luxonis_team_id #luxonis # TODO
-  dataset_id: 64a6edf425018deb47c07984 #64a079d8028d6439d136495d #coco_sample_people  # TODO
-  bucket_type: aws
-
-logger:
-  is_wandb: False 
-  wandb_entity: luxonis
-  project_name: ml-ops-train
-  project_id: null #19
-  is_mlflow: False
-
-train:
-  callbacks:
-    test_on_finish: False #True
-    export_on_finish: True
-
-tuner:
-  params:
-    train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
-    train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
-    train.batch_size_int: [4, 16, 4]
-
-exporter:
-  export_weights: /home/klemen/luxonis/models/output/1-black-impala/best_val_metric/map=0.0271_loss=2.1368_39_SimpleDetection.ckpt
-  export_model_name: test-model-3
-  onnx:
-    opset_version: 12 # opset version of onnx used (int)
-    dynamic_axes: null # define if dynamic input shapes are used (dict)
-  openvino:
-    active: False # bool if export to openvino (bool)
-  blobconverter:
-    active: False # bool if export to blob (bool)
-    shaves: 6 # number of shaves used (int)
-  s3_upload:
-    active: True # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)
-    # bucket: luxonis-test-bucket # name of the s3 bucket (string)
-    # upload_directory: luxonis-train # location of directory for upload (string)
+  team_id: # TODO
+  dataset_id: # TODO

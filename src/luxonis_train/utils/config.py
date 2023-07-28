@@ -185,7 +185,6 @@ class Config:
                 model_cfg["backbone"]["params"]["is_4head"] = value
                 model_cfg["neck"]["params"]["is_4head"] = value
                 model_cfg["heads"][0]["params"]["is_4head"] = value
-                model_cfg["heads"][0]["loss"]["params"]["is_4head"] = value
 
         if "additional_heads" in model_cfg and isinstance(model_cfg["additional_heads"], list):
             model_cfg["heads"].extend(model_cfg["additional_heads"])
@@ -249,11 +248,11 @@ class Config:
 
     def _validate_dataset_classes(self):
         """ Validates config to used datasets, overrides n_classes if needed """
+        print(self._data["dataset"]["team_id"])
+        print(self._data["dataset"]["dataset_id"])
         with LuxonisDataset(
             team_id=self._data["dataset"]["team_id"],
             dataset_id=self._data["dataset"]["dataset_id"],
-            bucket_type=self._data["dataset"]["bucket_type"],
-            override_bucket_type=self._data["dataset"]["override_bucket_type"]
         ) as dataset:
             classes, classes_by_task = dataset.get_classes()
             dataset_n_classes = len(classes)

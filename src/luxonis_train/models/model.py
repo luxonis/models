@@ -32,14 +32,14 @@ class Model(nn.Module):
         
         if "neck" in modules_cfg and modules_cfg["neck"]:
             self.neck = eval(modules_cfg["neck"]["name"])(
-                    prev_out_shape = self.backbone_out_shapes,
+                    prev_out_shapes = self.backbone_out_shapes,
                     **modules_cfg["neck"].get("params", {})
                 )
             self.neck_out_shapes = dummy_input_run(self.neck, self.backbone_out_shapes, multi_input=True)
 
         for head in modules_cfg["heads"]:
             curr_head = eval(head["name"])(
-                    prev_out_shape = self.neck_out_shapes if self.neck else self.backbone_out_shapes,
+                    prev_out_shapes = self.neck_out_shapes if self.neck else self.backbone_out_shapes,
                     original_in_shape = dummy_input_shape,
                     **head["params"],
                 )

@@ -1,0 +1,17 @@
+model:
+  name: SimpleDetection-Tuner
+  type: yolov6-n
+  pretrained:
+  params:
+    n_classes: null
+    is_4head: False
+
+dataset:
+  team_id: # TODO
+  dataset_id: # TODO
+
+tuner:
+  params: # (key, value) pairs for tunning
+    train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
+    train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
+    train.batch_size_int: [4, 4, 16]

@@ -1,10 +1,11 @@
 import unittest
 import os
 from luxonis_train.utils.config import Config
+from dotenv import load_dotenv
 
-DATASET_PATH = "/home/klemen/luxonis/test_datasets/datasets/coco-2017-person"
-TEAM_NAME = "luxonis"
-DATASET_NAME = "ppsr"
+TEAM_ID = "2af31474-a342-49c9-8fa4-786ac83a43a3"
+DATASET_ID = "64a079d8028d6439d136495d"
+BUCKET_TYPE = "aws"
 
 def reset_env():
     """ Removes Config() instance from current envirnoment. """
@@ -64,8 +65,9 @@ class ConfigDictTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             }
         }
         try:
@@ -82,8 +84,9 @@ class ConfigDictTestCases(unittest.TestCase):
         """ Test passing dir without model definition """
         user_cfg_dict = {
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             }
         }
         with self.assertRaises(KeyError):
@@ -110,8 +113,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                         }
                     },
                     "dataset":{
-                        "team_name": TEAM_NAME,
-                        "dataset_name": DATASET_NAME
+                        "team_id": TEAM_ID,
+                        "dataset_id": DATASET_ID,
+                        "bucket_type": BUCKET_TYPE
                     }
                 }
                 try:
@@ -135,8 +139,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                         }
                     },
                     "dataset":{
-                        "team_name": TEAM_NAME,
-                        "dataset_name": DATASET_NAME
+                        "team_id": TEAM_ID,
+                        "dataset_id": DATASET_ID,
+                        "bucket_type": BUCKET_TYPE
                     }
                 }
                 with self.assertRaises(ValueError):
@@ -173,8 +178,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                 }
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             }
         }
         with self.assertRaises(KeyError):
@@ -192,8 +198,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                 }
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             },
             "train":{
                 "optimizers":{
@@ -221,13 +228,14 @@ class ConfigValuesTestCases(unittest.TestCase):
                 }
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             },
         }
         cfg = Config(user_cfg_dict)
         self.assertEqual(cfg.get("trainer.num_sanity_val_steps"), 2) # one level deep
-        self.assertEqual(cfg.get("dataset.dataset_name"), DATASET_NAME) # one level deep
+        self.assertEqual(cfg.get("dataset.dataset_id"), DATASET_ID) # one level deep
         self.assertEqual(cfg.get("dataset.train_view"), "train") # get string
         self.assertEqual(cfg.get("train.batch_size"), 32) # get int
         self.assertEqual(cfg.get("train.skip_last_batch"), True) # get boolean
@@ -246,8 +254,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                 }
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             },
         }
         cfg = Config(user_cfg_dict)
@@ -289,8 +298,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             },
         }
         cfg = Config(user_cfg_dict)
@@ -313,8 +323,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             },
         }
         with self.subTest(i=0):
@@ -334,8 +345,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             },
         }
         with self.subTest(i=1):
@@ -363,8 +375,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             },
             "train": {
                 "freeze_modules": {
@@ -396,8 +409,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                 ]
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             },
             "train": {
                 "losses": {
@@ -421,8 +435,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                 }
             },
             "dataset":{
-                "team_name": TEAM_NAME,
-                "dataset_name": DATASET_NAME
+                "team_id": TEAM_ID,
+                "dataset_id": DATASET_ID,
+                "bucket_type": BUCKET_TYPE
             },
         }
 
@@ -453,4 +468,6 @@ class ConfigValuesTestCases(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    load_dotenv()
+
     unittest.main()

@@ -7,7 +7,8 @@ class CrossEntropyLoss(nn.Module):
         super(CrossEntropyLoss, self).__init__()
         self.n_classes = kwargs.get("n_classes")
         loss_dict = kwargs
-        loss_dict.pop("n_classes")
+        loss_dict.pop("n_classes", None)
+        loss_dict.pop("head_attributes", None)
         self.criterion = nn.CrossEntropyLoss(
             **loss_dict
         )
@@ -23,7 +24,8 @@ class BCEWithLogitsLoss(nn.Module):
         super(BCEWithLogitsLoss, self).__init__()
         self.n_classes = kwargs.get("n_classes")
         loss_dict = kwargs
-        loss_dict.pop("n_classes")
+        loss_dict.pop("n_classes", None)
+        loss_dict.pop("head_attributes", None)
         self.criterion = nn.BCEWithLogitsLoss(
             **loss_dict
         )
@@ -37,11 +39,12 @@ class FocalLoss(nn.Module):
         super(FocalLoss, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
+        self.use_sigmoid = kwargs.get("use_sigmoid", True)
 
     def forward(self, inputs, targets, **kwargs):
 
-        #comment out if your model contains a sigmoid or equivalent activation layer
-        inputs = torch.sigmoid(inputs)
+        if self.use_sigmoid:
+            inputs = torch.sigmoid(inputs)
 
         #flatten label and prediction tensors
         inputs = inputs.view(-1).to(torch.float32)

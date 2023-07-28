@@ -3,29 +3,32 @@
 # License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
 #
 
-
 import torch
 import torch.nn as nn
 import math
 
-from luxonis_train.utils.head_type import ObjectDetection
-from luxonis_train.models.modules import ConvModule 
+from luxonis_train.models.modules import ConvModule
+from luxonis_train.models.heads.base_heads import BaseObjectDetection
 
-class EffiDeHead(nn.Module):
-    def __init__(self, prev_out_shape, n_classes, n_anchors=1, **kwargs):
-        super(EffiDeHead, self).__init__()
-        
-        self.n_classes = n_classes
-        self.type = ObjectDetection()
-        self.original_in_shape = kwargs["original_in_shape"]
-        self.attach_index = kwargs.get("attach_index", -1)
-        self.prev_out_shape = prev_out_shape[self.attach_index]
+class EffiDeHead(BaseObjectDetection):
+    def __init__(self, n_classes: int, prev_out_shapes: list, original_in_shape: list, attach_index: int = -1,
+        n_anchors:int = 1):
+        """EffieDeHead object detection head which is part of YoloV6 head
+
+        Args:
+            n_classes (int): Number of classes
+            prev_out_shapes (list): List of shapes of previous outputs
+            original_in_shape (list): Original input shape to the model
+            attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
+            n_anchors (int, optional): Should stay default. Defaults to 1.
+        """
+        super().__init__(n_classes=n_classes, prev_out_shapes=prev_out_shapes, 
+            original_in_shape=original_in_shape, attach_index=attach_index)
 
         self.n_anchors = n_anchors
         self.prior_prob = 1e-2
 
-        in_channels = self.prev_out_shape[1]
-
+        in_channels = self.prev_out_shapes[self.attach_index][1]
         self.head = nn.Sequential(*[
             # stem
             ConvModule(

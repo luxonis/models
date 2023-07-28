@@ -102,8 +102,14 @@ class FeatureFusionModule(nn.Module):
         return fm + fm * fm_se
 
 class ContextSpatial(nn.Module):
-    def __init__(self, context_backbone='MobileNetV2', in_channels=3) -> None:
-        super(ContextSpatial, self).__init__()
+    def __init__(self, context_backbone: str = 'MobileNetV2', in_channels: int = 3):
+        """Context spatial backbone
+
+        Args:
+            context_backbone (str, optional): Backbone used. Defaults to 'MobileNetV2'.
+            in_channels (int, optional): Number of input channels, should be 3 in most cases. Defaults to 3.
+        """
+        super().__init__()
         self.context_path = ContextPath(eval(context_backbone)())
         self.spatial_path = SpatialPath(3, 128)
         self.ffm = FeatureFusionModule(256, 256)

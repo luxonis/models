@@ -10,19 +10,20 @@ from luxonis_train.models.modules import RepVGGBlock, RepBlock, SimplifiedSPPF
 from luxonis_train.utils.general import make_divisible
 
 class EfficientRep(nn.Module):
-    '''EfficientRep Backbone
-    EfficientRep is handcrafted by hardware-aware neural network design.
-    With rep-style struct, EfficientRep is friendly to high-computation hardware(e.g. GPU).
-    '''
+    def __init__(self, channels_list: list, num_repeats: list, in_channels: int = 3, depth_mul: float = 0.33,
+        width_mul: float = 0.25, is_4head: bool = False):
+        """EfficientRep backbone, normally used with YoloV6 model.
 
-    def __init__(self, in_channels=3, channels_list=None, num_repeats=None, depth_mul=0.33,
-        width_mul=0.25, is_4head=False):
-        super(EfficientRep, self).__init__()
-
-        if channels_list is None:
-            raise ValueError("'channel_list' cannot be None")
-        if num_repeats is None:
-            raise ValueError("'num_repeats' cannot be None")
+        Args:
+            channels_list (list): List of number of channels for each block
+            num_repeats (list): List of number of repeats of RepBlock
+            in_channels (int, optional): Number of input channels, should be 3 in most cases . Defaults to 3.
+            depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
+            width_mul (float, optional): Width multiplier. Defaults to 0.25.
+            is_4head (bool, optional): Either build 4 headed architecture or 3 headed one \
+                (**Important: Should be same also on neck and head**). Defaults to False.
+        """
+        super().__init__()
 
         channels_list = [make_divisible(i * width_mul, 8) for i in channels_list]
         num_repeats = [(max(round(i * depth_mul), 1) if i > 1 else i) for i in num_repeats]

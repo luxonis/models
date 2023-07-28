@@ -319,6 +319,75 @@ class IKeypoint(BaseHead):
         # TODO: check if this is correct output name
         return f"output{idx}"
 
+    def to_deploy(self):
+        # change definition of forward()
+        def deploy_forward(inputs):
+            z = []  # inference output
+            x = []  # layer outputs
+
+            if self.anchor_grid.device != inputs[0].device:
+                self.anchor_grid = self.anchor_grid.to(inputs[0].device)
+
+            for i in range(self.nl):
+                x.append(
+                    torch.cat(
+                        (
+                            self.im[i](self.m[i](self.ia[i](inputs[i]))),
+                            self.m_kpt[i](inputs[i]),
+                        ),
+                        axis=1,
+                    )
+                )  # type: ignore
+
+                bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
+                x[i] = (
+                    x[i]
+                    .view(bs, self.na, self.no, ny, nx)
+                    .permute(0, 1, 3, 4, 2)
+                    .contiguous()
+                )
+                x_det = x[i][..., : 5 + self.n_classes]
+                x_kpt = x[i][..., 5 + self.n_classes :]
+
+                # from this point down only needed for inference
+                if self.grid[i].shape[2:4] != x[i].shape[2:4]:
+                    self.grid[i] = self._make_grid(nx, ny).to(x[i].device)
+                kpt_grid_x = self.grid[i][..., 0:1]
+                kpt_grid_y = self.grid[i][..., 1:2]
+
+                if self.n_keypoints == 0:
+                    y = x[i].sigmoid()
+                else:
+                    y = x_det.sigmoid()
+
+                xy = (y[..., 0:2] * 2.0 - 0.5 + self.grid[i]) * self.stride[i]  # xy
+                wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
+                    1, self.na, 1, 1, 2
+                )  # wh
+                a = (
+                    x_kpt[..., ::3] * 2.0
+                    - 0.5
+                    + kpt_grid_x.repeat(1, 1, 1, 1, self.n_keypoints)
+                ) * self.stride[
+                    i
+                ]  # xy
+                b = (
+                    x_kpt[..., 1::3] * 2.0
+                    - 0.5
+                    + kpt_grid_y.repeat(1, 1, 1, 1, self.n_keypoints)
+                ) * self.stride[
+                    i
+                ]  # xy
+                c = x_kpt[..., 2::3].sigmoid()
+                x_kpt = torch.stack([a, b, c], dim=-1).view(*a.shape[:-1], -1)
+
+                y = torch.cat((xy, wh, y[..., 4:], x_kpt), dim=-1)
+                z.append(y.view(bs, -1, self.no))
+
+            return torch.cat(z, 1)  # only return predictions without features
+
+        self.forward = deploy_forward
+
     def _make_grid(self, nx=20, ny=20):
         yv, xv = torch.meshgrid([torch.arange(ny), torch.arange(nx)], indexing="ij")
         return torch.stack((xv, yv), 2).view((1, 1, ny, nx, 2)).float()

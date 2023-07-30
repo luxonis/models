@@ -5,6 +5,7 @@ from torch import Tensor
 from typing import List, Optional
 from typing_extensions import Literal
 from torchmetrics import Metric
+from scipy.optimize import linear_sum_assignment
 from torchvision.ops import box_convert
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
@@ -72,33 +73,35 @@ class ObjectKeypointSimilarity(Metric):
         self.kpt_sigmas = self.kpt_sigmas.to(
             self.device
         )  # explicitly move to current device
-        images_oks = torch.zeros(len(self.groundtruth_keypoints))
+        image_mean_oks = torch.zeros(len(self.groundtruth_keypoints))
         # iterate over all images
         for i, (pred_kpts, gt_kpts, gt_scales) in enumerate(
             zip(
                 self.pred_keypoints, self.groundtruth_keypoints, self.groundtruth_scales
             )
         ):
-            curr_oks = torch.zeros(gt_kpts.shape[0])
             # reshape tensors in [N, K, 3] format
             gt_kpts = torch.reshape(gt_kpts, (-1, self.num_keypoints, 3))
             pred_kpts = torch.reshape(pred_kpts, (-1, self.num_keypoints, 3))
-            # for each image compute OKS between GT and every prediciton
+            image_ious = torch.zeros(gt_kpts.shape[0], pred_kpts.shape[0])
             for j, curr_gt in enumerate(gt_kpts):
-                curr_max = 0
                 for k, curr_pred in enumerate(pred_kpts):
-                    curr_max = max(
-                        curr_max,
-                        self._compute_oks(curr_pred, curr_gt, scale=gt_scales[j]),
+                    image_ious[j, k] = self._compute_oks(
+                        curr_pred, curr_gt, scale=gt_scales[j]
                     )
-                # OKS of current GT is OKS with prediction that fits the most
-                curr_oks[j] = curr_max
-            # OKS of current image is mean of all (gt, prediction) pairs
-            images_oks[i] = curr_oks.mean()
-        # Output OKS is mean over all images
-        mean_oks = images_oks.mean()
 
-        return mean_oks
+            # perform linear sum assignment
+            gt_indices, pred_indices = linear_sum_assignment(
+                image_ious.cpu().numpy(), maximize=True
+            )
+            matched_ious = [image_ious[n, m] for n, m in zip(gt_indices, pred_indices)]
+            # take mean as OKS for image
+            image_mean_oks[i] = torch.tensor(matched_ious).mean()
+
+        # final prediction is mean of OKS over all images
+        final_oks = image_mean_oks.mean()
+
+        return final_oks
 
     def _compute_oks(self, pred: torch.Tensor, gt: torch.Tensor, scale: float):
         """Compute Object Keypoint Similarity between ground truth and prediction

@@ -125,16 +125,16 @@ logger:
   logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 ```
 ### Dataset
-To store and load the data we use LuxonisDataset and LuxonisLoader. For configuring path to the dataset and othere dataset related parameters use this:
+To store and load the data we use LuxonisDataset and LuxonisLoader. For specific config parameters refer to [LuxonisML](https://github.com/luxonis/luxonis-ml).
 
-***Note**: At least one of local_path or s3_path parameters must no defined.*
+***Note:** Bucket type and storage need to be one of valid Enum values.*
 
 ```yaml
 dataset:
   team_id: null # team under which you can find all datasets (string)
   dataset_id: null # id of the dataset (string)
-  bucket_type: local # underlying storage for images, which can be local or an AWS bucket (local|aws)
-  override_bucket_type: False # option to change underlying storage from saved setting in DB (bool)
+  bucket_type: BucketType.INTERNAL # type of underlying storage (BucketType)
+  bucket_storage: BucketStorage.LOCAL # underlying object storage for a bucket (BucketStorage)
   train_view: train # view to use for training (string)
   val_view: val # view to use for validation (string)
   test_view: test # view to use for testing (string)

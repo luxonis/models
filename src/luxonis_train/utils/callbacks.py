@@ -44,15 +44,15 @@ class TestOnTrainEnd(pl.Callback):
 
     def on_train_end(self, trainer, pl_module):
         from torch.utils.data import DataLoader
-        from luxonis_ml.data import LuxonisDataset
+        from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
         from luxonis_ml.loader import LuxonisLoader, ValAugmentations
 
         cfg = Config()
         with LuxonisDataset(
-            team_id=cfg.get("dataset.team_id"),
-            dataset_id=cfg.get("dataset.dataset_id"),
-            bucket_type=cfg.get("dataset.bucket_type"),
-            override_bucket_type=cfg.get("dataset.override_bucket_type"),
+            team_id=self.cfg.get("dataset.team_id"),
+            dataset_id=self.cfg.get("dataset.dataset_id"),
+            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
+            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
         ) as dataset:
             loader_test = LuxonisLoader(
                 dataset,

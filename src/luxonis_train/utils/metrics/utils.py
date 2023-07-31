@@ -68,10 +68,7 @@ def init_metrics(head: nn.Module):
             )
 
     # metrics for specific HeadType combinations
-    if all(
-        head_type in [HeadType.OBJECT_DETECTION, HeadType.KEYPOINT_DETECTION]
-        for head_type in head.head_types
-    ):
+    if HeadType.OBJECT_DETECTION in head.head_types and HeadType.KEYPOINT_DETECTION in head.head_types:
         metrics["kpt_map"] = MeanAveragePrecisionKeypoints(
             box_format="xyxy", num_keypoints=head.n_keypoints
         )

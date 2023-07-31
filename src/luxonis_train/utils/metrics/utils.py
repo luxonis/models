@@ -2,7 +2,7 @@ import torch.nn as nn
 import torchmetrics
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
-from .custom import ObjectKeypointSimilarity
+from .custom import ObjectKeypointSimilarity, MeanAveragePrecisionKeypoints
 from luxonis_train.utils.constants import HeadType
 
 """
@@ -66,6 +66,15 @@ def init_metrics(head: nn.Module):
             raise KeyError(
                 f"No metrics for head type = {head_type} are currently supported."
             )
+
+    # metrics for specific HeadType combinations
+    if all(
+        head_type in [HeadType.OBJECT_DETECTION, HeadType.KEYPOINT_DETECTION]
+        for head_type in head.head_types
+    ):
+        metrics["kpt_map"] = MeanAveragePrecisionKeypoints(
+            box_format="xyxy", num_keypoints=head.n_keypoints
+        )
 
     collection = torchmetrics.MetricCollection(metrics)
 

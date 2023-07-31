@@ -21,8 +21,8 @@ logger:
 dataset:
   team_id: null # team under which you can find all datasets (string)
   dataset_id: null # id of the dataset (string)
-  bucket_type: local # underlying storage for images, which can be local or an AWS bucket (local|aws)
-  override_bucket_type: False # option to change underlying storage from saved setting in DB (bool)
+  bucket_type: BucketType.INTERNAL # type of underlying storage (BucketType)
+  bucket_storage: BucketStorage.LOCAL # underlying object storage for a bucket (BucketStorage)
   train_view: train # view to use for training (string)
   val_view: val # view to use for validation (string)
   test_view: test # view to use for testing (string)
@@ -54,10 +54,15 @@ train:
 
   callbacks: # callback specific parameters (check PL docs)
     test_on_finish: False # bool if should run test when train loop finishes (bool)
-    export_on_finish: False # bool if should run export when train loop finishes - should specify config block (bool)
     use_device_stats_monitor: False # bool if should use device stats monitor during training (bool)
+    export_on_finish: # run export when train loop finishes - takes parameters from export block (bool)
+      active: False
+      override_upload_directory: True # if active mlflow run then use it as upload directory (if upload active in export block)
     model_checkpoint:
       save_top_k: 3
+    upload_checkpoint_on_finish: # uploads best checkpoint based on val loss when train loop finishes
+      active: False
+      upload_directory: null # either path to s3 or mlflow, if empty mlflow then use current run - should activate mlflow in logger (string)
     early_stopping:
       active: True
       monitor: val_loss/loss
@@ -105,10 +110,9 @@ exporter:
   blobconverter:
     active: False # bool if export to blob (bool)
     shaves: 6 # number of shaves used (int)
-  s3_upload:
-    active: False # bool if upload .ckpt, .onnx and config file to s3 bucket (bool)
-    bucket: null # name of the s3 bucket (string)
-    upload_directory: null # location of directory for upload (string)
+  upload: # uploads .ckpt, .onnx, config file and modelconverter config file
+    active: False  # bool if upload active (bool)
+    upload_directory: null # either path to s3 or existing mlflow run (string)
 
 tuner:
   study_name: "test-study" # name of the study (string)

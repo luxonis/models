@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from typing import Union, Optional
 from dotenv import load_dotenv
 from tqdm import tqdm
-from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_ml.loader import LuxonisLoader
 from luxonis_ml.loader import TrainAugmentations, ValAugmentations, Augmentations
 
@@ -15,6 +15,7 @@ from luxonis_train.utils.config import Config
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
+from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
 class Inferer(pl.LightningModule):
@@ -43,7 +44,9 @@ class Inferer(pl.LightningModule):
     def load_checkpoint(self, path: str):
         """Loads checkpoint weights from provided path"""
         print(f"Loading weights from: {path}")
-        state_dict = torch.load(path)["state_dict"]
+        fs = LuxonisFileSystem(path)
+        checkpoint = torch.load(fs.read_to_byte_buffer())
+        state_dict = checkpoint["state_dict"]
         # remove weights that are not part of the model
         removed = []
         for key in list(state_dict.keys()):
@@ -70,8 +73,8 @@ class Inferer(pl.LightningModule):
         with LuxonisDataset(
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=self.cfg.get("dataset.bucket_type"),
-            override_bucket_type=self.cfg.get("dataset.override_bucket_type"),
+            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
+            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
         ) as dataset:
             view = self.cfg.get("inferer.dataset_view")
 

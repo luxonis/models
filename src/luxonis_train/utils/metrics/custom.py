@@ -1,7 +1,14 @@
 import torch
+import contextlib
+import io
 from torch import Tensor
 from typing import List, Optional
+from typing_extensions import Literal
 from torchmetrics import Metric
+from scipy.optimize import linear_sum_assignment
+from torchvision.ops import box_convert
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 
 
 class ObjectKeypointSimilarity(Metric):
@@ -16,13 +23,13 @@ class ObjectKeypointSimilarity(Metric):
     groundtruth_scales: List[Tensor]
 
     def __init__(
-        self, num_keypoints: int, kpt_sigmas: Optional[torch.Tensor] = None, **kwargs
+        self, num_keypoints: int, kpt_sigmas: Optional[Tensor] = None, **kwargs
     ) -> None:
         """Object Keypoint Similarity metric for evaluating keypoint predictions
 
         Args:
             num_keypoints (int): Number of keypoints
-            kpt_sigmas (Optional[torch.Tensor], optional): Sigma for each keypoint to weigh its importance,
+            kpt_sigmas (Optional[Tensor], optional): Sigma for each keypoint to weigh its importance,
                 if None use same weights for all. Defaults to None.
 
         As input to ``forward`` and ``update`` the metric accepts the following input:
@@ -42,6 +49,8 @@ class ObjectKeypointSimilarity(Metric):
         super().__init__(**kwargs)
 
         self.num_keypoints = num_keypoints
+        if kpt_sigmas is not None and len(kpt_sigmas) != num_keypoints:
+            raise ValueError(f"Expected kpt_sigmas to be of shape (num_keypoints).")
         self.kpt_sigmas = kpt_sigmas or torch.ones(num_keypoints)
 
         self.add_state("pred_keypoints", default=[], dist_reduce_fx=None)
@@ -51,42 +60,48 @@ class ObjectKeypointSimilarity(Metric):
     def update(self, preds: list, target: list):
         """Torchmetric update function"""
         for item in preds:
-            self.pred_keypoints.append(item["keypoints"])
+            keypoints = fix_empty_tensors(item["keypoints"])
+            self.pred_keypoints.append(keypoints)
 
         for item in target:
-            self.groundtruth_keypoints.append(item["keypoints"])
+            keypoints = fix_empty_tensors(item["keypoints"])
+            self.groundtruth_keypoints.append(keypoints)
             self.groundtruth_scales.append(item["scales"])
 
     def compute(self):
         """Torchmetric compute function"""
-        self.kpt_sigmas = self.kpt_sigmas.to(self.device) # explicitly move to current device
-        images_oks = torch.zeros(len(self.groundtruth_keypoints))
+        self.kpt_sigmas = self.kpt_sigmas.to(
+            self.device
+        )  # explicitly move to current device
+        image_mean_oks = torch.zeros(len(self.groundtruth_keypoints))
         # iterate over all images
         for i, (pred_kpts, gt_kpts, gt_scales) in enumerate(
             zip(
                 self.pred_keypoints, self.groundtruth_keypoints, self.groundtruth_scales
             )
         ):
-            curr_oks = torch.zeros(gt_kpts.shape[0])
             # reshape tensors in [N, K, 3] format
             gt_kpts = torch.reshape(gt_kpts, (-1, self.num_keypoints, 3))
             pred_kpts = torch.reshape(pred_kpts, (-1, self.num_keypoints, 3))
-            # for each image compute OKS between GT and every prediciton
+            image_ious = torch.zeros(gt_kpts.shape[0], pred_kpts.shape[0])
             for j, curr_gt in enumerate(gt_kpts):
-                curr_max = 0
                 for k, curr_pred in enumerate(pred_kpts):
-                    curr_max = max(
-                        curr_max,
-                        self._compute_oks(curr_pred, curr_gt, scale=gt_scales[j]),
+                    image_ious[j, k] = self._compute_oks(
+                        curr_pred, curr_gt, scale=gt_scales[j]
                     )
-                # OKS of current GT is OKS with prediction that fits the most
-                curr_oks[j] = curr_max
-            # OKS of current image is mean of all (gt, prediction) pairs
-            images_oks[i] = curr_oks.mean()
-        # Output OKS is mean over all images
-        mean_oks = images_oks.mean()
 
-        return mean_oks
+            # perform linear sum assignment
+            gt_indices, pred_indices = linear_sum_assignment(
+                image_ious.cpu().numpy(), maximize=True
+            )
+            matched_ious = [image_ious[n, m] for n, m in zip(gt_indices, pred_indices)]
+            # take mean as OKS for image
+            image_mean_oks[i] = torch.tensor(matched_ious).mean()
+
+        # final prediction is mean of OKS over all images
+        final_oks = image_mean_oks.mean()
+
+        return final_oks
 
     def _compute_oks(self, pred: torch.Tensor, gt: torch.Tensor, scale: float):
         """Compute Object Keypoint Similarity between ground truth and prediction
@@ -109,3 +124,251 @@ class ObjectKeypointSimilarity(Metric):
         numerator = torch.dot(exp_vector, gt[:, 2].bool().float())
         denominator = torch.sum(gt[:, 2].bool().int()) + 1e-9
         return numerator / denominator
+
+
+class MeanAveragePrecisionKeypoints(Metric):
+    is_differentiable: bool = False
+    higher_is_better: Optional[bool] = True
+    full_state_update: bool = True
+    plot_lower_bound: float = 0.0
+    plot_upper_bound: float = 1.0
+
+    pred_boxes: List[Tensor]
+    pred_scores: List[Tensor]
+    pred_labels: List[Tensor]
+    pred_keypoints: List[Tensor]
+
+    groundtruth_boxes: List[Tensor]
+    groundtruth_labels: List[Tensor]
+    groundtruth_area: List[Tensor]
+    groundtruth_crowds: List[Tensor]
+    groundtruth_keypoints: List[Tensor]
+
+    def __init__(
+        self,
+        num_keypoints: int,
+        kpt_sigmas: Optional[Tensor] = None,
+        box_format: Literal["xyxy", "xywh", "cxcywh"] = "xyxy",
+        **kwargs,
+    ):
+        """Mean Average Precision metrics that uses OKS as IoU measure (adapted from: https://github.com/Lightning-AI/torchmetrics/blob/v1.0.1/src/torchmetrics/detection/mean_ap.py#L543)
+
+        Args:
+            num_keypoints (int): Number of keypoints
+            kpt_sigmas (Optional[Tensor], optional): Sigma for each keypoint to weigh its importance,
+                if None use same weights for all. Defaults to None.
+            box_format (Literal[xyxy, xywh, cxcywh], optional): Input bbox format. Defaults to "xyxy".
+
+        As input to ``forward`` and ``update`` the metric accepts the following input:
+        - preds (list): A list consisting of dictionaries each containg key-values for a single image.
+            Parameters that should be provided per dict:
+            - boxes (torch.FloatTensor): Tensor of shape ``(num_boxes, 4)`` containing ``num_boxes`` detection
+                boxes of the format specified in the constructor. By default, this method expects ``(xmin, ymin, xmax, ymax)`` in absolute image coordinates.
+            - scores (torch.FloatTensor): Tensor of shape ``(num_boxes)`` containing detection scores for the boxes.
+            - labels (torch.IntTensor): Tensor of shape ``(num_boxes)`` containing 0-indexed detection classes for the boxes.
+            - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
+                are unnormalized keypoint coordinates and `vis` is keypoint visibility.
+
+        - `target` (list): A list consisting of dictionaries each containg key-values for a single image.
+            Parameters that should be provided per dict:
+            - boxes (torch.FloatTensor): Tensor of shape ``(num_boxes, 4)`` containing ``num_boxes`` ground truth
+                boxes of the format specified in the constructor. By default, this method expects ``(xmin, ymin, xmax, ymax)`` in absolute image coordinates.
+            - labels: :class:`~torch.IntTensor` of shape ``(num_boxes)`` containing 0-indexed ground truth classes for the boxes.
+            - iscrow (torch.IntTensor): Tensor of shape ``(num_boxes)`` containing 0/1 values indicating whether
+                the bounding box/masks indicate a crowd of objects. Value is optional, and if not provided it will
+                automatically be set to 0.
+            - area (torch.FloatTensor): Tensor of shape ``(num_boxes)`` containing the area of the object. Value if
+                optional, and if not provided will be automatically calculated based on the bounding box/masks provided.
+                Only affects which samples contribute to the `map_small`, `map_medium`, `map_large` values
+            - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
+                are unnormalized keypoint coordinates and `vis` is keypoint visibility.
+        """
+        super().__init__(**kwargs)
+
+        self.num_keypoints = num_keypoints
+        if kpt_sigmas is not None and len(kpt_sigmas) != num_keypoints:
+            raise ValueError(f"Expected kpt_sigmas to be of shape (num_keypoints).")
+        self.kpt_sigmas = kpt_sigmas or torch.ones(num_keypoints)
+
+        allowed_box_formats = ("xyxy", "xywh", "cxcywh")
+        if box_format not in allowed_box_formats:
+            raise ValueError(
+                f"Expected argument `box_format` to be one of {allowed_box_formats} but got {box_format}"
+            )
+        self.box_format = box_format
+
+        self.add_state("pred_boxes", default=[], dist_reduce_fx=None)
+        self.add_state("pred_scores", default=[], dist_reduce_fx=None)
+        self.add_state("pred_labels", default=[], dist_reduce_fx=None)
+        self.add_state("pred_keypoints", default=[], dist_reduce_fx=None)
+
+        self.add_state("groundtruth_boxes", default=[], dist_reduce_fx=None)
+        self.add_state("groundtruth_labels", default=[], dist_reduce_fx=None)
+        self.add_state("groundtruth_area", default=[], dist_reduce_fx=None)
+        self.add_state("groundtruth_crowds", default=[], dist_reduce_fx=None)
+        self.add_state("groundtruth_keypoints", default=[], dist_reduce_fx=None)
+
+    def update(self, preds: list, target: list):
+        """Torchmetric update function"""
+        for item in preds:
+            boxes, keypoints = self._get_safe_item_values(item)
+            self.pred_boxes.append(boxes)
+            self.pred_keypoints.append(keypoints)
+            self.pred_scores.append(item["scores"])
+            self.pred_labels.append(item["labels"])
+
+        for item in target:
+            boxes, keypoints = self._get_safe_item_values(item)
+            self.groundtruth_boxes.append(boxes)
+            self.groundtruth_keypoints.append(keypoints)
+            self.groundtruth_labels.append(item["labels"])
+            self.groundtruth_area.append(
+                item.get("area", torch.zeros_like(item["labels"]))
+            )
+            self.groundtruth_crowds.append(
+                item.get("iscrowd", torch.zeros_like(item["labels"]))
+            )
+
+    def compute(self):
+        """Torchmetric compute function"""
+        coco_target, coco_preds = COCO(), COCO()
+        coco_target.dataset = self._get_coco_format(
+            self.groundtruth_boxes,
+            self.groundtruth_keypoints,
+            self.groundtruth_labels,
+            crowds=self.groundtruth_crowds,
+            area=self.groundtruth_area,
+        )
+        coco_preds.dataset = self._get_coco_format(
+            self.pred_boxes,
+            self.pred_keypoints,
+            self.groundtruth_labels,
+            scores=self.pred_scores,
+        )
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            coco_target.createIndex()
+            coco_preds.createIndex()
+
+            self.coco_eval = COCOeval(coco_target, coco_preds, iouType="keypoints")
+            self.coco_eval.params.kpt_oks_sigmas = self.kpt_sigmas.cpu().numpy()
+
+            self.coco_eval.evaluate()
+            self.coco_eval.accumulate()
+            self.coco_eval.summarize()
+            stats = self.coco_eval.stats
+
+        return {
+            "kpt_map": torch.tensor([stats[0]], dtype=torch.float32),
+            "kpt_map_50": torch.tensor([stats[1]], dtype=torch.float32),
+            "kpt_map_75": torch.tensor([stats[2]], dtype=torch.float32),
+            "kpt_map_medium": torch.tensor([stats[3]], dtype=torch.float32),
+            "kpt_map_large": torch.tensor([stats[4]], dtype=torch.float32),
+            "kpt_mar": torch.tensor([stats[5]], dtype=torch.float32),
+            "kpt_mar_50": torch.tensor([stats[6]], dtype=torch.float32),
+            "kpt_mar_75": torch.tensor([stats[7]], dtype=torch.float32),
+            "kpt_mar_medium": torch.tensor([stats[8]], dtype=torch.float32),
+            "kpt_mar_large": torch.tensor([stats[9]], dtype=torch.float32),
+        }
+
+    def _get_coco_format(
+        self,
+        boxes: list,
+        keypoints: list,
+        labels: list,
+        scores: Optional[list] = None,
+        crowds: Optional[list] = None,
+        area: Optional[list] = None,
+    ):
+        """Transforms and returns all cached targets or predictions in COCO format.
+        Format is defined at https://cocodataset.org/#format-data
+        """
+        images = []
+        annotations = []
+        annotation_id = 1  # has to start with 1, otherwise COCOEval results are wrong
+
+        for image_id, (image_boxes, image_kpts, image_labels) in enumerate(
+            zip(boxes, keypoints, labels)
+        ):
+            image_boxes = image_boxes.cpu().tolist()
+            image_kpts = image_kpts.cpu().tolist()
+            image_labels = image_labels.cpu().tolist()
+
+            images.append({"id": image_id})
+
+            for k, (image_box, image_kpt, image_label) in enumerate(
+                zip(image_boxes, image_kpts, image_labels)
+            ):
+                if len(image_box) != 4:
+                    raise ValueError(
+                        f"Invalid input box of sample {image_id}, element {k} (expected 4 values, got {len(image_box)})"
+                    )
+
+                if len(image_kpt) != 3 * self.num_keypoints:
+                    raise ValueError(
+                        f"Invalid input keypoints of sample {image_id}, element {k} (expected 3*{self.num_keypoints} values, got {len(image_kpt)})"
+                    )
+
+                if type(image_label) != int:
+                    raise ValueError(
+                        f"Invalid input class of sample {image_id}, element {k}"
+                        f" (expected value of type integer, got type {type(image_label)})"
+                    )
+
+                if area is not None and area[image_id][k].cpu().tolist() > 0:
+                    area_stat = area[image_id][k].cpu().tolist()
+                else:
+                    area_stat = image_box[2] * image_box[3]
+
+                annotation = {
+                    "id": annotation_id,
+                    "image_id": image_id,
+                    "bbox": image_box,
+                    "area": area_stat,
+                    "category_id": image_label,
+                    "iscrowd": crowds[image_id][k].cpu().tolist()
+                    if crowds is not None
+                    else 0,
+                    "keypoints": image_kpt,
+                    "num_keypoints": self.num_keypoints,
+                }
+
+                if scores is not None:
+                    score = scores[image_id][k].cpu().tolist()
+                    if type(score) != float:
+                        raise ValueError(
+                            f"Invalid input score of sample {image_id}, element {k}"
+                            f" (expected value of type float, got type {type(score)})"
+                        )
+                    annotation["score"] = score
+                annotations.append(annotation)
+                annotation_id += 1
+
+        classes = [{"id": i, "name": str(i)} for i in self._get_classes()]
+        return {"images": images, "annotations": annotations, "categories": classes}
+
+    def _get_safe_item_values(self, item: dict):
+        """Convert and return the boxes"""
+        boxes = fix_empty_tensors(item["boxes"])
+        if boxes.numel() > 0:
+            boxes = box_convert(boxes, in_fmt=self.box_format, out_fmt="xywh")
+        keypoints = fix_empty_tensors(item["keypoints"])
+        return boxes, keypoints
+
+    def _get_classes(self):
+        """Return a list of unique classes found in ground truth and detection data."""
+        if len(self.pred_labels) > 0 or len(self.groundtruth_labels) > 0:
+            return (
+                torch.cat(self.pred_labels + self.groundtruth_labels)
+                .unique()
+                .cpu()
+                .tolist()
+            )
+        return []
+
+
+def fix_empty_tensors(input_tensor: Tensor):
+    """Empty tensors can cause problems in DDP mode, this methods corrects them."""
+    if input_tensor.numel() == 0 and input_tensor.ndim == 1:
+        return input_tensor.unsqueeze(0)
+    return input_tensor

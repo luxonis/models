@@ -1,27 +1,18 @@
+import warnings
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import RichProgressBar
 from rich.table import Table
 
-class LuxonisProgressBar(RichProgressBar):
-    """ Custom rich text progress bar based on RichProgressBar from Pytorch Lightning"""
-    def __init__(self):
-        # TODO: play with values to create custom output            
-        # from pytorch_lightning.callbacks.progress.rich_progress import RichProgressBarTheme
-        # progress_bar = RichProgressBar(
-        #     theme = RichProgressBarTheme(
-        #     description="green_yellow",
-        #     progress_bar="green1",
-        #     progress_bar_finished="green1",
-        #     batch_progress="green_yellow",
-        #     time="gray82",
-        #     processing_speed="grey82",
-        #     metrics="yellow1"
-        #     )
-        # )
+from luxonis_train.utils.config import Config
+from luxonis_train.utils.filesystem import LuxonisFileSystem
 
+
+class LuxonisProgressBar(RichProgressBar):
+    def __init__(self):
+        """Custom rich text progress bar based on RichProgressBar from Pytorch Lightning"""
         super().__init__(leave=True)
 
-    def print_single_line(self, text:str):
+    def print_single_line(self, text: str):
         self._console.print(f"[magenta]{text}[/magenta]")
 
     def get_metrics(self, trainer, pl_module):
@@ -32,7 +23,7 @@ class LuxonisProgressBar(RichProgressBar):
         return items
 
     def print_results(self, stage: str, loss: float, metrics: dict):
-        """ Prints results to the console using rich text"""
+        """Prints results to the console using rich text"""
 
         self._console.rule(stage, style="bold magenta")
         self._console.print(f"[bold magenta]Loss:[/bold magenta] [white]{loss}[/white]")
@@ -49,19 +40,19 @@ class LuxonisProgressBar(RichProgressBar):
 
 
 class TestOnTrainEnd(pl.Callback):
-    """ Callback that performs test on pl_module when train ends """
+    """Callback that performs test on pl_module when train ends"""
+
     def on_train_end(self, trainer, pl_module):
         from torch.utils.data import DataLoader
-        from luxonis_ml.data import LuxonisDataset
+        from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
         from luxonis_ml.loader import LuxonisLoader, ValAugmentations
-        from luxonis_train.utils.config import Config
 
         cfg = Config()
         with LuxonisDataset(
-            team_id=cfg.get("dataset.team_id"),
-            dataset_id=cfg.get("dataset.dataset_id"),
-            bucket_type=cfg.get("dataset.bucket_type"),
-            override_bucket_type=cfg.get("dataset.override_bucket_type")
+            team_id=self.cfg.get("dataset.team_id"),
+            dataset_id=self.cfg.get("dataset.dataset_id"),
+            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
+            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
         ) as dataset:
             loader_test = LuxonisLoader(
                 dataset,
@@ -70,33 +61,87 @@ class TestOnTrainEnd(pl.Callback):
                     image_size=self.cfg.get("train.preprocessing.train_image_size"),
                     augmentations=self.cfg.get("train.preprocessing.augmentations"),
                     train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                    keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio")
-                )
+                    keep_aspect_ratio=self.cfg.get(
+                        "train.preprocessing.keep_aspect_ratio"
+                    ),
+                ),
             )
             pytorch_loader_test = DataLoader(
                 loader_test,
                 batch_size=cfg.get("train.batch_size"),
                 num_workers=cfg.get("train.num_workers"),
-                collate_fn=loader_test.collate_fn
+                collate_fn=loader_test.collate_fn,
             )
             trainer.test(pl_module, pytorch_loader_test)
 
 
 class ExportOnTrainEnd(pl.Callback):
-    """ Callback that performs export on train end with best weights according to the validation loss """
+    def __init__(self, override_upload_directory: bool):
+        """Callback that performs export on train end with best weights according to the validation loss
+
+        Args:
+            override_upload_directory (bool): If True override upload_directory in Exporter with
+                currently active MLFlow run (if present)
+        """
+        super().__init__()
+        self.override_upload_directory = override_upload_directory
+
     def on_train_end(self, trainer, pl_module):
         from luxonis_train.core import Exporter
+
+        cfg = Config()
 
         model_checkpoint_callbacks = [
             c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)
         ]
-        # NOTE: assume that first checkpoint callback is based on val loss 
+        # NOTE: assume that first checkpoint callback is based on val loss
         best_model_path = model_checkpoint_callbacks[0].best_model_path
 
         # override export_weights path with path to currently best weights
         override = f"exporter.export_weights {best_model_path}"
+        if self.override_upload_directory:
+            if cfg.get("logger.is_mlflow"):
+                new_upload_directory = (
+                    f"mlflow://{trainer.logger.project_id}/{trainer.logger.run_id}"
+                )
+                override += f" exporter.upload.upload_directory {new_upload_directory}"
+            else:
+                warnings.warn(
+                    "`override_upload_directory` specified but no MLFlow active run, skipping."
+                )
+
         exporter = Exporter(
-            cfg="", # singleton instance already present
-            args={"override": override}
+            cfg="", args={"override": override}  # singleton instance already present
         )
         exporter.export()
+
+
+class UploadCheckpointOnTrainEnd(pl.Callback):
+    def __init__(self, upload_directory: str):
+        """Callback that uploads best checkpoint to specified storage according to the validation loss
+
+        Args:
+            upload_directory (str): Path used as upload directory
+        """
+        super().__init__()
+        if upload_directory is None:
+            raise ValueError(
+                "Should specify `upload_directory` if using `upload_checkpoint_on_finish` callback."
+            )
+        self.fs = LuxonisFileSystem(
+            upload_directory, allow_active_mlflow_run=True, allow_local=False
+        )
+
+    def on_train_end(self, trainer, pl_module):
+        print(f"Started checkpoint upload to {self.fs.full_path()}...")
+        model_checkpoint_callbacks = [
+            c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)
+        ]
+        # NOTE: assume that first checkpoint callback is based on val loss
+        local_path = model_checkpoint_callbacks[0].best_model_path
+        self.fs.put_file(
+            local_path=local_path,
+            remote_path=local_path.split("/")[-1],
+            mlflow_instance=trainer.logger.experiment.get("mlflow", None),
+        )
+        print("Checkpoint upload finished")

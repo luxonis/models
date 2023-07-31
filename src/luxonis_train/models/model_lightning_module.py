@@ -449,7 +449,7 @@ class ModelLightningModule(pl.LightningModule):
         )
         # self.log doesn't have an option to specify step and uses step=self.global_step as default
         # Track this issue if this will change anytime: https://github.com/Lightning-AI/lightning/issues/3228
-        self.log("train_loss/loss", epoch_train_loss, sync_dist=True)
+        self.log("train_loss/loss", epoch_train_loss.mean(), sync_dist=True)
 
         if self.cfg.get("train.losses.log_sub_losses"):
             for key in self.training_step_outputs[0]:
@@ -458,7 +458,7 @@ class ModelLightningModule(pl.LightningModule):
                 epoch_sub_loss = np.mean(
                     [step_output[key] for step_output in self.training_step_outputs]
                 )
-                self.log(f"train_loss/{key}", epoch_sub_loss, sync_dist=True)
+                self.log(f"train_loss/{key}", epoch_sub_loss.mean(), sync_dist=True)
 
         metric_results = {}  # used for printing to console
         if self._is_train_eval_epoch():
@@ -469,7 +469,7 @@ class ModelLightningModule(pl.LightningModule):
                 for metric_name in curr_metrics:
                     self.log(
                         f"train_metric/{curr_head_name}_{metric_name}",
-                        curr_metrics[metric_name],
+                        curr_metrics[metric_name].mean(),
                         sync_dist=True,
                     )
                 self.metrics[curr_head_name]["train_metrics"].reset()
@@ -487,7 +487,7 @@ class ModelLightningModule(pl.LightningModule):
         epoch_val_loss = np.mean(
             [step_output["loss"] for step_output in self.validation_step_outputs]
         )
-        self.log("val_loss/loss", epoch_val_loss, sync_dist=True)
+        self.log("val_loss/loss", epoch_val_loss.mean(), sync_dist=True)
 
         if self.cfg.get("train.losses.log_sub_losses"):
             for key in self.validation_step_outputs[0]:
@@ -496,7 +496,7 @@ class ModelLightningModule(pl.LightningModule):
                 epoch_sub_loss = np.mean(
                     [step_output[key] for step_output in self.validation_step_outputs]
                 )
-                self.log(f"val_loss/{key}", epoch_sub_loss, sync_dist=True)
+                self.log(f"val_loss/{key}", epoch_sub_loss.mean(), sync_dist=True)
 
         metric_results = {}  # used for printing to console
         self._print_metric_warning("Computing metrics on val subset ...")
@@ -506,14 +506,14 @@ class ModelLightningModule(pl.LightningModule):
             for metric_name in curr_metrics:
                 self.log(
                     f"val_metric/{curr_head_name}_{metric_name}",
-                    curr_metrics[metric_name],
+                    curr_metrics[metric_name].mean(),
                     sync_dist=True,
                 )
             # log main metrics separately (used in callback)
             if i == 0:
                 self.log(
                     f"val_metric/{self.main_metric}",
-                    curr_metrics[self.main_metric],
+                    curr_metrics[self.main_metric].mean(),
                     sync_dist=True,
                 )
             self.metrics[curr_head_name]["val_metrics"].reset()
@@ -531,7 +531,7 @@ class ModelLightningModule(pl.LightningModule):
         epoch_test_loss = np.mean(
             [step_output["loss"] for step_output in self.test_step_outputs]
         )
-        self.log("test_loss/loss", epoch_test_loss, sync_dist=True)
+        self.log("test_loss/loss", epoch_test_loss.mean(), sync_dist=True)
 
         if self.cfg.get("train.losses.log_sub_losses"):
             for key in self.test_step_outputs[0]:
@@ -540,7 +540,7 @@ class ModelLightningModule(pl.LightningModule):
                 epoch_sub_loss = np.mean(
                     [step_output[key] for step_output in self.test_step_outputs]
                 )
-                self.log(f"test_loss/{key}", epoch_sub_loss, sync_dist=True)
+                self.log(f"test_loss/{key}", epoch_sub_loss.mean(), sync_dist=True)
 
         metric_results = {}  # used for printing to console
         self._print_metric_warning("Computing metrics on test subset ...")
@@ -550,14 +550,14 @@ class ModelLightningModule(pl.LightningModule):
             for metric_name in curr_metrics:
                 self.log(
                     f"test_metric/{curr_head_name}_{metric_name}",
-                    curr_metrics[metric_name],
+                    curr_metrics[metric_name].mean(),
                     sync_dist=True,
                 )
             # log main metrics separately (used in callback)
             if i == 0:
                 self.log(
                     f"test_metric/{self.main_metric}",
-                    curr_metrics[self.main_metric],
+                    curr_metrics[self.main_metric].mean(),
                     sync_dist=True,
                 )
             self.metrics[curr_head_name]["test_metrics"].reset()

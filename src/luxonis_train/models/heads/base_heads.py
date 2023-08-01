@@ -14,6 +14,9 @@ from luxonis_train.utils.constants import HeadType
 
 
 class BaseHead(nn.Module):
+    head_types: List[HeadType] = []
+    label_types: List[LabelType] = []
+
     def __init__(
         self,
         n_classes: int,
@@ -76,9 +79,7 @@ class BaseHead(nn.Module):
         """
         raise NotImplementedError
 
-    def draw_output_to_img(
-        self, img: torch.Tensor, output: Union[tuple, torch.Tensor], idx: int
-    ):
+    def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
         """Draws model output to an img
 
         Args:
@@ -101,6 +102,10 @@ class BaseHead(nn.Module):
             output_name (Union[str, List[str]]): Either output name (string) or list of strings if head has multiple outputs.
         """
         raise NotImplementedError
+
+    def to_deploy(self):
+        """Makes changes needed to prepare head for deploy"""
+        pass
 
 
 class BaseClassificationHead(BaseHead):

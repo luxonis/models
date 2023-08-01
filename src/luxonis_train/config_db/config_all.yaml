@@ -21,8 +21,8 @@ logger:
 dataset:
   team_id: null # team under which you can find all datasets (string)
   dataset_id: null # id of the dataset (string)
-  bucket_type: local # underlying storage for images, which can be local or an AWS bucket (local|aws)
-  override_bucket_type: False # option to change underlying storage from saved setting in DB (bool)
+  bucket_type: BucketType.INTERNAL # type of underlying storage (BucketType)
+  bucket_storage: BucketStorage.LOCAL # underlying object storage for a bucket (BucketStorage)
   train_view: train # view to use for training (string)
   val_view: val # view to use for validation (string)
   test_view: test # view to use for testing (string)

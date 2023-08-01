@@ -1,15 +1,14 @@
-albumentations>=1.3.0
 numpy>=1.22
 opencv-python>=4.7.0.68
 python-dotenv>=0.21.1
 pytorch-lightning>=2.0.0
 PyYAML>=6.0
 torch>=1.12.1
-torchmetrics>=0.11.0
+torchmetrics>=1.0.0
 torchvision>=0.13.1
 tensorboard>=2.10.1
 rich
-luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@5b36500
+luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@0d5ae2a
 # tunning related packages
 optuna>=3.2.0
 psycopg2-binary

@@ -17,6 +17,7 @@ from luxonis_train.utils.schedulers import init_scheduler
 from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
 from luxonis_train.utils.filesystem import LuxonisFileSystem
+from luxonis_train.utils.callbacks import AnnotationChecker
 
 
 class ModelLightningModule(pl.LightningModule):
@@ -119,7 +120,8 @@ class ModelLightningModule(pl.LightningModule):
         )
 
         lr_monitor = LearningRateMonitor(logging_interval="step")
-        callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor]
+        annotation_checker = AnnotationChecker()
+        callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor, annotation_checker]
 
         # used if we want to perform fine-grained debugging
         if self.cfg.get("train.callbacks.use_device_stats_monitor"):

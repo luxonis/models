@@ -43,6 +43,21 @@ class BaseHead(nn.Module):
         """Generate a string head name based on class name and passed index"""
         return f"{self.__class__.__name__}_{idx}"
 
+    def check_annotations(self, label_dict: dict):
+        """Checks if all required annotations are present in label dictionary
+
+        Args:
+            label_dict (dict): Dictionary with labels
+
+        Raises:
+            KeyError: Required label type missing in annotations
+        """
+        for label_type in self.label_types:
+            if label_type not in label_dict:
+                raise KeyError(
+                    f"Required label type `{label_type}` missing in annotations."
+                )
+
     def forward(self, x):
         """torch.nn.Module forward method"""
         raise NotImplementedError

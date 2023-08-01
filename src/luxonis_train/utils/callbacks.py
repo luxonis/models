@@ -1,3 +1,4 @@
+from typing import Any
 import warnings
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import RichProgressBar
@@ -39,10 +40,61 @@ class LuxonisProgressBar(RichProgressBar):
         self._console.rule(style="bold magenta")
 
 
+class AnnotationChecker(pl.Callback):
+    def __init__(self):
+        """Callback that checks if all annotatios that are required by the heads are present in the label dict"""
+        super().__init__()
+        self.first_train_batch = True
+        self.first_val_batch = True
+        self.first_test_batch = True
+
+    def on_train_batch_start(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
+        batch_idx: int,
+    ):
+        super().on_train_batch_start(trainer, pl_module, batch, batch_idx)
+        if self.first_train_batch:
+            pl_module.model.check_annotations(batch[1])
+            self.first_train_batch = False
+
+    def on_validation_batch_start(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ):
+        super().on_validation_batch_start(
+            trainer, pl_module, batch, batch_idx, dataloader_idx
+        )
+        if self.first_val_batch:
+            pl_module.model.check_annotations(batch[1])
+            self.first_val_batch = False
+
+    def on_test_batch_start(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ):
+        super().on_test_batch_start(
+            trainer, pl_module, batch, batch_idx, dataloader_idx
+        )
+        if self.first_test_batch:
+            pl_module.model.check_annotations(batch[1])
+            self.first_test_batch = False
+
+
 class TestOnTrainEnd(pl.Callback):
     """Callback that performs test on pl_module when train ends"""
 
-    def on_train_end(self, trainer, pl_module):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         from torch.utils.data import DataLoader
         from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
         from luxonis_ml.loader import LuxonisLoader, ValAugmentations
@@ -86,7 +138,7 @@ class ExportOnTrainEnd(pl.Callback):
         super().__init__()
         self.override_upload_directory = override_upload_directory
 
-    def on_train_end(self, trainer, pl_module):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         from luxonis_train.core import Exporter
 
         cfg = Config()
@@ -132,7 +184,7 @@ class UploadCheckpointOnTrainEnd(pl.Callback):
             upload_directory, allow_active_mlflow_run=True, allow_local=False
         )
 
-    def on_train_end(self, trainer, pl_module):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         print(f"Started checkpoint upload to {self.fs.full_path()}...")
         model_checkpoint_callbacks = [
             c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)

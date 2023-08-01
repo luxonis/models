@@ -61,6 +61,11 @@ class Model(nn.Module):
             )
             self.heads.append(curr_head)
 
+    def check_annotations(self, label_dict: dict):
+        """Checks if all required annotations are present"""
+        for head in self.heads:
+            head.check_annotations(label_dict)
+
     def forward(self, x: torch.Tensor):
         """Models forward method
 

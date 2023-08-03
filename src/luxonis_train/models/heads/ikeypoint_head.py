@@ -310,6 +310,9 @@ class IKeypoint(BaseHead):
         bboxes = nms[:, :4]
         img = draw_bounding_boxes(img, bboxes)
         kpts = nms[:, 6:].reshape(-1, self.n_keypoints, 3)
+        # set coordinates of non-visible keypoints to (0, 0)
+        mask = kpts[:,:,2] < 0.2
+        kpts = kpts[:, :, 0:2] * (~mask).unsqueeze(-1).float()
         img = draw_keypoints(
             img, kpts[..., :2], colors="red", connectivity=self.connectivity
         )

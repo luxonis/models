@@ -4,26 +4,28 @@
 #
 
 import math
-from typing import List
-
 import torch
 import torch.nn as nn
 
 from luxonis_train.models.heads.ikeypoint_head import IKeypoint
-from luxonis_train.utils.constants import HeadType
 
 
-class YoloV7PoseHead(IKeypoint):
-    head_types: List[HeadType] = [
-        HeadType.OBJECT_DETECTION,
-        HeadType.KEYPOINT_DETECTION,
-    ]
-
+class IKeypointMultiHead(IKeypoint):
     def __init__(
         self,
-        anchors,
+        anchors: list,
         **kwargs,
     ):
+        """Object and keypoint detection head with separate IKeypoint head for each layer of anchors.
+
+        Args:
+            anchors (list): Anchors used for object detection
+            n_classes (int): Number of classes
+            n_keypoints (int): Number of keypoints
+            attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
+            main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
+            connectivity (list, optional): Connectivity mapping used in visualization. Defaults to None.
+        """
         super().__init__(
             anchors=anchors,
             **kwargs,
@@ -60,7 +62,7 @@ class YoloV7PoseHead(IKeypoint):
         for m in model.modules():
             t = type(m)
             if t is nn.Conv2d:
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif t is nn.BatchNorm2d:
                 m.eps = 1e-3
                 m.momentum = 0.03
@@ -71,6 +73,12 @@ class YoloV7PoseHead(IKeypoint):
         s = model.stride
         for mi in model.m:  # from
             b = mi.bias.view(model.na, -1)  # conv.bias(255) to (3,85)
-            b.data[:, 4] += math.log(8 / (640 / s) ** 2)  # obj (8 objects per 640 image)
-            b.data[:, 5:] += math.log(0.6 / (model.n_classes - 0.99)) if cf is None else torch.log(cf / cf.sum())  # cls
+            b.data[:, 4] += math.log(
+                8 / (640 / s) ** 2
+            )  # obj (8 objects per 640 image)
+            b.data[:, 5:] += (
+                math.log(0.6 / (model.n_classes - 0.99))
+                if cf is None
+                else torch.log(cf / cf.sum())
+            )  # cls
             mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)

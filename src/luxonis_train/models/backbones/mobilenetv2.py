@@ -10,7 +10,6 @@ import torchvision
 
 
 class MobileNetV2(nn.Module):
-
     def __init__(self, download_weights: bool = False):
         """MobileNetV2 backbone
 
@@ -18,7 +17,9 @@ class MobileNetV2(nn.Module):
             download_weights (bool, optional): If True download weights from imagenet. Defaults to False.
         """
         super().__init__()
-        mobilenet_v2 = torchvision.models.mobilenet_v2(weights="DEFAULT" if download_weights else None)
+        mobilenet_v2 = torchvision.models.mobilenet_v2(
+            weights="DEFAULT" if download_weights else None
+        )
         self.out_indices = [3, 6, 13, 17]
         self.channels = [24, 32, 96, 320]
         self.backbone = mobilenet_v2
@@ -32,8 +33,7 @@ class MobileNetV2(nn.Module):
         return outs
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     model = MobileNetV2(download_weights=True)
     model.eval()
     shapes = [224, 256, 384, 512]

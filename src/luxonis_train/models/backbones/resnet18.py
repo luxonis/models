@@ -10,7 +10,6 @@ import torchvision
 
 
 class ResNet18(nn.Module):
-
     def __init__(self, download_weights: bool = False):
         """ResNet18 backbone
 
@@ -19,7 +18,9 @@ class ResNet18(nn.Module):
         """
         super().__init__()
 
-        resnet18 = torchvision.models.resnet18(weights="DEFAULT" if download_weights else None)
+        resnet18 = torchvision.models.resnet18(
+            weights="DEFAULT" if download_weights else None
+        )
         self.channels = [64, 128, 256, 512]
         self.backbone = resnet18
 
@@ -41,8 +42,8 @@ class ResNet18(nn.Module):
 
         return outs
 
-if __name__ == '__main__':
 
+if __name__ == "__main__":
     model = ResNet18()
     model.eval()
 

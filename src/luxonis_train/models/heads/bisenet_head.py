@@ -8,10 +8,20 @@ import torch.nn as nn
 from luxonis_train.models.modules import ConvModule
 from luxonis_train.models.heads.base_heads import BaseSegmentationHead
 
+
 class BiSeNetHead(BaseSegmentationHead):
-    def __init__(self, n_classes: int, prev_out_shapes: list, original_in_shape: list, attach_index: int = -1, 
-        c1: int = 256, upscale_factor: int = 8, is_aux: bool = False, **kwargs):
-        """ BiSeNet segmentation head
+    def __init__(
+        self,
+        n_classes: int,
+        prev_out_shapes: list,
+        original_in_shape: list,
+        attach_index: int = -1,
+        c1: int = 256,
+        upscale_factor: int = 8,
+        is_aux: bool = False,
+        **kwargs
+    ):
+        """BiSeNet segmentation head
 
         Args:
             n_classes (int): NUmber of classes
@@ -22,8 +32,12 @@ class BiSeNetHead(BaseSegmentationHead):
             upscale_factor (int, optional): Factor used for upscaling input. Defaults to 8.
             is_aux (bool, optional): Either use 256 for intermediate channels or 64. Defaults to False.
         """
-        super().__init__(n_classes=n_classes, prev_out_shapes=prev_out_shapes, original_in_shape=original_in_shape,
-            attach_index=attach_index)
+        super().__init__(
+            n_classes=n_classes,
+            prev_out_shapes=prev_out_shapes,
+            original_in_shape=original_in_shape,
+            attach_index=attach_index,
+        )
 
         ch = 256 if is_aux else 64
         c2 = n_classes * upscale_factor * upscale_factor

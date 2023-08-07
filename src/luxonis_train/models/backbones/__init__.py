@@ -17,5 +17,5 @@ __all__ = [
     "MobileOne",
     "MobileNetV2",
     "EfficientNet",
-    "ContextSpatial"
+    "ContextSpatial",
 ]

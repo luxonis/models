@@ -10,9 +10,18 @@ import torch.nn as nn
 from luxonis_train.models.modules import RepBlock, ConvModule
 from luxonis_train.utils.general import make_divisible
 
+
 class RepPANNeck(nn.Module):
-    def __init__(self, prev_out_shapes: list, channels_list: list, num_repeats: list, 
-            depth_mul: float = 0.33, width_mul: float = 0.25, is_4head: bool = False, **kwargs):
+    def __init__(
+        self,
+        prev_out_shapes: list,
+        channels_list: list,
+        num_repeats: list,
+        depth_mul: float = 0.33,
+        width_mul: float = 0.25,
+        is_4head: bool = False,
+        **kwargs
+    ):
         """RepPANNeck normally used with YoloV6 model. It has the balance of feature fusion ability and hardware efficiency.
 
         Args:
@@ -27,13 +36,15 @@ class RepPANNeck(nn.Module):
         super().__init__()
 
         channels_list = [make_divisible(i * width_mul, 8) for i in channels_list]
-        num_repeats = [(max(round(i * depth_mul), 1) if i > 1 else i) for i in num_repeats]
+        num_repeats = [
+            (max(round(i * depth_mul), 1) if i > 1 else i) for i in num_repeats
+        ]
 
         self.is_4head = is_4head
         prev_out_start_idx = 1 if self.is_4head else 0
 
         self.Rep_p4 = RepBlock(
-            in_channels=prev_out_shapes[prev_out_start_idx+1][1] + channels_list[0],
+            in_channels=prev_out_shapes[prev_out_start_idx + 1][1] + channels_list[0],
             out_channels=channels_list[0],
             n=num_repeats[0],
         )
@@ -57,10 +68,10 @@ class RepPANNeck(nn.Module):
         )
 
         self.reduce_layer0 = ConvModule(
-            in_channels=prev_out_shapes[prev_out_start_idx+2][1],
+            in_channels=prev_out_shapes[prev_out_start_idx + 2][1],
             out_channels=channels_list[0],
             kernel_size=1,
-            stride=1
+            stride=1,
         )
 
         self.upsample0 = torch.nn.ConvTranspose2d(
@@ -68,14 +79,14 @@ class RepPANNeck(nn.Module):
             out_channels=channels_list[0],
             kernel_size=2,
             stride=2,
-            bias=True
+            bias=True,
         )
 
         self.reduce_layer1 = ConvModule(
             in_channels=channels_list[0],
             out_channels=channels_list[1],
             kernel_size=1,
-            stride=1
+            stride=1,
         )
 
         self.upsample1 = torch.nn.ConvTranspose2d(
@@ -83,7 +94,7 @@ class RepPANNeck(nn.Module):
             out_channels=channels_list[1],
             kernel_size=2,
             stride=2,
-            bias=True
+            bias=True,
         )
 
         self.downsample2 = ConvModule(
@@ -91,7 +102,7 @@ class RepPANNeck(nn.Module):
             out_channels=channels_list[2],
             kernel_size=3,
             stride=2,
-            padding=3 // 2
+            padding=3 // 2,
         )
 
         self.downsample1 = ConvModule(
@@ -99,38 +110,38 @@ class RepPANNeck(nn.Module):
             out_channels=channels_list[4],
             kernel_size=3,
             stride=2,
-            padding=3 // 2
+            padding=3 // 2,
         )
 
         if self.is_4head:
             self.reduce_layer2 = ConvModule(
                 in_channels=channels_list[1],
-                out_channels=channels_list[1]//2,
+                out_channels=channels_list[1] // 2,
                 kernel_size=1,
-                stride=1
+                stride=1,
             )
             self.upsample2 = torch.nn.ConvTranspose2d(
-                in_channels=channels_list[1]//2,
-                out_channels=channels_list[1]//2,
+                in_channels=channels_list[1] // 2,
+                out_channels=channels_list[1] // 2,
                 kernel_size=2,
                 stride=2,
-                bias=True
+                bias=True,
             )
             self.Rep_p2 = RepBlock(
-                in_channels=prev_out_shapes[prev_out_start_idx-1][1] + 
-                    channels_list[1]//2,
-                out_channels=channels_list[1]//2,
+                in_channels=prev_out_shapes[prev_out_start_idx - 1][1]
+                + channels_list[1] // 2,
+                out_channels=channels_list[1] // 2,
                 n=num_repeats[1],
             )
             self.downsample3 = ConvModule(
-                in_channels=channels_list[1]//2,
+                in_channels=channels_list[1] // 2,
                 out_channels=channels_list[1],
                 kernel_size=3,
                 stride=2,
-                padding=3 // 2
+                padding=3 // 2,
             )
             self.Rep_n2 = RepBlock(
-                in_channels=channels_list[1] + channels_list[1]//2,
+                in_channels=channels_list[1] + channels_list[1] // 2,
                 out_channels=channels_list[1],
                 n=num_repeats[1],
             )
@@ -185,18 +196,30 @@ if __name__ == "__main__":
     num_repeats_backbone = [1, 6, 12, 18, 6]
     num_repeats_neck = [12, 12, 12, 12]
     depth_mul = 0.33
-    
+
     channels_list_backbone = [64, 128, 256, 512, 1024]
     channels_list_neck = [256, 128, 128, 256, 256, 512]
     width_mul = 0.25
 
-    backbone = EfficientRep(in_channels=3, channels_list=channels_list_backbone, num_repeats=num_repeats_backbone, 
-        depth_mul=depth_mul, width_mul=width_mul, is_4head=False)
-    backbone_out_shapes = dummy_input_run(backbone, [1,3,224,224])
+    backbone = EfficientRep(
+        in_channels=3,
+        channels_list=channels_list_backbone,
+        num_repeats=num_repeats_backbone,
+        depth_mul=depth_mul,
+        width_mul=width_mul,
+        is_4head=False,
+    )
+    backbone_out_shapes = dummy_input_run(backbone, [1, 3, 224, 224])
     backbone.eval()
 
-    neck = RepPANNeck(prev_out_shape=backbone_out_shapes, channels_list=channels_list_neck, num_repeats=num_repeats_neck,
-        depth_mul=depth_mul, width_mul=width_mul, is_4head=False)
+    neck = RepPANNeck(
+        prev_out_shape=backbone_out_shapes,
+        channels_list=channels_list_neck,
+        num_repeats=num_repeats_neck,
+        depth_mul=depth_mul,
+        width_mul=width_mul,
+        is_4head=False,
+    )
     neck.eval()
 
     shapes = [224, 256, 384, 512]

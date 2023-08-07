@@ -13,5 +13,5 @@ __all__ = [
     "BiSeNetHead",
     "YoloV6Head",
     "EffiDeHead",
-    "IKeypoint"
+    "IKeypoint",
 ]

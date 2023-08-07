@@ -10,9 +10,10 @@ from typing import List
 from torchvision.ops import box_convert
 from torchvision.utils import draw_bounding_boxes, draw_keypoints
 
+from luxonis_ml.loader import LabelType
 from luxonis_train.models.heads.base_heads import BaseHead
 from luxonis_train.models.modules import ConvModule, autopad
-from luxonis_train.utils.constants import HeadType, LabelType
+from luxonis_train.utils.constants import HeadType
 from luxonis_train.utils.boxutils import non_max_suppression_kpts
 
 
@@ -196,21 +197,22 @@ class IKeypoint(BaseHead):
             wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
                 1, self.na, 1, 1, 2
             )  # wh
-            x_kpt[..., 0::3] = (
+            a = (
                 x_kpt[..., ::3] * 2.0
                 - 0.5
                 + kpt_grid_x.repeat(1, 1, 1, 1, self.n_keypoints)
             ) * self.stride[
                 i
             ]  # xy
-            x_kpt[..., 1::3] = (
+            b = (
                 x_kpt[..., 1::3] * 2.0
                 - 0.5
                 + kpt_grid_y.repeat(1, 1, 1, 1, self.n_keypoints)
             ) * self.stride[
                 i
             ]  # xy
-            x_kpt[..., 2::3] = x_kpt[..., 2::3].sigmoid()
+            c = x_kpt[..., 2::3].sigmoid()
+            x_kpt = torch.stack([a, b, c], dim=-1).view(*a.shape[:-1], -1)
 
             y = torch.cat((xy, wh, y[..., 4:], x_kpt), dim=-1)
             z.append(y.view(bs, -1, self.no))
@@ -233,22 +235,37 @@ class IKeypoint(BaseHead):
         kpts = label_dict[LabelType.KEYPOINT]
         boxes = label_dict[LabelType.BOUNDINGBOX]
         nkpts = (kpts.shape[1] - 2) // 3
-        label = torch.zeros((len(boxes), nkpts * 2 + 6))
+        label = torch.zeros((len(boxes), nkpts * 3 + 6))
         label[:, :2] = boxes[:, :2]
         label[:, 2:6] = box_convert(boxes[:, 2:], "xywh", "cxcywh")
-        label[:, 6::2] = kpts[:, 2::3]  # insert kp x coordinates
-        label[:, 7::2] = kpts[:, 3::3]  # insert kp y coordinates
+        label[:, 6::3] = kpts[:, 2::3]  # insert kp x coordinates
+        label[:, 7::3] = kpts[:, 3::3]  # insert kp y coordinates
+        label[:, 8::3] = kpts[:, 4::3]  # insert kp visibility
 
         nms = non_max_suppression_kpts(output[0])
         output_list_map = []
+        output_list_oks = []
+        output_list_kpt_map = []
         label_list_map = []
+        label_list_oks = []
+        label_list_kpt_map = []
         image_size = self.original_in_shape[2:]
+
         for i in range(len(nms)):
             output_list_map.append(
                 {
                     "boxes": nms[i][:, :4],
                     "scores": nms[i][:, 4],
                     "labels": nms[i][:, 5].int(),
+                }
+            )
+            output_list_oks.append({"keypoints": nms[i][:, 6:]})
+            output_list_kpt_map.append(
+                {
+                    "boxes": nms[i][:, :4],
+                    "scores": nms[i][:, 4],
+                    "labels": nms[i][:, 5].int(),
+                    "keypoints": nms[i][:, 6:],
                 }
             )
 
@@ -262,17 +279,26 @@ class IKeypoint(BaseHead):
                     "labels": curr_label[:, 1].int(),
                 }
             )
-
-        output_list_oks, label_list_oks = (
-            [],
-            [],
-        )  # TODO: implement oks and add correct output and labels
+            curr_kpts = curr_label[:, 6:]
+            curr_kpts[:, 0::3] *= image_size[1]
+            curr_kpts[:, 1::3] *= image_size[0]
+            curr_bboxs_widths = curr_bboxs[:, 2] - curr_bboxs[:, 0]
+            curr_bboxs_heights = curr_bboxs[:, 3] - curr_bboxs[:, 1]
+            curr_scales = torch.sqrt(curr_bboxs_widths * curr_bboxs_heights)
+            label_list_oks.append({"keypoints": curr_kpts, "scales": curr_scales})
+            label_list_kpt_map.append(
+                {
+                    "boxes": curr_bboxs,
+                    "labels": curr_label[:, 1].int(),
+                    "keypoints": curr_kpts,
+                }
+            )
 
         # metric mapping is needed here because each metrics requires different output/label format
-        metric_mapping = {"map": 0, "oks": 1}
+        metric_mapping = {"map": 0, "oks": 1, "kpt_map": 2}
         return (
-            (output_list_map, output_list_oks),
-            (label_list_map, label_list_oks),
+            (output_list_map, output_list_oks, output_list_kpt_map),
+            (label_list_map, label_list_oks, label_list_kpt_map),
             metric_mapping,
         )
 
@@ -284,12 +310,83 @@ class IKeypoint(BaseHead):
         bboxes = nms[:, :4]
         img = draw_bounding_boxes(img, bboxes)
         kpts = nms[:, 6:].reshape(-1, self.n_keypoints, 3)
-        img = draw_keypoints(img, kpts, colors="red", connectivity=self.connectivity)
+        img = draw_keypoints(
+            img, kpts[..., :2], colors="red", connectivity=self.connectivity
+        )
         return img
 
     def get_output_names(self, idx: int):
         # TODO: check if this is correct output name
         return f"output{idx}"
+
+    def to_deploy(self):
+        # change definition of forward()
+        def deploy_forward(inputs):
+            z = []  # inference output
+            x = []  # layer outputs
+
+            if self.anchor_grid.device != inputs[0].device:
+                self.anchor_grid = self.anchor_grid.to(inputs[0].device)
+
+            for i in range(self.nl):
+                x.append(
+                    torch.cat(
+                        (
+                            self.im[i](self.m[i](self.ia[i](inputs[i]))),
+                            self.m_kpt[i](inputs[i]),
+                        ),
+                        axis=1,
+                    )
+                )  # type: ignore
+
+                bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
+                x[i] = (
+                    x[i]
+                    .view(bs, self.na, self.no, ny, nx)
+                    .permute(0, 1, 3, 4, 2)
+                    .contiguous()
+                )
+                x_det = x[i][..., : 5 + self.n_classes]
+                x_kpt = x[i][..., 5 + self.n_classes :]
+
+                # from this point down only needed for inference
+                if self.grid[i].shape[2:4] != x[i].shape[2:4]:
+                    self.grid[i] = self._make_grid(nx, ny).to(x[i].device)
+                kpt_grid_x = self.grid[i][..., 0:1]
+                kpt_grid_y = self.grid[i][..., 1:2]
+
+                if self.n_keypoints == 0:
+                    y = x[i].sigmoid()
+                else:
+                    y = x_det.sigmoid()
+
+                xy = (y[..., 0:2] * 2.0 - 0.5 + self.grid[i]) * self.stride[i]  # xy
+                wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
+                    1, self.na, 1, 1, 2
+                )  # wh
+                a = (
+                    x_kpt[..., ::3] * 2.0
+                    - 0.5
+                    + kpt_grid_x.repeat(1, 1, 1, 1, self.n_keypoints)
+                ) * self.stride[
+                    i
+                ]  # xy
+                b = (
+                    x_kpt[..., 1::3] * 2.0
+                    - 0.5
+                    + kpt_grid_y.repeat(1, 1, 1, 1, self.n_keypoints)
+                ) * self.stride[
+                    i
+                ]  # xy
+                c = x_kpt[..., 2::3].sigmoid()
+                x_kpt = torch.stack([a, b, c], dim=-1).view(*a.shape[:-1], -1)
+
+                y = torch.cat((xy, wh, y[..., 4:], x_kpt), dim=-1)
+                z.append(y.view(bs, -1, self.no))
+
+            return torch.cat(z, 1)  # only return predictions without features
+
+        self.forward = deploy_forward
 
     def _make_grid(self, nx=20, ny=20):
         yv, xv = torch.meshgrid([torch.arange(ny), torch.arange(nx)], indexing="ij")

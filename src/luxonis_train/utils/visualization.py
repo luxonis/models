@@ -9,7 +9,7 @@ from torchvision.utils import (
 )
 from torchvision.ops import box_convert
 
-from luxonis_train.utils.constants import LabelType
+from luxonis_ml.loader import LabelType
 
 
 def draw_outputs(
@@ -135,11 +135,11 @@ def draw_labels(
                 curr_label = label_dict[label_key]
                 curr_label = curr_label[curr_label[:, 0] == i][:, 1:]
 
-                keypoints_flat = torch.reshape(curr_label[:, 1:], (-1, 3))
-                keypoints_points = keypoints_flat[:, :2]
+                keypoints_unflat = torch.reshape(curr_label[:, 1:], (-1, 3))
+                keypoints_points = keypoints_unflat[:, :2]
                 keypoints_points[:, 0] *= iw
                 keypoints_points[:, 1] *= ih
-                keypoints_visibility = keypoints_flat[:, 2]
+                keypoints_visibility = keypoints_unflat[:, 2]
 
                 # torchvision expects format [n_instances, K, 2]
                 n_instances = curr_label.shape[0]

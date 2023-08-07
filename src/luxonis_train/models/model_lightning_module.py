@@ -176,15 +176,6 @@ class ModelLightningModule(pl.LightningModule):
         """Loads checkpoint weights from provided path"""
         print(f"Loading weights from: {path}")
         state_dict = torch.load(path)["state_dict"]
-        # remove weights that are not part of the model
-        removed = []
-        for key in state_dict.keys():
-            if not key.startswith("model"):
-                removed.append(key)
-                state_dict.pop(key)
-        if len(removed):
-            print(f"Following weights weren't loaded: {removed}")
-
         self.load_state_dict(state_dict)
 
     def forward(self, inputs: torch.Tensor):

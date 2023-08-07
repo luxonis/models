@@ -3,7 +3,7 @@ import torch
 import os
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
-from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
 from luxonis_train.utils.config import Config
@@ -40,8 +40,8 @@ if __name__ == "__main__":
     with LuxonisDataset(
         team_id=cfg.get("dataset.team_id"),
         dataset_id=cfg.get("dataset.dataset_id"),
-        bucket_type=cfg.get("dataset.bucket_type"),
-        override_bucket_type=cfg.get("dataset.override_bucket_type"),
+        bucket_type=eval(cfg.get("dataset.bucket_type")),
+        bucket_storage=eval(cfg.get("dataset.bucket_storage")),
     ) as dataset:
         augmentations = (
             TrainAugmentations(

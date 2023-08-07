@@ -4,12 +4,13 @@ import cv2
 from typing import List, Union
 from torchvision.utils import draw_segmentation_masks
 
+from luxonis_ml.loader import LabelType
 from luxonis_train.utils.visualization import (
     torch_img_to_numpy,
     numpy_to_torch_img,
     seg_output_to_bool,
 )
-from luxonis_train.utils.constants import HeadType, LabelType
+from luxonis_train.utils.constants import HeadType
 
 
 class BaseHead(nn.Module):

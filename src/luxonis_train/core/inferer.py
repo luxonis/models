@@ -5,8 +5,9 @@ import numpy as np
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 from typing import Union, Optional
+from dotenv import load_dotenv
 from tqdm import tqdm
-from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_ml.loader import LuxonisLoader
 from luxonis_ml.loader import TrainAugmentations, ValAugmentations, Augmentations
 
@@ -29,6 +30,7 @@ class Inferer(pl.LightningModule):
         self.cfg = Config(cfg)
         if args and args["override"]:
             self.cfg.override_config(args["override"])
+        load_dotenv()
 
         self.model = Model()
         self.model.build_model()
@@ -44,7 +46,7 @@ class Inferer(pl.LightningModule):
         state_dict = torch.load(path)["state_dict"]
         # remove weights that are not part of the model
         removed = []
-        for key in state_dict.keys():
+        for key in list(state_dict.keys()):
             if not key.startswith("model"):
                 removed.append(key)
                 state_dict.pop(key)
@@ -68,8 +70,8 @@ class Inferer(pl.LightningModule):
         with LuxonisDataset(
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=self.cfg.get("dataset.bucket_type"),
-            override_bucket_type=self.cfg.get("dataset.override_bucket_type"),
+            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
+            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
         ) as dataset:
             view = self.cfg.get("inferer.dataset_view")
 
@@ -129,6 +131,7 @@ class Inferer(pl.LightningModule):
                             label_keys=curr_head.label_types,
                             unnormalize_img=unnormalize_img,
                             cvt_color=cvt_color,
+                            overlay=True,
                         )
                         output_imgs = draw_outputs(
                             imgs=inputs,

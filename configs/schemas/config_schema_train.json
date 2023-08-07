@@ -238,14 +238,20 @@
                 "bucket_type": {
                     "type": "string",
                     "enum": [
-                        "local",
-                        "aws"
+                        "BucketType.INTERNAL",
+                        "BucketType.EXTERNAL"
                     ],
-                    "default": "local"
+                    "default": "BucketType.INTERNAL"
                 },
-                "override_bucket_type": {
-                    "type": "boolean",
-                    "default": false
+                "bucket_storage": {
+                    "type": "string",
+                    "enum": [
+                        "BucketStorage.LOCAL",
+                        "BucketStorage.S3",
+                        "BucketStorage.GCS",
+                        "BucketStorage.AZURE"
+                    ],
+                    "default": "BucketStorage.LOCAL"
                 },
                 "train_view": {
                     "type": "string",

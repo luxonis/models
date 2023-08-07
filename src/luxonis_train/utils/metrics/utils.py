@@ -2,7 +2,7 @@ import torch.nn as nn
 import torchmetrics
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
-from .custom import ObjectKeypointSimilarity
+from .custom import ObjectKeypointSimilarity, MeanAveragePrecisionKeypoints
 from luxonis_train.utils.constants import HeadType
 
 """
@@ -49,24 +49,32 @@ def init_metrics(head: nn.Module):
                 task="multilabel", num_labels=head.n_classes
             )
         elif head_type == HeadType.SEMANTIC_SEGMENTATION:
-            metrics["accuracy"] = torchmetrics.Accuracy(
-                task="binary" if is_binary else "multiclass",
-                num_classes=head.n_classes,
-                ignore_index=0 if is_binary else None,
-            )
             metrics["mIoU"] = torchmetrics.JaccardIndex(
-                task="binary" if is_binary else "multiclass",
-                num_classes=head.n_classes,
-                ignore_index=0 if is_binary else None,
+                task="binary" if is_binary else "multiclass", num_classes=head.n_classes
+            )
+            metrics["accuracy"] = torchmetrics.Accuracy(
+                task="binary" if is_binary else "multiclass", num_classes=head.n_classes
+            )
+            metrics["f1"] = torchmetrics.F1Score(
+                task="binary" if is_binary else "multiclass", num_classes=head.n_classes
             )
         elif head_type == HeadType.OBJECT_DETECTION:
             metrics["map"] = MeanAveragePrecision(box_format="xyxy")
         elif head_type == HeadType.KEYPOINT_DETECTION:
-            metrics["oks"] = ObjectKeypointSimilarity()
+            metrics["oks"] = ObjectKeypointSimilarity(num_keypoints=head.n_keypoints)
         else:
             raise KeyError(
                 f"No metrics for head type = {head_type} are currently supported."
             )
+
+    # metrics for specific HeadType combinations
+    if all(
+        head_type in [HeadType.OBJECT_DETECTION, HeadType.KEYPOINT_DETECTION]
+        for head_type in head.head_types
+    ):
+        metrics["kpt_map"] = MeanAveragePrecisionKeypoints(
+            box_format="xyxy", num_keypoints=head.n_keypoints
+        )
 
     collection = torchmetrics.MetricCollection(metrics)
 

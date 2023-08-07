@@ -4,7 +4,7 @@ import warnings
 import json
 import re
 from typing import Union
-from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from copy import deepcopy
 
 
@@ -277,8 +277,8 @@ class Config:
         with LuxonisDataset(
             team_id=self._data["dataset"]["team_id"],
             dataset_id=self._data["dataset"]["dataset_id"],
-            bucket_type=self._data["dataset"]["bucket_type"],
-            override_bucket_type=self._data["dataset"]["override_bucket_type"],
+            bucket_type=eval(self._data["dataset"]["bucket_type"]),
+            bucket_storage=eval(self._data["dataset"]["bucket_storage"]),
         ) as dataset:
             classes, classes_by_task = dataset.get_classes()
             dataset_n_classes = len(classes)

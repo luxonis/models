@@ -9,7 +9,7 @@ from copy import deepcopy
 from pytorch_lightning.utilities import rank_zero_only
 from optuna.integration import PyTorchLightningPruningCallback
 from luxonis_ml.tracker import LuxonisTrackerPL
-from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
 from luxonis_train.utils.config import Config
@@ -132,8 +132,8 @@ class Tuner:
         with LuxonisDataset(
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=self.cfg.get("dataset.bucket_type"),
-            override_bucket_type=self.cfg.get("dataset.override_bucket_type"),
+            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
+            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
         ) as dataset:
             loader_train = LuxonisLoader(
                 dataset,

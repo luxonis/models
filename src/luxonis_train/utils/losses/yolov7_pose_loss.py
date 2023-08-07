@@ -106,7 +106,7 @@ class YoloV7PoseLoss(nn.Module):
                 d = (pkpt_x - tkpt[i][:, 0::2]) ** 2 + (pkpt_y - tkpt[i][:, 1::2]) ** 2
                 kpt_loss_factor = (
                     torch.sum(kpt_mask != 0) + torch.sum(kpt_mask == 0)
-                ) / torch.sum(kpt_mask != 0)
+                ) / (torch.sum(kpt_mask != 0) + 1e-9)
                 lkpt += kpt_loss_factor * (torch.log(d + 1 + 1e-9) * kpt_mask).mean()
                 # Objectness
                 tobj[b, a, gj, gi] = (1.0 - self.gr) + self.gr * iou.detach().clamp(

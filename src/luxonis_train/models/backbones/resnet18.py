@@ -4,13 +4,14 @@
 #
 
 
-import torch
-import torch.nn as nn
 import torchvision
+from typing import Optional
+
+from luxonis_train.models.backbones.base_backbone import BaseBackbone
 
 
-class ResNet18(nn.Module):
-    def __init__(self, download_weights: bool = False):
+class ResNet18(BaseBackbone):
+    def __init__(self, download_weights: Optional[bool] = False):
         """ResNet18 backbone
 
         Args:
@@ -24,34 +25,20 @@ class ResNet18(nn.Module):
         self.channels = [64, 128, 256, 512]
         self.backbone = resnet18
 
-    def forward(self, X):
+    def forward(self, x):
         outs = []
-        X = self.backbone.conv1(X)
-        X = self.backbone.bn1(X)
-        X = self.backbone.relu(X)
-        X = self.backbone.maxpool(X)
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
 
-        X = self.backbone.layer1(X)
-        outs.append(X)
-        X = self.backbone.layer2(X)
-        outs.append(X)
-        X = self.backbone.layer3(X)
-        outs.append(X)
-        X = self.backbone.layer4(X)
-        outs.append(X)
+        x = self.backbone.layer1(x)
+        outs.append(x)
+        x = self.backbone.layer2(x)
+        outs.append(x)
+        x = self.backbone.layer3(x)
+        outs.append(x)
+        x = self.backbone.layer4(x)
+        outs.append(x)
 
         return outs
-
-
-if __name__ == "__main__":
-    model = ResNet18()
-    model.eval()
-
-    shapes = [224, 256, 384, 512]
-
-    for shape in shapes:
-        print("\nShape", shape)
-        x = torch.zeros(1, 3, shape, shape)
-        outs = model(x)
-        for out in outs:
-            print(out.shape)

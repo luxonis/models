@@ -2,22 +2,49 @@
 # Source: https://github.com/taveraantonio/BiseNetv1
 #
 
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 from luxonis_train.models.backbones import *
+from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import ConvModule
 
 
-class SpatialPath(nn.Module):
-    def __init__(self, c1, c2) -> None:
+class ContextSpatial(BaseBackbone):
+    def __init__(self, context_backbone: str = "MobileNetV2"):
+        """Context spatial backbone
+
+        Args:
+            context_backbone (str, optional): Backbone used. Defaults to 'MobileNetV2'.
+        """
         super().__init__()
-        ch = 64
-        self.conv_7x7 = ConvModule(c1, ch, 7, 2, 3)
-        self.conv_3x3_1 = ConvModule(ch, ch, 3, 2, 1)
-        self.conv_3x3_2 = ConvModule(ch, ch, 3, 2, 1)
-        self.conv_1x1 = ConvModule(ch, c2, 1, 1, 0)
+
+        self.context_path = ContextPath(eval(context_backbone)())
+        self.spatial_path = SpatialPath(3, 128)
+        self.ffm = FeatureFusionModule(256, 256)
+
+    def forward(self, x):
+        spatial_out = self.spatial_path(x)
+        context16, context32 = self.context_path(x)
+        fm_fuse = self.ffm(spatial_out, context16)
+        outs = [fm_fuse]
+        return outs
+
+
+class SpatialPath(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+        intermediate_channels = 64
+        self.conv_7x7 = ConvModule(in_channels, intermediate_channels, 7, 2, 3)
+        self.conv_3x3_1 = ConvModule(
+            intermediate_channels, intermediate_channels, 3, 2, 1
+        )
+        self.conv_3x3_2 = ConvModule(
+            intermediate_channels, intermediate_channels, 3, 2, 1
+        )
+        self.conv_1x1 = ConvModule(intermediate_channels, out_channels, 1, 1, 0)
 
     def forward(self, x):
         x = self.conv_7x7(x)
@@ -27,7 +54,7 @@ class SpatialPath(nn.Module):
 
 
 class ContextPath(nn.Module):
-    def __init__(self, backbone: nn.Module) -> None:
+    def __init__(self, backbone: nn.Module):
         super().__init__()
         self.backbone = backbone
         c3, c4 = self.backbone.channels[-2:]
@@ -68,14 +95,14 @@ class ContextPath(nn.Module):
 
 
 class AttentionRefinmentModule(nn.Module):
-    def __init__(self, c1, c2) -> None:
+    def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
-        self.conv_3x3 = ConvModule(c1, c2, 3, 1, 1)
+        self.conv_3x3 = ConvModule(in_channels, out_channels, 3, 1, 1)
 
         self.attention = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(c2, c2, 1, bias=False),
-            nn.BatchNorm2d(c2),
+            nn.Conv2d(out_channels, out_channels, 1, bias=False),
+            nn.BatchNorm2d(out_channels),
             nn.Sigmoid(),
         )
 
@@ -86,15 +113,15 @@ class AttentionRefinmentModule(nn.Module):
 
 
 class FeatureFusionModule(nn.Module):
-    def __init__(self, c1, c2, reduction=1) -> None:
+    def __init__(self, in_channels: int, out_channels: int, reduction: int = 1):
         super().__init__()
-        self.conv_1x1 = ConvModule(c1, c2, 1, 1, 0)
+        self.conv_1x1 = ConvModule(in_channels, out_channels, 1, 1, 0)
 
         self.attention = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(c2, c2 // reduction, 1, bias=False),
+            nn.Conv2d(out_channels, out_channels // reduction, 1, bias=False),
             nn.ReLU(True),
-            nn.Conv2d(c2 // reduction, c2, 1, bias=False),
+            nn.Conv2d(out_channels // reduction, out_channels, 1, bias=False),
             nn.Sigmoid(),
         )
 
@@ -103,37 +130,3 @@ class FeatureFusionModule(nn.Module):
         fm = self.conv_1x1(fm)
         fm_se = self.attention(fm)
         return fm + fm * fm_se
-
-
-class ContextSpatial(nn.Module):
-    def __init__(self, context_backbone: str = "MobileNetV2", in_channels: int = 3):
-        """Context spatial backbone
-
-        Args:
-            context_backbone (str, optional): Backbone used. Defaults to 'MobileNetV2'.
-            in_channels (int, optional): Number of input channels, should be 3 in most cases. Defaults to 3.
-        """
-        super().__init__()
-        self.context_path = ContextPath(eval(context_backbone)())
-        self.spatial_path = SpatialPath(3, 128)
-        self.ffm = FeatureFusionModule(256, 256)
-
-    def forward(self, x):
-        spatial_out = self.spatial_path(x)
-        context16, context32 = self.context_path(x)
-        fm_fuse = self.ffm(spatial_out, context16)
-        outs = [fm_fuse]
-        return outs
-
-
-if __name__ == "__main__":
-    model = ContextSpatial()
-    model.eval()
-
-    shapes = [224, 256, 384, 512]
-    for shape in shapes:
-        print("\nShape", shape)
-        x = torch.zeros(1, 3, shape, shape)
-        outs = model(x)
-        for out in outs:
-            print(out.shape)

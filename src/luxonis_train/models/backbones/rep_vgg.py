@@ -1,26 +1,46 @@
 #
-# Soure: https://github.com/DingXiaoH/RepVGG
+# Source: https://github.com/DingXiaoH/RepVGG
 # License: https://github.com/DingXiaoH/RepVGG/blob/main/LICENSE
 #
 
 
 import torch.nn as nn
-import torch
 import torch.utils.checkpoint as checkpoint
+from typing import Optional, Literal
 
+from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import RepVGGBlock
+
+
+class RepVGG(BaseBackbone):
+    def __init__(self, variant: Optional[Literal["A0", "A1", "A2"]] = "A0"):
+        """RepVGG baackbone
+
+        Args:
+            variant (Literal["A0", "A1", "A2"], optional): Defaults to "A0".
+        """
+        super().__init__()
+        assert (
+            variant in REPVGG_VARIANTS_SETTINGS.keys()
+        ), f"RepVGG model variant should be in {list(REPVGG_VARIANTS_SETTINGS.keys())}"
+
+        self.model = RepVGG_(**REPVGG_VARIANTS_SETTINGS[variant])
+
+    def forward(self, x):
+        features = self.model(x)
+        return features
 
 
 class RepVGG_(nn.Module):
     def __init__(
         self,
-        num_blocks,
-        num_classes=1000,
-        width_multiplier=None,
-        override_groups_map=None,
-        deploy=False,
-        use_se=False,
-        use_checkpoint=False,
+        num_blocks: list,
+        num_classes: Optional[int] = 1000,
+        width_multiplier: Optional[list] = None,
+        override_groups_map: Optional[list] = None,
+        deploy: Optional[bool] = False,
+        use_se: Optional[bool] = False,
+        use_checkpoint: Optional[bool] = False,
     ):
         super(RepVGG_, self).__init__()
         assert len(width_multiplier) == 4
@@ -90,232 +110,23 @@ class RepVGG_(nn.Module):
         return outputs
 
 
-optional_groupwise_layers = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26]
-g2_map = {l: 2 for l in optional_groupwise_layers}
-g4_map = {l: 4 for l in optional_groupwise_layers}
-
-
-def create_RepVGG_A0(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[2, 4, 14, 1],
-        num_classes=1000,
-        width_multiplier=[0.75, 0.75, 0.75, 2.5],
-        override_groups_map=None,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_A1(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[2, 4, 14, 1],
-        num_classes=1000,
-        width_multiplier=[1, 1, 1, 2.5],
-        override_groups_map=None,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_A2(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[2, 4, 14, 1],
-        num_classes=1000,
-        width_multiplier=[1.5, 1.5, 1.5, 2.75],
-        override_groups_map=None,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B0(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[1, 1, 1, 2.5],
-        override_groups_map=None,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B1(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[2, 2, 2, 4],
-        override_groups_map=None,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B1g2(deploy=False, use_checkpoint=False):
-    return RepVGG(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[2, 2, 2, 4],
-        override_groups_map=g2_map,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B1g4(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[2, 2, 2, 4],
-        override_groups_map=g4_map,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B2(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[2.5, 2.5, 2.5, 5],
-        override_groups_map=None,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B2g2(deploy=False, use_checkpoint=False):
-    return RepVGG(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[2.5, 2.5, 2.5, 5],
-        override_groups_map=g2_map,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B2g4(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[2.5, 2.5, 2.5, 5],
-        override_groups_map=g4_map,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B3(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[3, 3, 3, 5],
-        override_groups_map=None,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B3g2(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[3, 3, 3, 5],
-        override_groups_map=g2_map,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_B3g4(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[4, 6, 16, 1],
-        num_classes=1000,
-        width_multiplier=[3, 3, 3, 5],
-        override_groups_map=g4_map,
-        deploy=deploy,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-def create_RepVGG_D2se(deploy=False, use_checkpoint=False):
-    return RepVGG_(
-        num_blocks=[8, 14, 24, 1],
-        num_classes=1000,
-        width_multiplier=[2.5, 2.5, 2.5, 5],
-        override_groups_map=None,
-        deploy=deploy,
-        use_se=True,
-        use_checkpoint=use_checkpoint,
-    )
-
-
-func_dict = {
-    "RepVGG-A0": create_RepVGG_A0,
-    "RepVGG-A1": create_RepVGG_A1,
-    "RepVGG-A2": create_RepVGG_A2,
-    "RepVGG-B0": create_RepVGG_B0,
-    "RepVGG-B1": create_RepVGG_B1,
-    "RepVGG-B1g2": create_RepVGG_B1g2,
-    "RepVGG-B1g4": create_RepVGG_B1g4,
-    "RepVGG-B2": create_RepVGG_B2,
-    "RepVGG-B2g2": create_RepVGG_B2g2,
-    "RepVGG-B2g4": create_RepVGG_B2g4,
-    "RepVGG-B3": create_RepVGG_B3,
-    "RepVGG-B3g2": create_RepVGG_B3g2,
-    "RepVGG-B3g4": create_RepVGG_B3g4,
-    "RepVGG-D2se": create_RepVGG_D2se,  #   Updated at April 25, 2021. This is not reported in the CVPR paper.
+REPVGG_VARIANTS_SETTINGS = {
+    "A0": {
+        "num_blocks": [2, 4, 14, 1],
+        "num_classes": 1000,
+        "width_multiplier": [0.75, 0.75, 0.75, 2.5],
+        "override_groups_map": None,
+    },
+    "A1": {
+        "num_blocks": [2, 4, 14, 1],
+        "num_classes": 1000,
+        "width_multiplier": [1, 1, 1, 2.5],
+        "override_groups_map": None,
+    },
+    "A2": {
+        "num_blocks": [2, 4, 14, 1],
+        "num_classes": 1000,
+        "width_multiplier": [1.5, 1.5, 1.5, 2.75],
+        "override_groups_map": None,
+    },
 }
-
-
-def get_RepVGG_func_by_name(name):
-    return func_dict[name]
-
-
-#   Use this for converting a RepVGG model or a bigger model with RepVGG as its component
-#   Use like this
-#   model = create_RepVGG_A0(deploy=False)
-#   train model or load weights
-#   repvgg_model_convert(model, save_path='repvgg_deploy.pth')
-#   If you want to preserve the original model, call with do_copy=True
-
-#   ====================== for using RepVGG as the backbone of a bigger model, e.g., PSPNet, the pseudo code will be like
-#   train_backbone = create_RepVGG_B2(deploy=False)
-#   train_backbone.load_state_dict(torch.load('RepVGG-B2-train.pth'))
-#   train_pspnet = build_pspnet(backbone=train_backbone)
-#   segmentation_train(train_pspnet)
-#   deploy_pspnet = repvgg_model_convert(train_pspnet)
-#   segmentation_test(deploy_pspnet)
-#   =====================   example_pspnet.py shows an example
-
-
-class RepVGG(nn.Module):
-    def __init__(self, variant: str = "A0"):
-        """RepVGG baackbone
-
-        Args:
-            variant (str, optional): Variant from ['A0', 'A1']. Defaults to "A0".
-        """
-        super().__init__()
-        assert variant in ["A0", "A1"]
-
-        model_create = create_RepVGG_A0 if variant == "A0" else create_RepVGG_A1
-        self.model = model_create(deploy=False)
-
-    def forward(self, X):
-        features = self.model(X)
-        return features
-
-
-if __name__ == "__main__":
-    for variant in ["A0", "A1"]:
-        model = RepVGG(variant=variant)
-        model.eval()
-        print("Variant:", variant)
-        shapes = [224, 256, 384, 512]
-        for shape in shapes:
-            print("\n\nShape", shape)
-            x = torch.zeros(1, 3, shape, shape)
-            outs = model(x)
-            for out in outs:
-                print(out.shape)

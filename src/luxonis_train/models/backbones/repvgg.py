@@ -13,7 +13,7 @@ from luxonis_train.models.modules import RepVGGBlock
 
 
 class RepVGG(BaseBackbone):
-    def __init__(self, variant: Optional[Literal["A0", "A1", "A2"]] = "A0"):
+    def __init__(self, variant: Optional[Literal["A0", "A1", "A2"]] = "A0", **kwargs):
         """RepVGG baackbone
 
         Args:

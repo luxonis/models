@@ -22,6 +22,7 @@ class ReXNetV1_lite(BaseBackbone):
         final_ch: Optional[int] = 164,
         multiplier: Optional[float] = 1.0,
         kernel_conf: Optional[str] = "333333",
+        **kwargs
     ):
         """ReXNetV1_lite backbone
 
@@ -169,11 +170,11 @@ class LinearBottleneck(nn.Module):
         if self.use_shortcut:
             # this results in a ScatterND node which isn't supported yet in myriad
             # out[:, 0:self.in_channels] += x
-
             a = out[:, : self.in_channels]
             b = x
             a = a + b
             c = out[:, self.in_channels :]
             d = torch.concat([a, c], dim=1)
             return d
+
         return out

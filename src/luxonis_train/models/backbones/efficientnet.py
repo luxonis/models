@@ -10,7 +10,7 @@ from luxonis_train.models.backbones.base_backbone import BaseBackbone
 
 
 class EfficientNet(BaseBackbone):
-    def __init__(self, download_weights: bool = False):
+    def __init__(self, download_weights: bool = False, **kwargs):
         """EfficientNet backbone
 
         Args:

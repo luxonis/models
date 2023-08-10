@@ -16,7 +16,9 @@ from luxonis_train.models.modules import SEBlock, ConvModule
 
 
 class MobileOne(BaseBackbone):
-    def __init__(self, variant: Optional[Literal["s0", "s1", "s2", "s3", "s4"]] = "s0"):
+    def __init__(
+        self, variant: Optional[Literal["s0", "s1", "s2", "s3", "s4"]] = "s0", **kwargs
+    ):
         """MobileOne backbone
 
         Args:

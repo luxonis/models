@@ -20,6 +20,7 @@ class EfficientRep(BaseBackbone):
         in_channels: Optional[int] = 3,
         depth_mul: Optional[float] = 0.33,
         width_mul: Optional[float] = 0.25,
+        **kwargs
     ):
         """EfficientRep backbone, normally used with YoloV6 model.
 
@@ -75,5 +76,4 @@ class EfficientRep(BaseBackbone):
         for block in self.blocks:
             x = block(x)
             outputs.append(x)
-
         return outputs

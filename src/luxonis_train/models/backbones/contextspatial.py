@@ -13,7 +13,7 @@ from luxonis_train.models.modules import ConvModule
 
 
 class ContextSpatial(BaseBackbone):
-    def __init__(self, context_backbone: str = "MobileNetV2"):
+    def __init__(self, context_backbone: str = "MobileNetV2", **kwargs):
         """Context spatial backbone
 
         Args:

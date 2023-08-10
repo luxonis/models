@@ -12,7 +12,7 @@ from luxonis_train.models.backbones.base_backbone import BaseBackbone
 
 
 class MicroNet(BaseBackbone):
-    def __init__(self, variant: Optional[Literal["M1", "M2", "M3"]] = "M1"):
+    def __init__(self, variant: Optional[Literal["M1", "M2", "M3"]] = "M1", **kwargs):
         """MicroNet backbone
 
         Args:

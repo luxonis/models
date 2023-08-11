@@ -27,3 +27,9 @@ Here is a list of all supported heads and any additional parameters they take:
     - n_keypoints: int # Number of keypoints
     - anchors: list # Anchors used for object detection
     - connectivity: list # Connectivity mapping used in visualization. Defaults to None.
+- IKeypointMultiHead (adapted from [here](https://github.com/WongKinYiu/yolov7))
+  - Params:
+    - anchors: list # Anchors used for object detection
+    - n_keypoints: int # Number of keypoints
+    - connectivity: list # Connectivity mapping used in visualization. Defaults to None.
+    - visibility_threshold: float # Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.

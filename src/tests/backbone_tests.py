@@ -8,10 +8,7 @@ from luxonis_train.models.backbones import *
 DEFAULT_INIT_VALUES = {
     "ContextSpatial": {},
     "EfficientNet": {},
-    "EfficientRep": {
-        "channels_list": [64, 128, 256, 512, 1024],
-        "num_repeats": [1, 6, 12, 18, 6],
-    },
+    "EfficientRep": {},
     "MicroNet": {},
     "MobileNetV2": {},
     "MobileOne": {},

@@ -9,6 +9,7 @@ import torch.nn as nn
 from typing import Literal, Optional
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
+from luxonis_train.models.modules import ConvModule
 
 
 class MicroNet(BaseBackbone):
@@ -122,7 +123,13 @@ class MicroBlock(nn.Module):
                 ChannelShuffle(intermediate_channels // 2)
                 if y2 != 0
                 else nn.Sequential(),
-                PWConv(intermediate_channels, out_channels, (g1, g2)),
+                ConvModule(
+                    in_channels=intermediate_channels,
+                    out_channels=out_channels,
+                    kernel_size=1,
+                    groups=g1,
+                    activation=nn.Identity(),
+                ),
                 DYShiftMax(
                     out_channels,
                     out_channels,
@@ -141,7 +148,13 @@ class MicroBlock(nn.Module):
             )
         elif g2 == 0:
             self.layers = nn.Sequential(
-                PWConv(in_channels, intermediate_channels, gs1),
+                ConvModule(
+                    in_channels=in_channels,
+                    out_channels=intermediate_channels,
+                    kernel_size=1,
+                    groups=gs1[0],
+                    activation=nn.Identity(),
+                ),
                 DYShiftMax(
                     intermediate_channels,
                     intermediate_channels,
@@ -156,7 +169,13 @@ class MicroBlock(nn.Module):
             )
         else:
             self.layers = nn.Sequential(
-                PWConv(in_channels, intermediate_channels, gs1),
+                ConvModule(
+                    in_channels=in_channels,
+                    out_channels=intermediate_channels,
+                    kernel_size=1,
+                    groups=gs1[0],
+                    activation=nn.Identity(),
+                ),
                 DYShiftMax(
                     intermediate_channels,
                     intermediate_channels,
@@ -188,7 +207,13 @@ class MicroBlock(nn.Module):
                 else nn.Sequential()
                 if y1 == 0 and y2 == 0
                 else ChannelShuffle(intermediate_channels // 2),
-                PWConv(intermediate_channels, out_channels, (g1, g2)),
+                ConvModule(
+                    in_channels=intermediate_channels,
+                    out_channels=out_channels,
+                    kernel_size=1,
+                    groups=g1,
+                    activation=nn.Identity(),
+                ),
                 DYShiftMax(
                     out_channels,
                     out_channels,
@@ -410,18 +435,6 @@ class DepthSpatialSepConv(nn.Module):
                 groups=intermediate_channels,
                 bias=False,
             ),
-            nn.BatchNorm2d(out_channels),
-        )
-
-    def forward(self, x: torch.Tensor):
-        return self.conv(x)
-
-
-class PWConv(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, g: Optional[list] = [2]):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1, 1, 0, groups=g[0], bias=False),
             nn.BatchNorm2d(out_channels),
         )
 
@@ -855,3 +868,7 @@ MICRONET_VARIANTS_SETTINGS = {
         ],
     ],
 }
+
+if __name__ == "__main__":
+    test = MicroNet()
+    print(test)

@@ -15,8 +15,8 @@ from luxonis_train.utils.general import make_divisible
 class EfficientRep(BaseBackbone):
     def __init__(
         self,
-        channels_list: list,
-        num_repeats: list,
+        channels_list: Optional[list] = [64, 128, 256, 512, 1024],
+        num_repeats: Optional[list] = [1, 6, 12, 18, 6],
         in_channels: Optional[int] = 3,
         depth_mul: Optional[float] = 0.33,
         width_mul: Optional[float] = 0.25,
@@ -25,8 +25,8 @@ class EfficientRep(BaseBackbone):
         """EfficientRep backbone, normally used with YoloV6 model.
 
         Args:
-            channels_list (list): List of number of channels for each block
-            num_repeats (list): List of number of repeats of RepBlock
+            channels_list (list, optional): List of number of channels for each block. Defaults to [64, 128, 256, 512, 1024].
+            num_repeats (list, optional): List of number of repeats of RepBlock. Defaults to [1, 6, 12, 18, 6].
             in_channels (int, optional): Number of input channels, should be 3 in most cases . Defaults to 3.
             depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
             width_mul (float, optional): Width multiplier. Defaults to 0.25.

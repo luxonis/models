@@ -20,9 +20,10 @@ class RepVGG(BaseBackbone):
             variant (Literal["A0", "A1", "A2"], optional): Defaults to "A0".
         """
         super().__init__()
-        assert (
-            variant in REPVGG_VARIANTS_SETTINGS.keys()
-        ), f"RepVGG model variant should be in {list(REPVGG_VARIANTS_SETTINGS.keys())}"
+        if variant not in REPVGG_VARIANTS_SETTINGS.keys():
+            raise ValueError(
+                f"RepVGG model variant should be in {list(REPVGG_VARIANTS_SETTINGS.keys())}"
+            )
 
         self.model = RepVGG_(**REPVGG_VARIANTS_SETTINGS[variant])
 

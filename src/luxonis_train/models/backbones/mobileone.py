@@ -7,7 +7,6 @@
 import torch
 import torch.nn as nn
 from typing import Optional, List, Literal
-import copy
 import torch
 import torch.nn as nn
 
@@ -25,9 +24,10 @@ class MobileOne(BaseBackbone):
             variant (Literal["s0", "s1", "s2", "s3", "s4"], optional): Defaults to "s0".
         """
         super().__init__()
-        assert (
-            variant in MOBILEONE_VARIANTS_SETTINGS.keys()
-        ), f"MobileOne model variant should be in {list(MOBILEONE_VARIANTS_SETTINGS.keys())}"
+        if variant not in MOBILEONE_VARIANTS_SETTINGS.keys():
+            raise ValueError(
+                f"MobileOne model variant should be in {list(MOBILEONE_VARIANTS_SETTINGS.keys())}"
+            )
 
         variant_params = MOBILEONE_VARIANTS_SETTINGS[variant]
         self.backbone = MobileOne_(**variant_params)

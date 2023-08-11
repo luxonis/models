@@ -10,8 +10,8 @@
     - variant: Literal["A0", "A1", "A2"] # Defaults to "A0".
 - EfficientRep (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/efficientrep.py))
   - Params:
-    - channels_list: List[int] # List of number of channels for each block
-    - num_repeats: List[int] # List of number of repeats of RepBlock
+    - channels_list: List[int] # List of number of channels for each block. Defaults to [64, 128, 256, 512, 1024].
+    - num_repeats: List[int] # List of number of repeats of RepBlock. Defaults to [1, 6, 12, 18, 6].
     - in_channels: int # Number of input channels, should be 3 in most cases . Defaults to 3.
     - depth_mul: int # Depth multiplier. Defaults to 0.33.
     - width_mul: int # Width multiplier. Defaults to 0.25.

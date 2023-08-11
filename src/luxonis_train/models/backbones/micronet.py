@@ -19,12 +19,12 @@ class MicroNet(BaseBackbone):
             variant (Literal["M1", "M2", "M3"], optional): Defaults to "M1".
         """
         super().__init__()
+        if variant not in MICRONET_VARIANTS_SETTINGS.keys():
+            raise ValueError(
+                f"MicroNet model variant should be in {list(MICRONET_VARIANTS_SETTINGS.keys())}"
+            )
 
         self.inplanes = 64
-
-        assert (
-            variant in MICRONET_VARIANTS_SETTINGS.keys()
-        ), f"MicroNet model variant should be in {list(MICRONET_VARIANTS_SETTINGS.keys())}"
         (
             in_channels,
             stem_groups,
@@ -252,8 +252,8 @@ class DYShiftMax(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        init_a: Optional[list] = [0.0, 0.0],
-        init_b: Optional[list] = [0.0, 0.0],
+        init_a: Optional[list] = None,
+        init_b: Optional[list] = None,
         act_relu: Optional[bool] = True,
         g: Optional[list] = None,
         reduction: Optional[int] = 4,
@@ -261,8 +261,8 @@ class DYShiftMax(nn.Module):
     ):
         super().__init__()
         self.exp = 4 if act_relu else 2
-        self.init_a = init_a
-        self.init_b = init_b
+        self.init_a = init_a or [0.0, 0.0]
+        self.init_b = init_b or [0.0, 0.0]
         self.out_channels = out_channels
 
         self.avg_pool = nn.Sequential(nn.Sequential(), nn.AdaptiveAvgPool2d(1))

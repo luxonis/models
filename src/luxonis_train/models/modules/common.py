@@ -72,7 +72,7 @@ class UpBlock(nn.Sequential):
         )
 
 
-class SEBlock(nn.Module):
+class SqueezeExciteBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -143,7 +143,7 @@ class RepVGGBlock(nn.Module):
             groups (Optional[int], optional): Defaults to 1.
             padding_mode (Optional[str], optional): Defaults to "zeros".
             deploy (Optional[bool], optional): Defaults to False.
-            use_se (Optional[bool], optional): Weather to use SEBlock. Defaults to False.
+            use_se (Optional[bool], optional): Weather to use SqueezeExciteBlock. Defaults to False.
         """
         super().__init__()
 
@@ -160,8 +160,8 @@ class RepVGGBlock(nn.Module):
         self.nonlinearity = nn.ReLU()
 
         if use_se:
-            #   Note that RepVGG-D2se uses SE before nonlinearity. But RepVGGplus models uses SE after nonlinearity.
-            self.se = SEBlock(
+            #   Note that RepVGG-D2se uses SE before nonlinearity. But RepVGGplus models uses SqueezeExciteBlock after nonlinearity.
+            self.se = SqueezeExciteBlock(
                 out_channels, intermediate_channels=int(out_channels // 16)
             )
         else:

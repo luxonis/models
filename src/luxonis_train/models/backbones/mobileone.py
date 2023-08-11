@@ -11,7 +11,7 @@ import copy
 import torch
 import torch.nn as nn
 
-from luxonis_train.models.modules import SEBlock, conv_bn
+from luxonis_train.models.modules import SqueezeExciteBlock, conv_bn
 
 
 class MobileOneBlock(nn.Module):
@@ -57,7 +57,7 @@ class MobileOneBlock(nn.Module):
 
         # Check if SE-ReLU is requested
         if use_se:
-            self.se = SEBlock(
+            self.se = SqueezeExciteBlock(
                 in_channels=out_channels,
                 intermediate_channels=int(out_channels * 0.0625),
             )

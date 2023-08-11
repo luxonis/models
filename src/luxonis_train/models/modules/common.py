@@ -1,25 +1,37 @@
 import torch
 import torch.nn as nn
+from typing import Optional, Union
 import numpy as np
-import torch.nn.functional as F
-from torch.nn.parameter import Parameter
-import warnings
+
+from .activations import *
 
 
 class ConvModule(nn.Sequential):
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=1,
-        padding=0,
-        dilation=1,
-        groups=1,
-        bias=False,
-        activation=nn.ReLU(),
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: Optional[int] = 1,
+        padding: Optional[int] = 0,
+        dilation: Optional[int] = 1,
+        groups: Optional[int] = 1,
+        bias: Optional[bool] = False,
+        activation: Optional[object] = nn.ReLU(),
     ):
-        """Conv2d + BN + ReLu"""
+        """Conv2d + BN + Activation
+
+        Args:
+            in_channels (int): Number of input channels
+            out_channels (int): Number of output channels
+            kernel_size (int): Kernel size
+            stride (Optional[int], optional): Defaults to 1.
+            padding (Optional[int], optional): Defaults to 0.
+            dilation (Optional[int], optional): Defaults to 1.
+            groups (Optional[int], optional): Defaults to 1.
+            bias (Optional[bool], optional): Defaults to False.
+            activation (Optional[object], optional): Defaults to nn.ReLU().
+        """
         super().__init__(
             nn.Conv2d(
                 in_channels,
@@ -36,18 +48,22 @@ class ConvModule(nn.Sequential):
         )
 
 
-def autopad(k, p=None):
-    """Compute padding based on kernel size
-    Source: https://github.com/WongKinYiu/yolov7/blob/pose/models/common.py
-    """
-    if p is None:
-        p = k // 2 if isinstance(k, int) else [x // 2 for x in k]  # auto-pad
-    return p
+class UpBlock(nn.Sequential):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: Optional[int] = 2,
+        stride: Optional[int] = 2,
+    ):
+        """Upsampling with ConvTranspose2D (similar to U-Net Up block)
 
-
-class Up(nn.Sequential):
-    def __init__(self, in_channels, out_channels, kernel_size=2, stride=2):
-        """Upsampling with ConvTranpose2D (similar to U-Net Up block)"""
+        Args:
+            in_channels (int): Number of input channels
+            out_channels (int): Number of output channels
+            kernel_size (Optional[int], optional): Defaults to 2.
+            stride (Optional[int], optional): Defaults to 2.
+        """
         super().__init__(
             nn.ConvTranspose2d(
                 in_channels, out_channels, kernel_size=kernel_size, stride=stride
@@ -57,58 +73,47 @@ class Up(nn.Sequential):
 
 
 class SEBlock(nn.Module):
-    def __init__(self, in_channels, internal_channels):
-        super(SEBlock, self).__init__()
-        """ Squeeze and Excite module.
-            Pytorch implementation of `Squeeze-and-Excitation Networks` -
-            https://arxiv.org/pdf/1709.01507.pdf
-            Source: https://github.com/apple/ml-mobileone/blob/main/mobileone.py
+    def __init__(
+        self,
+        in_channels: int,
+        intermediate_channels: int,
+        approx_sigmoid: Optional[bool] = False,
+        activation: Optional[object] = nn.ReLU(),
+    ):
+        """Squeeze and Excite block. Adapted from: https://github.com/apple/ml-mobileone/blob/main/mobileone.py
+
+        Args:
+            in_channels (int): Number of input channels
+            intermediate_channels (int): Number of intermediate channels
+            approx_sigmoid (Optional[bool], optional): Whether to use approximated sigmoid function. Defaults to False.
+            activation (Optional[object], optional): Defaults to nn.ReLU().
         """
-        self.down = nn.Conv2d(
+        super().__init__()
+
+        self.pool = nn.AdaptiveAvgPool2d(output_size=1)
+        self.conv_down = nn.Conv2d(
             in_channels=in_channels,
-            out_channels=internal_channels,
+            out_channels=intermediate_channels,
             kernel_size=1,
-            stride=1,
             bias=True,
         )
-        self.up = nn.Conv2d(
-            in_channels=internal_channels,
+        self.activation = activation
+        self.conv_up = nn.Conv2d(
+            in_channels=intermediate_channels,
             out_channels=in_channels,
             kernel_size=1,
-            stride=1,
             bias=True,
         )
-        self.in_channels = in_channels
+        self.sigmoid = HSigmoid() if approx_sigmoid else nn.Sigmoid()
 
-    def forward(self, inputs):
-        x = F.avg_pool2d(inputs, kernel_size=inputs.size(3))
-        x = self.down(x)
-        x = F.relu(x)
-        x = self.up(x)
-        x = torch.sigmoid(x)
-        x = x.view(-1, self.in_channels, 1, 1)
-        return inputs * x
-
-
-def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
-    """Conv2d + BN
-    Source: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
-    """
-    result = nn.Sequential()
-    result.add_module(
-        "conv",
-        nn.Conv2d(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            groups=groups,
-            bias=False,
-        ),
-    )
-    result.add_module("bn", nn.BatchNorm2d(num_features=out_channels))
-    return result
+    def forward(self, x):
+        weights = self.pool(x)
+        weights = self.conv_down(weights)
+        weights = self.activation(weights)
+        weights = self.conv_up(weights)
+        weights = self.sigmoid(weights)
+        x = x * weights
+        return x
 
 
 class RepVGGBlock(nn.Module):
@@ -350,3 +355,21 @@ class SimplifiedSPPF(nn.Module):
         # along the channel dimension and pass through the second convolutional layer
         out = self.cv2(torch.cat([x, y1, y2, y3], dim=1))
         return out
+
+
+def autopad(k: Union[int, tuple], p: Union[int, tuple] = None):
+    """Compute padding based on kernel size.
+
+    Args:
+        k (Union[int, tuple]): The kernel size
+        p (Union[int, tuple], optional): The padding value or tuple of padding values. Defaults to None.
+
+    Returns:
+        Union[int, tuple]: The computed padding value(s).
+    """
+    if p is None:
+        if isinstance(k, int):
+            p = k // 2
+        else:
+            p = tuple(x // 2 for x in k)  # auto-pad for each dimension
+    return p

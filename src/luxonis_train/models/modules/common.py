@@ -117,25 +117,36 @@ class SEBlock(nn.Module):
 
 
 class RepVGGBlock(nn.Module):
-    """Source:https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py"""
-
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        kernel_size=3,
-        stride=1,
-        padding=1,
-        dilation=1,
-        groups=1,
-        padding_mode="zeros",
-        deploy=False,
-        use_se=False,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: Optional[int] = 3,
+        stride: Optional[int] = 1,
+        padding: Optional[int] = 1,
+        dilation: Optional[int] = 1,
+        groups: Optional[int] = 1,
+        padding_mode: Optional[str] = "zeros",
+        deploy: Optional[bool] = False,
+        use_se: Optional[bool] = False,
     ):
-        super(RepVGGBlock, self).__init__()
-        """ RepVGGBlock is a basic rep-style block, including training and deploy status
-            This code is based on https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
+        """RepVGGBlock is a basic rep-style block, including training and deploy status
+        This code is based on https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
+
+        Args:
+            in_channels (int): Number of input channels
+            out_channels (int): Number of output channels
+            kernel_size (Optional[int], optional): Defaults to 3.
+            stride (Optional[int], optional): Defaults to 1.
+            padding (Optional[int], optional): Defaults to 1.
+            dilation (Optional[int], optional): Defaults to 1.
+            groups (Optional[int], optional): Defaults to 1.
+            padding_mode (Optional[str], optional): Defaults to "zeros".
+            deploy (Optional[bool], optional): Defaults to False.
+            use_se (Optional[bool], optional): Weather to use SEBlock. Defaults to False.
         """
+        super().__init__()
+
         self.deploy = deploy
         self.groups = groups
         self.in_channels = in_channels
@@ -150,7 +161,9 @@ class RepVGGBlock(nn.Module):
 
         if use_se:
             #   Note that RepVGG-D2se uses SE before nonlinearity. But RepVGGplus models uses SE after nonlinearity.
-            self.se = SEBlock(out_channels, internal_channels=out_channels // 16)
+            self.se = SEBlock(
+                out_channels, intermediate_channels=int(out_channels // 16)
+            )
         else:
             self.se = nn.Identity()
 
@@ -172,11 +185,23 @@ class RepVGGBlock(nn.Module):
                 if out_channels == in_channels and stride == 1
                 else None
             )
-            self.rbr_dense = conv_bn(
-                in_channels, out_channels, kernel_size, stride, padding, groups=groups
+            self.rbr_dense = ConvModule(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                groups=groups,
+                activation=nn.Identity(),
             )
-            self.rbr_1x1 = conv_bn(
-                in_channels, out_channels, 1, stride, padding_11, groups=groups
+            self.rbr_1x1 = ConvModule(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=1,
+                stride=stride,
+                padding=padding_11,
+                groups=groups,
+                activation=nn.Identity(),
             )
 
     def forward(self, inputs):
@@ -192,50 +217,32 @@ class RepVGGBlock(nn.Module):
             self.se(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out)
         )
 
-    #   Optional. This may improve the accuracy and facilitates quantization in some cases.
-    #   1.  Cancel the original weight decay on rbr_dense.conv.weight and rbr_1x1.conv.weight.
-    #   2.  Use like this.
-    #       loss = criterion(....)
-    #       for every RepVGGBlock blk:
-    #           loss += weight_decay_coefficient * 0.5 * blk.get_cust_L2()
-    #       optimizer.zero_grad()
-    #       loss.backward()
-    def get_custom_L2(self):
-        K3 = self.rbr_dense.conv.weight
-        K1 = self.rbr_1x1.conv.weight
-        t3 = (
-            (
-                self.rbr_dense.bn.weight
-                / ((self.rbr_dense.bn.running_var + self.rbr_dense.bn.eps).sqrt())
-            )
-            .reshape(-1, 1, 1, 1)
-            .detach()
+    def to_deploy(self):
+        if hasattr(self, "rbr_reparam"):
+            return
+        kernel, bias = self._get_equivalent_kernel_bias()
+        self.rbr_reparam = nn.Conv2d(
+            in_channels=self.rbr_dense[0].in_channels,
+            out_channels=self.rbr_dense[0].out_channels,
+            kernel_size=self.rbr_dense[0].kernel_size,
+            stride=self.rbr_dense[0].stride,
+            padding=self.rbr_dense[0].padding,
+            dilation=self.rbr_dense[0].dilation,
+            groups=self.rbr_dense[0].groups,
+            bias=True,
         )
-        t1 = (
-            (
-                self.rbr_1x1.bn.weight
-                / ((self.rbr_1x1.bn.running_var + self.rbr_1x1.bn.eps).sqrt())
-            )
-            .reshape(-1, 1, 1, 1)
-            .detach()
-        )
+        self.rbr_reparam.weight.data = kernel
+        self.rbr_reparam.bias.data = bias
+        self.__delattr__("rbr_dense")
+        self.__delattr__("rbr_1x1")
+        if hasattr(self, "rbr_identity"):
+            self.__delattr__("rbr_identity")
+        if hasattr(self, "id_tensor"):
+            self.__delattr__("id_tensor")
+        self.deploy = True
 
-        l2_loss_circle = (K3**2).sum() - (
-            K3[:, :, 1:2, 1:2] ** 2
-        ).sum()  # The L2 loss of the "circle" of weights in 3x3 kernel. Use regular L2 on them.
-        eq_kernel = (
-            K3[:, :, 1:2, 1:2] * t3 + K1 * t1
-        )  # The equivalent resultant central point of 3x3 kernel.
-        l2_loss_eq_kernel = (
-            eq_kernel**2 / (t3**2 + t1**2)
-        ).sum()  # Normalize for an L2 coefficient comparable to regular L2.
-        return l2_loss_eq_kernel + l2_loss_circle
-
-    #   This func derives the equivalent kernel and bias in a DIFFERENTIABLE way.
-    #   You can get the equivalent kernel and bias at any time and do whatever you want,
-    #   for example, apply some penalties or constraints during training, just like you do to the other models.
-    #   May be useful for quantization or pruning.
-    def get_equivalent_kernel_bias(self):
+    def _get_equivalent_kernel_bias(self):
+        """derives the equivalent kernel and bias in a DIFFERENTIABLE way"""
         kernel3x3, bias3x3 = self._fuse_bn_tensor(self.rbr_dense)
         kernel1x1, bias1x1 = self._fuse_bn_tensor(self.rbr_1x1)
         kernelid, biasid = self._fuse_bn_tensor(self.rbr_identity)
@@ -254,12 +261,12 @@ class RepVGGBlock(nn.Module):
         if branch is None:
             return 0, 0
         if isinstance(branch, nn.Sequential):
-            kernel = branch.conv.weight
-            running_mean = branch.bn.running_mean
-            running_var = branch.bn.running_var
-            gamma = branch.bn.weight
-            beta = branch.bn.bias
-            eps = branch.bn.eps
+            kernel = branch[0].weight
+            running_mean = branch[1].running_mean
+            running_var = branch[1].running_var
+            gamma = branch[1].weight
+            beta = branch[1].bias
+            eps = branch[1].eps
         else:
             assert isinstance(branch, nn.BatchNorm2d)
             if not hasattr(self, "id_tensor"):
@@ -280,52 +287,31 @@ class RepVGGBlock(nn.Module):
         t = (gamma / std).reshape(-1, 1, 1, 1)
         return kernel * t, beta - running_mean * gamma / std
 
-    def to_deploy(self):
-        if hasattr(self, "rbr_reparam"):
-            return
-        kernel, bias = self.get_equivalent_kernel_bias()
-        self.rbr_reparam = nn.Conv2d(
-            in_channels=self.rbr_dense.conv.in_channels,
-            out_channels=self.rbr_dense.conv.out_channels,
-            kernel_size=self.rbr_dense.conv.kernel_size,
-            stride=self.rbr_dense.conv.stride,
-            padding=self.rbr_dense.conv.padding,
-            dilation=self.rbr_dense.conv.dilation,
-            groups=self.rbr_dense.conv.groups,
-            bias=True,
-        )
-        self.rbr_reparam.weight.data = kernel
-        self.rbr_reparam.bias.data = bias
-        self.__delattr__("rbr_dense")
-        self.__delattr__("rbr_1x1")
-        if hasattr(self, "rbr_identity"):
-            self.__delattr__("rbr_identity")
-        if hasattr(self, "id_tensor"):
-            self.__delattr__("id_tensor")
-        self.deploy = True
 
+class RepVGGBlockN(nn.Module):
+    def __init__(
+        self, in_channels: int, out_channels: int, num_blocks: Optional[int] = 1
+    ):
+        """Module which consists of multiple RepVGGBlocks
 
-class RepBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, n=1):
-        super(RepBlock, self).__init__()
+        Args:
+            in_channels (int): Number of input channels
+            out_channels (int): Number of output channels
+            num_blocks (Optional[int], optional): Number of RepVGG blocks. Defaults to 1.
         """
-            RepBlock is a stage block with rep-style basic block
-            Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
-        """
+        super().__init__()
 
-        self.conv1 = RepVGGBlock(in_channels, out_channels)
-        self.block = (
-            nn.Sequential(
-                *(RepVGGBlock(out_channels, out_channels) for _ in range(n - 1))
+        in_channels = in_channels
+        self.blocks = nn.ModuleList()
+        for _ in range(num_blocks):
+            self.blocks.append(
+                RepVGGBlock(in_channels=in_channels, out_channels=out_channels)
             )
-            if n > 1
-            else None
-        )
+            in_channels = out_channels
 
     def forward(self, x):
-        x = self.conv1(x)
-        if self.block is not None:
-            x = self.block(x)
+        for block in self.blocks:
+            x = block(x)
         return x
 
 

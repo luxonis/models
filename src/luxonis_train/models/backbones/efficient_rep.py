@@ -6,7 +6,7 @@
 import torch.nn as nn
 import torch
 
-from luxonis_train.models.modules import RepVGGBlock, RepBlock, SimplifiedSPPF
+from luxonis_train.models.modules import RepVGGBlock, RepVGGBlockN, SimplifiedSPPF
 from luxonis_train.utils.general import make_divisible
 
 
@@ -24,7 +24,7 @@ class EfficientRep(nn.Module):
 
         Args:
             channels_list (list): List of number of channels for each block
-            num_repeats (list): List of number of repeats of RepBlock
+            num_repeats (list): List of number of repeats of RepVGGBlock
             in_channels (int, optional): Number of input channels, should be 3 in most cases . Defaults to 3.
             depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
             width_mul (float, optional): Width multiplier. Defaults to 0.25.
@@ -56,10 +56,10 @@ class EfficientRep(nn.Module):
                     kernel_size=3,
                     stride=2,
                 ),
-                RepBlock(
+                RepVGGBlockN(
                     in_channels=channels_list[i + 1],
                     out_channels=channels_list[i + 1],
-                    n=num_repeats[i + 1],
+                    num_blocks=num_repeats[i + 1],
                 ),
             )
             if i == 3:

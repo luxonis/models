@@ -11,7 +11,7 @@ import copy
 import torch
 import torch.nn as nn
 
-# from luxonis_train.models.modules import SEBlock, conv_bn
+from luxonis_train.models.modules import SEBlock, conv_bn
 
 
 class MobileOneBlock(nn.Module):

@@ -3,13 +3,16 @@
 #
 
 
-import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 from luxonis_train.models.backbones import *
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
-from luxonis_train.models.modules import ConvModule
+from luxonis_train.models.modules import (
+    ConvModule,
+    AttentionRefinmentModule,
+    FeatureFusionModule,
+)
 
 
 class ContextSpatial(BaseBackbone):
@@ -92,41 +95,3 @@ class ContextPath(nn.Module):
         arm_down16 = self.refine16(arm_down16)  # 4x128x128x256
 
         return arm_down16, arm_down32
-
-
-class AttentionRefinmentModule(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int):
-        super().__init__()
-        self.conv_3x3 = ConvModule(in_channels, out_channels, 3, 1, 1)
-
-        self.attention = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(out_channels, out_channels, 1, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, x):
-        fm = self.conv_3x3(x)
-        fm_se = self.attention(fm)
-        return fm * fm_se
-
-
-class FeatureFusionModule(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, reduction: int = 1):
-        super().__init__()
-        self.conv_1x1 = ConvModule(in_channels, out_channels, 1, 1, 0)
-
-        self.attention = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(out_channels, out_channels // reduction, 1, bias=False),
-            nn.ReLU(True),
-            nn.Conv2d(out_channels // reduction, out_channels, 1, bias=False),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, x1, x2):
-        fm = torch.cat([x1, x2], dim=1)
-        fm = self.conv_1x1(fm)
-        fm_se = self.attention(fm)
-        return fm + fm * fm_se

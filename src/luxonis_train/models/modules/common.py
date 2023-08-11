@@ -350,3 +350,57 @@ class SimplifiedSPPF(nn.Module):
         # along the channel dimension and pass through the second convolutional layer
         out = self.cv2(torch.cat([x, y1, y2, y3], dim=1))
         return out
+
+
+class AttentionRefinmentModule(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+        """Attention Refinment module adapted from: https://github.com/taveraantonio/BiseNetv1 """
+
+        self.conv_3x3 = ConvModule(in_channels, out_channels, 3, 1, 1)
+        self.attention = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            ConvModule(
+                in_channels=out_channels,
+                out_channels=out_channels,
+                kernel_size=1,
+                activation=nn.Identity(),
+            ),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x):
+        x = self.conv_3x3(x)
+        attention = self.attention(x)
+        out = x * attention
+        return out
+
+
+class FeatureFusionModule(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, reduction: int = 1):
+        super().__init__()
+        """Feature Fusion module adapted from: https://github.com/taveraantonio/BiseNetv1 """
+
+        self.conv_1x1 = ConvModule(in_channels, out_channels, 1, 1, 0)
+        self.attention = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            ConvModule(
+                in_channels=out_channels,
+                out_channels=out_channels // reduction,
+                kernel_size=1,
+            ),
+            ConvModule(
+                in_channels=out_channels,
+                out_channels=out_channels // reduction,
+                kernel_size=1,
+                activation=nn.Identity(),
+            ),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x1, x2):
+        fusion = torch.cat([x1, x2], dim=1)
+        x = self.conv_1x1(fusion)
+        attention = self.attention(x)
+        out = x + x * attention
+        return out

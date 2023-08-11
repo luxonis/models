@@ -315,32 +315,37 @@ class RepVGGBlockN(nn.Module):
         return x
 
 
-class SimplifiedSPPF(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=5):
-        super(SimplifiedSPPF, self).__init__()
-        """ Simplified Spatial Pyramid Pooling with ReLU activation 
-            Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+class SpatialPyramidPoolingBlock(nn.Module):
+    def __init__(
+        self, in_channels: int, out_channels: int, kernel_size: Optional[int] = 5
+    ):
+        """Spatial Pyramid Pooling block with ReLU activation
+        Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+
+        Args:
+            in_channels (int): Number of input channels
+            out_channels (int): Number of output channels
+            kernel_size (Optional[int], optional): Defaults to 5.
         """
-        c_ = in_channels // 2  # hidden channels
-        self.cv1 = ConvModule(in_channels, c_, 1, 1)
-        self.cv2 = ConvModule(c_ * 4, out_channels, 1, 1)
-        self.m = nn.MaxPool2d(
+        super().__init__()
+
+        intermediate_channels = in_channels // 2  # hidden channels
+        self.conv1 = ConvModule(in_channels, intermediate_channels, 1, 1)
+        self.conv2 = ConvModule(intermediate_channels * 4, out_channels, 1, 1)
+        self.max_pool = nn.MaxPool2d(
             kernel_size=kernel_size, stride=1, padding=kernel_size // 2
         )
 
     def forward(self, x):
-        # Pass the input feature map through the first convolutional layer
-        x = self.cv1(x)
-
+        x = self.conv1(x)
         # apply max-pooling at three different scales
-        y1 = self.m(x)
-        y2 = self.m(y1)
-        y3 = self.m(y2)
+        y1 = self.max_pool(x)
+        y2 = self.max_pool(y1)
+        y3 = self.max_pool(y2)
 
-        # Concatenate the original feature map and the three max-pooled versions
-        # along the channel dimension and pass through the second convolutional layer
-        out = self.cv2(torch.cat([x, y1, y2, y3], dim=1))
-        return out
+        x = torch.cat([x, y1, y2, y3], dim=1)
+        x = self.conv2(x)
+        return x
 
 
 def autopad(k: Union[int, tuple], p: Union[int, tuple] = None):

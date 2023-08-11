@@ -6,7 +6,11 @@
 import torch.nn as nn
 import torch
 
-from luxonis_train.models.modules import RepVGGBlock, RepVGGBlockN, SimplifiedSPPF
+from luxonis_train.models.modules import (
+    RepVGGBlock,
+    RepVGGBlockN,
+    SpatialPyramidPoolingBlock,
+)
 from luxonis_train.utils.general import make_divisible
 
 
@@ -64,7 +68,7 @@ class EfficientRep(nn.Module):
             )
             if i == 3:
                 curr_block.append(
-                    SimplifiedSPPF(
+                    SpatialPyramidPoolingBlock(
                         in_channels=channels_list[i + 1],
                         out_channels=channels_list[i + 1],
                         kernel_size=5,

@@ -1,5 +1,5 @@
 from .utils import init_metrics
 
-__all__  = [
+__all__ = [
     "init_metrics",
 ]

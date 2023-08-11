@@ -16,7 +16,11 @@ class EfficientNet(nn.Module):
             download_weights (bool, optional): If True download weights from imagenet. Defaults to False.
         """
         super().__init__()
-        efficientnet_lite0_model = torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_lite0', pretrained=download_weights)
+        efficientnet_lite0_model = torch.hub.load(
+            "rwightman/gen-efficientnet-pytorch",
+            "efficientnet_lite0",
+            pretrained=download_weights,
+        )
         self.out_indices = [1, 2, 4, 6]
         self.backbone = efficientnet_lite0_model
 
@@ -32,8 +36,7 @@ class EfficientNet(nn.Module):
         return outs
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     model = EfficientNet()
     model.eval()
 

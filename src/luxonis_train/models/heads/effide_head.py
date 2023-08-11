@@ -10,9 +10,16 @@ import math
 from luxonis_train.models.modules import ConvModule
 from luxonis_train.models.heads.base_heads import BaseObjectDetection
 
+
 class EffiDeHead(BaseObjectDetection):
-    def __init__(self, n_classes: int, prev_out_shapes: list, original_in_shape: list, attach_index: int = -1,
-        n_anchors:int = 1):
+    def __init__(
+        self,
+        n_classes: int,
+        prev_out_shapes: list,
+        original_in_shape: list,
+        attach_index: int = -1,
+        n_anchors: int = 1,
+    ):
         """EffieDeHead object detection head which is part of YoloV6 head
 
         Args:
@@ -22,72 +29,82 @@ class EffiDeHead(BaseObjectDetection):
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             n_anchors (int, optional): Should stay default. Defaults to 1.
         """
-        super().__init__(n_classes=n_classes, prev_out_shapes=prev_out_shapes, 
-            original_in_shape=original_in_shape, attach_index=attach_index)
+        super().__init__(
+            n_classes=n_classes,
+            prev_out_shapes=prev_out_shapes,
+            original_in_shape=original_in_shape,
+            attach_index=attach_index,
+        )
 
         self.n_anchors = n_anchors
         self.prior_prob = 1e-2
 
         in_channels = self.prev_out_shapes[self.attach_index][1]
-        self.head = nn.Sequential(*[
-            # stem
-            ConvModule(
-                in_channels=in_channels,
-                out_channels=in_channels,
-                kernel_size=1,
-                stride=1,
-                activation=nn.SiLU()
-            ),
-            # cls_conv
-            ConvModule(
-                in_channels=in_channels,
-                out_channels=in_channels,
-                kernel_size=3,
-                stride=1,
-                padding= 3//2,
-                activation=nn.SiLU()
-            ),
-            # reg_conv
-            ConvModule(
-                in_channels=in_channels,
-                out_channels=in_channels,
-                kernel_size=3,
-                stride=1,
-                padding=3//2,
-                activation=nn.SiLU()
-            ),
-            # cls_pred
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=self.n_classes * self.n_anchors,
-                kernel_size=1
-            ),
-            # reg_pred
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=4 * (self.n_anchors),
-                kernel_size=1
-            )
-        ])
+        self.head = nn.Sequential(
+            *[
+                # stem
+                ConvModule(
+                    in_channels=in_channels,
+                    out_channels=in_channels,
+                    kernel_size=1,
+                    stride=1,
+                    activation=nn.SiLU(),
+                ),
+                # cls_conv
+                ConvModule(
+                    in_channels=in_channels,
+                    out_channels=in_channels,
+                    kernel_size=3,
+                    stride=1,
+                    padding=3 // 2,
+                    activation=nn.SiLU(),
+                ),
+                # reg_conv
+                ConvModule(
+                    in_channels=in_channels,
+                    out_channels=in_channels,
+                    kernel_size=3,
+                    stride=1,
+                    padding=3 // 2,
+                    activation=nn.SiLU(),
+                ),
+                # cls_pred
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=self.n_classes * self.n_anchors,
+                    kernel_size=1,
+                ),
+                # reg_pred
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=4 * (self.n_anchors),
+                    kernel_size=1,
+                ),
+            ]
+        )
         self.initialize_biases()
 
     def initialize_biases(self):
         # cls_pred
         conv = self.head[3]
-        b = conv.bias.view(-1, )
+        b = conv.bias.view(
+            -1,
+        )
         b.data.fill_(-math.log((1 - self.prior_prob) / self.prior_prob))
         conv.bias = nn.Parameter(b.view(-1), requires_grad=True)
         w = conv.weight
-        w.data.fill_(0.)
+        w.data.fill_(0.0)
         conv.weight = nn.Parameter(w, requires_grad=True)
 
         # reg_pred
         conv = self.head[4]
-        b = conv.bias.view(-1, )
+        b = conv.bias.view(
+            -1,
+        )
         b.data.fill_(1.0)
         conv.bias = nn.Parameter(b.view(-1), requires_grad=True)
         w = conv.weight
-        w.data.fill_(0.)
+        w.data.fill_(0.0)
         conv.weight = nn.Parameter(w, requires_grad=True)
 
     def forward(self, x):
@@ -99,12 +116,13 @@ class EffiDeHead(BaseObjectDetection):
 
         return [x[-1], out_cls, out_reg]
 
+
 if __name__ == "__main__":
     from luxonis_train.models.backbones import *
     from luxonis_train.utils.general import dummy_input_run
 
     backbone = ResNet18()
-    backbone_out_shapes = dummy_input_run(backbone, [1,3,224,224])
+    backbone_out_shapes = dummy_input_run(backbone, [1, 3, 224, 224])
     backbone.eval()
 
     shapes = [224, 256, 384, 512]
@@ -113,7 +131,9 @@ if __name__ == "__main__":
         print("\nShape", shape)
         x = torch.zeros(1, 3, shape, shape)
         outs = backbone(x)
-        head = EffiDeHead(prev_out_shape=backbone_out_shapes, n_classes=10, original_in_shape=x.shape)
+        head = EffiDeHead(
+            prev_out_shape=backbone_out_shapes, n_classes=10, original_in_shape=x.shape
+        )
         head.eval()
         outs = head(outs)
         for i in range(len(outs)):

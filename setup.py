@@ -1,7 +1,7 @@
 import io
 from setuptools import setup, find_packages
 
-with open('requirements.txt') as f:
+with open("requirements.txt") as f:
     required = f.readlines()
 
 export_packages = [
@@ -21,7 +21,7 @@ setup(
     author_email="support@luxonis.com",
     license="MIT",
     packages=find_packages(where="src"),
-    package_dir={'': 'src'},  # https://stackoverflow.com/a/67238346/5494277
+    package_dir={"": "src"},  # https://stackoverflow.com/a/67238346/5494277
     include_package_data=True,
     install_requires=required,
     extras_require={
@@ -34,6 +34,6 @@ setup(
     classifiers=[
         "License :: MIT License",
         "Development Status :: 2 - Pre-Alpha",
-        "Programming Language :: Python :: 3.8"
-    ]
+        "Programming Language :: Python :: 3.8",
+    ],
 )

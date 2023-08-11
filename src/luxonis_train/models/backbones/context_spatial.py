@@ -9,6 +9,7 @@ from torch.nn import functional as F
 from luxonis_train.models.backbones import *
 from luxonis_train.models.modules import ConvModule
 
+
 class SpatialPath(nn.Module):
     def __init__(self, c1, c2) -> None:
         super().__init__()
@@ -35,8 +36,7 @@ class ContextPath(nn.Module):
         self.arm32 = AttentionRefinmentModule(c4, 128)
 
         self.global_context = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            ConvModule(c4, 128, 1, 1, 0)
+            nn.AdaptiveAvgPool2d(1), ConvModule(c4, 128, 1, 1, 0)
         )
 
         self.up16 = nn.Upsample(scale_factor=2.0, mode="bilinear", align_corners=True)
@@ -45,25 +45,27 @@ class ContextPath(nn.Module):
         self.refine16 = ConvModule(128, 128, 3, 1, 1)
         self.refine32 = ConvModule(128, 128, 3, 1, 1)
 
-
     def forward(self, x):
-        _, _, down16, down32 = self.backbone(x)                 # 4x256x64x128, 4x512x32x64
+        _, _, down16, down32 = self.backbone(x)  # 4x256x64x128, 4x512x32x64
 
-        arm_down16 = self.arm16(down16)                 # 4x128x64x128
-        arm_down32 = self.arm32(down32)                 # 4x128x32x64
+        arm_down16 = self.arm16(down16)  # 4x128x64x128
+        arm_down32 = self.arm32(down32)  # 4x128x32x64
 
-        global_down32 = self.global_context(down32)     # 4x128x1x1
-        global_down32 = F.interpolate(global_down32, size=down32.size()[2:], mode="bilinear", align_corners=True)   # 4x128x32x64
+        global_down32 = self.global_context(down32)  # 4x128x1x1
+        global_down32 = F.interpolate(
+            global_down32, size=down32.size()[2:], mode="bilinear", align_corners=True
+        )  # 4x128x32x64
 
-        arm_down32 = arm_down32 + global_down32                         # 4x128x32x64
-        arm_down32 = self.up32(arm_down32)                  # 4x128x64x128
-        arm_down32 = self.refine32(arm_down32)              # 4x128x64x128
+        arm_down32 = arm_down32 + global_down32  # 4x128x32x64
+        arm_down32 = self.up32(arm_down32)  # 4x128x64x128
+        arm_down32 = self.refine32(arm_down32)  # 4x128x64x128
 
-        arm_down16 = arm_down16 + arm_down32                            # 4x128x64x128
-        arm_down16 = self.up16(arm_down16)                  # 4x128x128x256
-        arm_down16 = self.refine16(arm_down16)              # 4x128x128x256
+        arm_down16 = arm_down16 + arm_down32  # 4x128x64x128
+        arm_down16 = self.up16(arm_down16)  # 4x128x128x256
+        arm_down16 = self.refine16(arm_down16)  # 4x128x128x256
 
         return arm_down16, arm_down32
+
 
 class AttentionRefinmentModule(nn.Module):
     def __init__(self, c1, c2) -> None:
@@ -74,13 +76,14 @@ class AttentionRefinmentModule(nn.Module):
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(c2, c2, 1, bias=False),
             nn.BatchNorm2d(c2),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(self, x):
         fm = self.conv_3x3(x)
         fm_se = self.attention(fm)
         return fm * fm_se
+
 
 class FeatureFusionModule(nn.Module):
     def __init__(self, c1, c2, reduction=1) -> None:
@@ -92,7 +95,7 @@ class FeatureFusionModule(nn.Module):
             nn.Conv2d(c2, c2 // reduction, 1, bias=False),
             nn.ReLU(True),
             nn.Conv2d(c2 // reduction, c2, 1, bias=False),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(self, x1, x2):
@@ -101,8 +104,9 @@ class FeatureFusionModule(nn.Module):
         fm_se = self.attention(fm)
         return fm + fm * fm_se
 
+
 class ContextSpatial(nn.Module):
-    def __init__(self, context_backbone: str = 'MobileNetV2', in_channels: int = 3):
+    def __init__(self, context_backbone: str = "MobileNetV2", in_channels: int = 3):
         """Context spatial backbone
 
         Args:
@@ -121,8 +125,8 @@ class ContextSpatial(nn.Module):
         outs = [fm_fuse]
         return outs
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     model = ContextSpatial()
     model.eval()
 

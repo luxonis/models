@@ -21,9 +21,9 @@ class NeckTestCases(unittest.TestCase):
             for num_heads in [2, 3, 4]:
                 with self.subTest(input_shape=input_shape, num_heads=num_heads):
                     input = torch.zeros(input_shape)
-                    prev_out_shapes = dummy_input_run(backbone, input_shape)
+                    input_channels_shapes = dummy_input_run(backbone, input_shape)
                     neck = RepPANNeck(
-                        prev_out_shapes=prev_out_shapes, num_heads=num_heads
+                        input_channels_shapes=input_channels_shapes, num_heads=num_heads
                     )
 
                     outs = backbone(input)
@@ -35,7 +35,7 @@ class NeckTestCases(unittest.TestCase):
 
     def test_reppan_incorrect_num_heas(self):
         """Tests num_heads parameter of RepPAN neck"""
-        prev_out_shapes = [
+        input_channels_shapes = [
             [1, 32, 56, 56],
             [1, 64, 28, 28],
             [1, 128, 14, 14],
@@ -45,7 +45,7 @@ class NeckTestCases(unittest.TestCase):
             with self.subTest(num_heads=num_heads):
                 with self.assertRaises(ValueError):
                     neck = RepPANNeck(
-                        prev_out_shapes=prev_out_shapes, num_heads=num_heads
+                        input_channels_shapes=input_channels_shapes, num_heads=num_heads
                     )
 
 

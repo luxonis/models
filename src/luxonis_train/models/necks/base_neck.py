@@ -3,15 +3,15 @@ from abc import ABC, abstractmethod
 
 
 class BaseNeck(nn.Module, ABC):
-    def __init__(self, prev_out_shapes: list):
+    def __init__(self, input_channels_shapes: list):
         """Base abstract class from which all other necks are created
 
         Args:
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module.
         """
         super().__init__()
 
-        self.prev_out_shapes = prev_out_shapes
+        self.input_channels_shapes = input_channels_shapes
 
     @abstractmethod
     def forward(self, x: any):

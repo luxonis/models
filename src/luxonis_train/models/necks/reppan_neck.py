@@ -16,7 +16,7 @@ from luxonis_train.utils.general import make_divisible
 class RepPANNeck(BaseNeck):
     def __init__(
         self,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         num_heads: Optional[Literal[2, 3, 4]] = 3,
         channels_list: Optional[list] = [256, 128, 128, 256, 256, 512],
         num_repeats: Optional[list] = [12, 12, 12, 12],
@@ -27,7 +27,7 @@ class RepPANNeck(BaseNeck):
         """RepPANNeck normally used with YoloV6 model. It has the balance of feature fusion ability and hardware efficiency.
 
         Args:
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module.
             num_heads (Literal[2,3,4], optional): Number of output heads.
                 (**Important: Should be same also on backbone and head**). Defaults to 3.
             channels_list (list, optional): List of number of channels for each block. Defaults to [256, 128, 128, 256, 256, 512].
@@ -35,7 +35,7 @@ class RepPANNeck(BaseNeck):
             depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
             width_mul (float, optional): Width multiplier. Defaults to 0.25.
         """
-        super().__init__(prev_out_shapes=prev_out_shapes)
+        super().__init__(input_channels_shapes=input_channels_shapes)
         if num_heads not in [2, 3, 4]:
             raise ValueError(
                 f"Specified number of heads not supported. Choose one of [2,3,4]"
@@ -53,9 +53,9 @@ class RepPANNeck(BaseNeck):
         # create num_heads-1 UpBlocks
         self.up_blocks = nn.ModuleList()
 
-        in_channels = prev_out_shapes[-1][1]
+        in_channels = input_channels_shapes[-1][1]
         out_channels = channels_list[0]
-        in_channels_next = prev_out_shapes[-2][1]
+        in_channels_next = input_channels_shapes[-2][1]
         curr_num_repeats = num_repeats[0]
         up_out_channel_list = [in_channels]  # used in DownBlocks
 
@@ -74,7 +74,7 @@ class RepPANNeck(BaseNeck):
 
             in_channels = out_channels
             out_channels = channels_list[i]
-            in_channels_next = prev_out_shapes[-(i + 2)][1]
+            in_channels_next = input_channels_shapes[-(i + 2)][1]
             curr_num_repeats = num_repeats[i]
 
         # create num_heads-1 DownBlocks

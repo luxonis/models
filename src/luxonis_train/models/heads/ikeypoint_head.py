@@ -34,6 +34,7 @@ class IKeypoint(BaseHead):
         attach_index: int = -1,
         main_metric: str = "map",
         connectivity: list = None,
+        visibility_threshold: float = 0.5,
         **kwargs,
     ):
         """IKeypoint head which is used for object and keypoint detection
@@ -47,6 +48,7 @@ class IKeypoint(BaseHead):
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
             connectivity (list, optional): Connectivity mapping used in visualization. Defaults to None.
+            visibility_threshold (float, optional): Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
         """
         super().__init__(
             n_classes=n_classes,
@@ -59,6 +61,7 @@ class IKeypoint(BaseHead):
 
         self.n_keypoints = n_keypoints
         self.connectivity = connectivity
+        self.visibility_threshold = visibility_threshold
 
         ch = [prev[1] for prev in self.prev_out_shapes]
         self.gr = 1.0  # TODO: find out what this is
@@ -311,7 +314,7 @@ class IKeypoint(BaseHead):
         img = draw_bounding_boxes(img, bboxes)
         kpts = nms[:, 6:].reshape(-1, self.n_keypoints, 3)
         # set coordinates of non-visible keypoints to (0, 0)
-        mask = kpts[:,:,2] < 0.2
+        mask = kpts[:, :, 2] < self.visibility_threshold
         kpts = kpts[:, :, 0:2] * (~mask).unsqueeze(-1).float()
         img = draw_keypoints(
             img, kpts[..., :2], colors="red", connectivity=self.connectivity

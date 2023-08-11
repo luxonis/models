@@ -123,7 +123,15 @@ class ReXNetV1_lite(BaseBackbone):
 
 
 class LinearBottleneck(nn.Module):
-    def __init__(self, in_channels, channels, t, kernel_size=3, stride=1, **kwargs):
+    def __init__(
+        self,
+        in_channels: int,
+        channels: int,
+        t: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        **kwargs
+    ):
         super(LinearBottleneck, self).__init__(**kwargs)
         self.conv_shortcut = None
         self.use_shortcut = stride == 1 and in_channels <= channels

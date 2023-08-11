@@ -31,14 +31,8 @@ class MobileOne(BaseBackbone):
 
         variant_params = MOBILEONE_VARIANTS_SETTINGS[variant]
         self.backbone = MobileOne_(**variant_params)
-        self.is_inference = False
 
     def forward(self, x):
-        # TODO: when to perform reparameterization?
-        if not self.training and not self.is_inference:
-            self.backbone = reparameterize_model(self.backbone)
-            self.is_inference = True
-
         outs = []
         x = self.backbone.stage0(x)
         outs.append(x)
@@ -50,6 +44,12 @@ class MobileOne(BaseBackbone):
         outs.append(x)
 
         return outs
+
+    def to_deploy(self):
+        """Switch modules of the model to deploy"""
+        for module in self.backbone.modules():
+            if hasattr(module, "reparameterize"):
+                module.reparameterize()
 
 
 class MobileOne_(nn.Module):
@@ -289,6 +289,7 @@ class MobileOneBlock(nn.Module):
         architecture used at training time to obtain a plain CNN-like structure
         for inference.
         """
+        print("TEST")
         if self.inference_mode:
             return
         kernel, bias = self._get_kernel_bias()
@@ -386,25 +387,6 @@ class MobileOneBlock(nn.Module):
         std = (running_var + eps).sqrt()
         t = (gamma / std).reshape(-1, 1, 1, 1)
         return kernel * t, beta - running_mean * gamma / std
-
-
-def reparameterize_model(model: torch.nn.Module):
-    """Method returns a model where a multi-branched structure
-        used in training is re-parameterized into a single branch
-        for inference.
-
-    Args:
-        model (torch.nn.Module): MobileOne model in train mode
-
-    Returns:
-        torch.nn.Module: MobileOne model in inference mode.
-    """
-    # Avoid editing original graph
-    model = copy.deepcopy(model)
-    for module in model.modules():
-        if hasattr(module, "reparameterize"):
-            module.reparameterize()
-    return model
 
 
 MOBILEONE_VARIANTS_SETTINGS = {

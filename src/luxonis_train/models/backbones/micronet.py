@@ -3,240 +3,8 @@
 # License: https://github.com/liyunsheng13/micronet/blob/main/LICENSE
 #
 
-
 import torch
-import torch.nn as nn
-from typing import Literal, Optional
-
-from luxonis_train.models.backbones.base_backbone import BaseBackbone
-from luxonis_train.models.modules import ConvModule
-
-
-class MicroNet(BaseBackbone):
-    def __init__(self, variant: Optional[Literal["M1", "M2", "M3"]] = "M1", **kwargs):
-        """MicroNet backbone
-
-        Args:
-            variant (Literal["M1", "M2", "M3"], optional): Defaults to "M1".
-        """
-        super().__init__()
-        if variant not in MICRONET_VARIANTS_SETTINGS.keys():
-            raise ValueError(
-                f"MicroNet model variant should be in {list(MICRONET_VARIANTS_SETTINGS.keys())}"
-            )
-
-        self.inplanes = 64
-        (
-            in_channels,
-            stem_groups,
-            _,
-            init_a,
-            init_b,
-            out_indices,
-            channels,
-            cfgs,
-        ) = MICRONET_VARIANTS_SETTINGS[variant]
-        self.out_indices = out_indices
-        self.channels = channels
-
-        self.features = nn.ModuleList([Stem(3, 2, stem_groups)])
-
-        for (
-            stride,
-            out_channels,
-            kernel_size,
-            c1,
-            c2,
-            g1,
-            g2,
-            c3,
-            g3,
-            g4,
-            y1,
-            y2,
-            y3,
-            r,
-        ) in cfgs:
-            self.features.append(
-                MicroBlock(
-                    in_channels,
-                    out_channels,
-                    kernel_size,
-                    stride,
-                    (c1, c2),
-                    (g1, g2),
-                    (c3, g3, g4),
-                    (y1, y2, y3),
-                    r,
-                    init_a,
-                    init_b,
-                )
-            )
-            in_channels = out_channels
-
-    def forward(self, x: torch.Tensor):
-        outs = []
-        for i, m in enumerate(self.features):
-            x = m(x)
-            outs.append(x)
-        return outs
-
-
-class MicroBlock(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Optional[int] = 3,
-        stride: Optional[int] = 1,
-        t1: Optional[tuple] = (2, 2),
-        gs1: Optional[int] = 4,
-        groups_1x1: Optional[tuple] = (1, 1),
-        dy: Optional[tuple] = (2, 0, 1),
-        r: Optional[int] = 1,
-        init_a: Optional[tuple] = (1.0, 1.0),
-        init_b: Optional[tuple] = (0.0, 0.0),
-    ):
-        super().__init__()
-
-        self.identity = stride == 1 and in_channels == out_channels
-        y1, y2, y3 = dy
-        _, g1, g2 = groups_1x1
-        reduction = 8 * r
-        intermediate_channels = in_channels * t1[0] * t1[1]
-
-        if gs1[0] == 0:
-            self.layers = nn.Sequential(
-                DepthSpatialSepConv(in_channels, t1, kernel_size, stride),
-                DYShiftMax(
-                    intermediate_channels,
-                    intermediate_channels,
-                    init_a,
-                    init_b,
-                    True if y2 == 2 else False,
-                    gs1,
-                    reduction,
-                )
-                if y2 > 0
-                else nn.ReLU6(True),
-                ChannelShuffle(gs1[1]),
-                ChannelShuffle(intermediate_channels // 2)
-                if y2 != 0
-                else nn.Sequential(),
-                ConvModule(
-                    in_channels=intermediate_channels,
-                    out_channels=out_channels,
-                    kernel_size=1,
-                    groups=g1,
-                    activation=nn.Identity(),
-                ),
-                DYShiftMax(
-                    out_channels,
-                    out_channels,
-                    [1.0, 0.0],
-                    [0.0, 0.0],
-                    False,
-                    (g1, g2),
-                    reduction // 2,
-                )
-                if y3 > 0
-                else nn.Sequential(),
-                ChannelShuffle(g2),
-                ChannelShuffle(out_channels // 2)
-                if out_channels % 2 == 0 and y3 != 0
-                else nn.Sequential(),
-            )
-        elif g2 == 0:
-            self.layers = nn.Sequential(
-                ConvModule(
-                    in_channels=in_channels,
-                    out_channels=intermediate_channels,
-                    kernel_size=1,
-                    groups=gs1[0],
-                    activation=nn.Identity(),
-                ),
-                DYShiftMax(
-                    intermediate_channels,
-                    intermediate_channels,
-                    [1.0, 0.0],
-                    [0.0, 0.0],
-                    False,
-                    gs1,
-                    reduction,
-                )
-                if y3 > 0
-                else nn.Sequential(),
-            )
-        else:
-            self.layers = nn.Sequential(
-                ConvModule(
-                    in_channels=in_channels,
-                    out_channels=intermediate_channels,
-                    kernel_size=1,
-                    groups=gs1[0],
-                    activation=nn.Identity(),
-                ),
-                DYShiftMax(
-                    intermediate_channels,
-                    intermediate_channels,
-                    init_a,
-                    init_b,
-                    True if y1 == 2 else False,
-                    gs1,
-                    reduction,
-                )
-                if y1 > 0
-                else nn.ReLU6(True),
-                ChannelShuffle(gs1[1]),
-                DepthSpatialSepConv(intermediate_channels, (1, 1), kernel_size, stride),
-                nn.Sequential(),
-                DYShiftMax(
-                    intermediate_channels,
-                    intermediate_channels,
-                    init_a,
-                    init_b,
-                    True if y2 == 2 else False,
-                    gs1,
-                    reduction,
-                    True,
-                )
-                if y2 > 0
-                else nn.ReLU6(True),
-                ChannelShuffle(intermediate_channels // 4)
-                if y1 != 0 and y2 != 0
-                else nn.Sequential()
-                if y1 == 0 and y2 == 0
-                else ChannelShuffle(intermediate_channels // 2),
-                ConvModule(
-                    in_channels=intermediate_channels,
-                    out_channels=out_channels,
-                    kernel_size=1,
-                    groups=g1,
-                    activation=nn.Identity(),
-                ),
-                DYShiftMax(
-                    out_channels,
-                    out_channels,
-                    [1.0, 0.0],
-                    [0.0, 0.0],
-                    False,
-                    (g1, g2),
-                    reduction=reduction // 2
-                    if out_channels < intermediate_channels
-                    else reduction,
-                )
-                if y3 > 0
-                else nn.Sequential(),
-                ChannelShuffle(g2),
-                ChannelShuffle(out_channels // 2) if y3 != 0 else nn.Sequential(),
-            )
-
-    def forward(self, x: torch.Tensor):
-        identity = x
-        out = self.layers(x)
-        if self.identity:
-            out += identity
-        return out
+from torch import nn, Tensor
 
 
 class HSigmoid(nn.Module):
@@ -244,7 +12,7 @@ class HSigmoid(nn.Module):
         super().__init__()
         self.relu = nn.ReLU6(True)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         return self.relu(x + 3) / 6
 
 
@@ -253,68 +21,82 @@ class HSwish(nn.Module):
         super().__init__()
         self.sigmoid = HSigmoid()
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         return x * self.sigmoid(x)
 
 
 class ChannelShuffle(nn.Module):
-    def __init__(self, groups: int):
+    def __init__(self, groups):
         super(ChannelShuffle, self).__init__()
         self.groups = groups
 
     def forward(self, x):
         b, c, h, w = x.size()
+
         channels_per_group = c // self.groups
+
         # reshape
         x = x.view(b, self.groups, channels_per_group, h, w)
+
         x = torch.transpose(x, 1, 2).contiguous()
         out = x.view(b, -1, h, w)
+
         return out
+
+
+def _make_divisible(v, divisor, min_value=None):
+    if min_value is None:
+        min_value = divisor
+    new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
+    # Make sure that round down does not go down by more than 10%.
+    if new_v < 0.9 * v:
+        new_v += divisor
+    return new_v
 
 
 class DYShiftMax(nn.Module):
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        init_a: Optional[list] = None,
-        init_b: Optional[list] = None,
-        act_relu: Optional[bool] = True,
-        g: Optional[list] = None,
-        reduction: Optional[int] = 4,
-        expansion: Optional[bool] = False,
+        c1,
+        c2,
+        init_a=[0.0, 0.0],
+        init_b=[0.0, 0.0],
+        act_relu=True,
+        g=None,
+        reduction=4,
+        expansion=False,
     ):
         super().__init__()
         self.exp = 4 if act_relu else 2
-        self.init_a = init_a or [0.0, 0.0]
-        self.init_b = init_b or [0.0, 0.0]
-        self.out_channels = out_channels
+        self.init_a = init_a
+        self.init_b = init_b
+        self.c2 = c2
 
         self.avg_pool = nn.Sequential(nn.Sequential(), nn.AdaptiveAvgPool2d(1))
 
-        squeeze = self._make_divisible(in_channels // reduction, 4)
+        squeeze = _make_divisible(c1 // reduction, 4)
 
         self.fc = nn.Sequential(
-            nn.Linear(in_channels, squeeze),
+            nn.Linear(c1, squeeze),
             nn.ReLU(True),
-            nn.Linear(squeeze, out_channels * self.exp),
+            nn.Linear(squeeze, c2 * self.exp),
             HSigmoid(),
         )
 
         g = g[1]
         if g != 1 and expansion:
-            g = in_channels // g
+            g = c1 // g
 
-        gc = in_channels // g
-        index = torch.torch.Tensor(range(in_channels)).view(1, in_channels, 1, 1)
+        gc = c1 // g
+        index = torch.Tensor(range(c1)).view(1, c1, 1, 1)
         index = index.view(1, g, gc, 1, 1)
         indexgs = torch.split(index, [1, g - 1], dim=1)
         indexgs = torch.cat([indexgs[1], indexgs[0]], dim=1)
         indexs = torch.split(indexgs, [1, gc - 1], dim=2)
         indexs = torch.cat([indexs[1], indexs[0]], dim=2)
-        self.index = indexs.view(in_channels).long()
+        self.index = indexs.view(c1).long()
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         B, C, H, W = x.shape
         x_out = x
 
@@ -325,7 +107,7 @@ class DYShiftMax(nn.Module):
         x2 = x_out[:, self.index, :, :]
 
         if self.exp == 4:
-            a1, b1, a2, b2 = torch.split(y, self.out_channels, dim=1)
+            a1, b1, a2, b2 = torch.split(y, self.c2, dim=1)
 
             a1 = a1 + self.init_a[0]
             a2 = a2 + self.init_b[1]
@@ -338,111 +120,178 @@ class DYShiftMax(nn.Module):
             out = torch.max(z1, z2)
 
         elif self.exp == 2:
-            a1, b1 = torch.split(y, self.out_channels, dim=1)
+            a1, b1 = torch.split(y, self.c2, dim=1)
             a1 = a1 + self.init_a[0]
             b1 = b1 + self.init_b[0]
             out = x_out * a1 + x2 * b1
 
         return out
 
-    def _make_divisible(self, v, divisor, min_value=None):
-        if min_value is None:
-            min_value = divisor
-        new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
-        # Make sure that round down does not go down by more than 10%.
-        if new_v < 0.9 * v:
-            new_v += divisor
-        return new_v
-
 
 class SwishLinear(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int):
+    def __init__(self, c1, c2):
         super().__init__()
-        self.linear = nn.Sequential(
-            nn.Linear(in_channels, out_channels), nn.BatchNorm1d(out_channels), HSwish()
-        )
+        self.linear = nn.Sequential(nn.Linear(c1, c2), nn.BatchNorm1d(c2), HSwish())
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         return self.linear(x)
 
 
 class SpatialSepConvSF(nn.Module):
-    def __init__(self, in_channels: int, outs: list, kernel_size: int, stride: int):
+    def __init__(self, c1, outs, k, s):
         super().__init__()
-        out_channels1, out_channels2 = outs
+        o1, o2 = outs
         self.conv = nn.Sequential(
-            nn.Conv2d(
-                in_channels,
-                out_channels1,
-                (kernel_size, 1),
-                (stride, 1),
-                (kernel_size // 2, 0),
-                bias=False,
-            ),
-            nn.BatchNorm2d(out_channels1),
-            nn.Conv2d(
-                out_channels1,
-                out_channels1 * out_channels2,
-                (1, kernel_size),
-                (1, stride),
-                (0, kernel_size // 2),
-                groups=out_channels1,
-                bias=False,
-            ),
-            nn.BatchNorm2d(out_channels1 * out_channels2),
-            ChannelShuffle(out_channels1),
+            nn.Conv2d(c1, o1, (k, 1), (s, 1), (k // 2, 0), bias=False),
+            nn.BatchNorm2d(o1),
+            nn.Conv2d(o1, o1 * o2, (1, k), (1, s), (0, k // 2), groups=o1, bias=False),
+            nn.BatchNorm2d(o1 * o2),
+            ChannelShuffle(o1),
         )
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         return self.conv(x)
 
 
 class Stem(nn.Module):
-    def __init__(self, in_channels: int, stride: int, outs: Optional[list] = (4, 4)):
+    def __init__(self, c1, c2, s, g=(4, 4)):
         super().__init__()
-        self.stem = nn.Sequential(
-            SpatialSepConvSF(in_channels, outs, 3, stride), nn.ReLU6(True)
-        )
+        self.stem = nn.Sequential(SpatialSepConvSF(c1, g, 3, s), nn.ReLU6(True))
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         return self.stem(x)
 
 
 class DepthSpatialSepConv(nn.Module):
-    def __init__(self, in_channels: int, expand: list, kernel_size: int, stride: int):
+    def __init__(self, c1, expand, k, s):
         super().__init__()
         exp1, exp2 = expand
-        intermediate_channels = in_channels * exp1
-        out_channels = in_channels * exp1 * exp2
+        ch = c1 * exp1
+        c2 = c1 * exp1 * exp2
 
         self.conv = nn.Sequential(
-            nn.Conv2d(
-                in_channels,
-                intermediate_channels,
-                (kernel_size, 1),
-                (stride, 1),
-                (kernel_size // 2, 0),
-                groups=in_channels,
-                bias=False,
-            ),
-            nn.BatchNorm2d(intermediate_channels),
-            nn.Conv2d(
-                intermediate_channels,
-                out_channels,
-                (1, kernel_size),
-                (1, stride),
-                (0, kernel_size // 2),
-                groups=intermediate_channels,
-                bias=False,
-            ),
-            nn.BatchNorm2d(out_channels),
+            nn.Conv2d(c1, ch, (k, 1), (s, 1), (k // 2, 0), groups=c1, bias=False),
+            nn.BatchNorm2d(ch),
+            nn.Conv2d(ch, c2, (1, k), (1, s), (0, k // 2), groups=ch, bias=False),
+            nn.BatchNorm2d(c2),
         )
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         return self.conv(x)
 
 
-MICRONET_VARIANTS_SETTINGS = {
+class PWConv(nn.Module):
+    def __init__(self, c1, c2, g=2):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(c1, c2, 1, 1, 0, groups=g[0], bias=False), nn.BatchNorm2d(c2)
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.conv(x)
+
+
+class MicroBlock(nn.Module):
+    def __init__(
+        self,
+        c1,
+        c2,
+        k=3,
+        s=1,
+        t1=(2, 2),
+        gs1=4,
+        groups_1x1=(1, 1),
+        dy=(2, 0, 1),
+        r=1,
+        init_a=(1.0, 1.0),
+        init_b=(0.0, 0.0),
+    ):
+        super().__init__()
+        self.identity = s == 1 and c1 == c2
+        y1, y2, y3 = dy
+        _, g1, g2 = groups_1x1
+        reduction = 8 * r
+        ch2 = c1 * t1[0] * t1[1]
+
+        if gs1[0] == 0:
+            self.layers = nn.Sequential(
+                DepthSpatialSepConv(c1, t1, k, s),
+                DYShiftMax(
+                    ch2, ch2, init_a, init_b, True if y2 == 2 else False, gs1, reduction
+                )
+                if y2 > 0
+                else nn.ReLU6(True),
+                ChannelShuffle(gs1[1]),
+                ChannelShuffle(ch2 // 2) if y2 != 0 else nn.Sequential(),
+                PWConv(ch2, c2, (g1, g2)),
+                DYShiftMax(
+                    c2, c2, [1.0, 0.0], [0.0, 0.0], False, (g1, g2), reduction // 2
+                )
+                if y3 > 0
+                else nn.Sequential(),
+                ChannelShuffle(g2),
+                ChannelShuffle(c2 // 2) if c2 % 2 == 0 and y3 != 0 else nn.Sequential(),
+            )
+        elif g2 == 0:
+            self.layers = nn.Sequential(
+                PWConv(c1, ch2, gs1),
+                DYShiftMax(ch2, ch2, [1.0, 0.0], [0.0, 0.0], False, gs1, reduction)
+                if y3 > 0
+                else nn.Sequential(),
+            )
+        else:
+            self.layers = nn.Sequential(
+                PWConv(c1, ch2, gs1),
+                DYShiftMax(
+                    ch2, ch2, init_a, init_b, True if y1 == 2 else False, gs1, reduction
+                )
+                if y1 > 0
+                else nn.ReLU6(True),
+                ChannelShuffle(gs1[1]),
+                DepthSpatialSepConv(ch2, (1, 1), k, s),
+                nn.Sequential(),
+                DYShiftMax(
+                    ch2,
+                    ch2,
+                    init_a,
+                    init_b,
+                    True if y2 == 2 else False,
+                    gs1,
+                    reduction,
+                    True,
+                )
+                if y2 > 0
+                else nn.ReLU6(True),
+                ChannelShuffle(ch2 // 4)
+                if y1 != 0 and y2 != 0
+                else nn.Sequential()
+                if y1 == 0 and y2 == 0
+                else ChannelShuffle(ch2 // 2),
+                PWConv(ch2, c2, (g1, g2)),
+                DYShiftMax(
+                    c2,
+                    c2,
+                    [1.0, 0.0],
+                    [0.0, 0.0],
+                    False,
+                    (g1, g2),
+                    reduction=reduction // 2 if c2 < ch2 else reduction,
+                )
+                if y3 > 0
+                else nn.Sequential(),
+                ChannelShuffle(g2),
+                ChannelShuffle(c2 // 2) if y3 != 0 else nn.Sequential(),
+            )
+
+    def forward(self, x: Tensor) -> Tensor:
+        identity = x
+        out = self.layers(x)
+        if self.identity:
+            out += identity
+        return out
+
+
+micronet_settings = {
     "M1": [
         6,  # stem_ch
         [3, 2],  # stem_groups
@@ -869,6 +718,72 @@ MICRONET_VARIANTS_SETTINGS = {
     ],
 }
 
+
+class MicroNet(nn.Module):
+    def __init__(self, variant: str = "M1"):
+        """MicroNet backbone
+
+        Args:
+            variant (str, optional): Variant from ['M1', 'M2', 'M3']. Defaults to 'M1'.
+        """
+        super().__init__()
+        self.inplanes = 64
+
+        assert (
+            variant in micronet_settings.keys()
+        ), f"MicroNet model name should be in {list(micronet_settings.keys())}"
+        (
+            input_channel,
+            stem_groups,
+            _,
+            init_a,
+            init_b,
+            out_indices,
+            channels,
+            cfgs,
+        ) = micronet_settings[variant]
+        self.out_indices = out_indices
+        self.channels = channels
+
+        self.features = nn.ModuleList([Stem(3, input_channel, 2, stem_groups)])
+
+        for s, c, ks, c1, c2, g1, g2, c3, g3, g4, y1, y2, y3, r in cfgs:
+            self.features.append(
+                MicroBlock(
+                    input_channel,
+                    c,
+                    ks,
+                    s,
+                    (c1, c2),
+                    (g1, g2),
+                    (c3, g3, g4),
+                    (y1, y2, y3),
+                    r,
+                    init_a,
+                    init_b,
+                )
+            )
+            input_channel = c
+
+    def forward(self, x: Tensor) -> Tensor:
+        outs = []
+        for i, m in enumerate(self.features):
+            x = m(x)
+            outs.append(x)
+        return outs
+
+
 if __name__ == "__main__":
-    test = MicroNet()
-    print(test)
+    for variant in ["M1", "M2", "M3"]:
+        shapes = [224, 256, 384, 512]
+
+        print("\n", variant)
+        for shape in shapes:
+            model = MicroNet(variant=variant)
+            model.eval()
+            print("\nShape", shape)
+            x = torch.zeros(1, 3, shape, shape)
+            outs = model(x)
+
+            for out in outs:
+                print(out.shape)

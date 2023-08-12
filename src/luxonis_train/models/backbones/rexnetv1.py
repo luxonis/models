@@ -6,23 +6,78 @@
 
 import torch
 import torch.nn as nn
-from typing import Optional
 
-from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.utils.general import make_divisible
 from luxonis_train.models.modules import ConvModule
 
 
-class ReXNetV1_lite(BaseBackbone):
+class LinearBottleneck(nn.Module):
+    def __init__(self, in_channels, channels, t, kernel_size=3, stride=1, **kwargs):
+        super(LinearBottleneck, self).__init__(**kwargs)
+        self.conv_shortcut = None
+        self.use_shortcut = stride == 1 and in_channels <= channels
+        self.in_channels = in_channels
+        self.out_channels = channels
+        out = []
+        if t != 1:
+            dw_channels = in_channels * t
+            out.append(
+                ConvModule(
+                    in_channels=in_channels,
+                    out_channels=dw_channels,
+                    kernel_size=1,
+                    activation=nn.ReLU6(inplace=True),
+                )
+            )
+        else:
+            dw_channels = in_channels
+        out.append(
+            ConvModule(
+                in_channels=dw_channels,
+                out_channels=dw_channels * 1,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=(kernel_size // 2),
+                groups=dw_channels,
+                activation=nn.ReLU6(inplace=True),
+            )
+        )
+        out.append(
+            ConvModule(
+                in_channels=dw_channels,
+                out_channels=channels,
+                kernel_size=1,
+                activation=nn.Identity(),
+            )
+        )
+
+        self.out = nn.Sequential(*out)
+
+    def forward(self, x):
+        out = self.out(x)
+
+        if self.use_shortcut:
+            # this results in a ScatterND node which isn't supported yet in myriad
+            # out[:, 0:self.in_channels] += x
+
+            a = out[:, : self.in_channels]
+            b = x
+            a = a + b
+            c = out[:, self.in_channels :]
+            d = torch.concat([a, c], dim=1)
+            return d
+        return out
+
+
+class ReXNetV1_lite(nn.Module):
     def __init__(
         self,
-        fix_head_stem: Optional[bool] = False,
-        divisible_value: Optional[int] = 8,
-        input_ch: Optional[int] = 16,
-        final_ch: Optional[int] = 164,
-        multiplier: Optional[float] = 1.0,
-        kernel_conf: Optional[str] = "333333",
-        **kwargs
+        fix_head_stem: bool = False,
+        divisible_value: int = 8,
+        input_ch: int = 16,
+        final_ch: int = 164,
+        multiplier: float = 1.0,
+        kernel_conf: str = "333333",
     ):
         """ReXNetV1_lite backbone
 
@@ -122,67 +177,18 @@ class ReXNetV1_lite(BaseBackbone):
         return outs
 
 
-class LinearBottleneck(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        channels: int,
-        t: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        **kwargs
-    ):
-        super(LinearBottleneck, self).__init__(**kwargs)
-        self.conv_shortcut = None
-        self.use_shortcut = stride == 1 and in_channels <= channels
-        self.in_channels = in_channels
-        self.out_channels = channels
-        out = []
-        if t != 1:
-            dw_channels = in_channels * t
-            out.append(
-                ConvModule(
-                    in_channels=in_channels,
-                    out_channels=dw_channels,
-                    kernel_size=1,
-                    activation=nn.ReLU6(inplace=True),
-                )
-            )
+if __name__ == "__main__":
+    model = ReXNetV1_lite(multiplier=1.0)
+    model.eval()
+
+    shapes = [224, 256, 384, 512]
+
+    for shape in shapes:
+        print("\nShape", shape)
+        x = torch.zeros(1, 3, shape, shape)
+        outs = model(x)
+        if isinstance(outs, list):
+            for out in outs:
+                print(out.shape)
         else:
-            dw_channels = in_channels
-        out.append(
-            ConvModule(
-                in_channels=dw_channels,
-                out_channels=dw_channels * 1,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=(kernel_size // 2),
-                groups=dw_channels,
-                activation=nn.ReLU6(inplace=True),
-            )
-        )
-        out.append(
-            ConvModule(
-                in_channels=dw_channels,
-                out_channels=channels,
-                kernel_size=1,
-                activation=nn.Identity(),
-            )
-        )
-
-        self.out = nn.Sequential(*out)
-
-    def forward(self, x):
-        out = self.out(x)
-
-        if self.use_shortcut:
-            # this results in a ScatterND node which isn't supported yet in myriad
-            # out[:, 0:self.in_channels] += x
-            a = out[:, : self.in_channels]
-            b = x
-            a = a + b
-            c = out[:, self.in_channels :]
-            d = torch.concat([a, c], dim=1)
-            return d
-
-        return out
+            print(outs.shape)

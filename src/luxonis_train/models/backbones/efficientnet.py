@@ -5,19 +5,17 @@
 
 
 import torch
+import torch.nn as nn
 
-from luxonis_train.models.backbones.base_backbone import BaseBackbone
 
-
-class EfficientNet(BaseBackbone):
-    def __init__(self, download_weights: bool = False, **kwargs):
+class EfficientNet(nn.Module):
+    def __init__(self, download_weights: bool = False):
         """EfficientNet backbone
 
         Args:
             download_weights (bool, optional): If True download weights from imagenet. Defaults to False.
         """
         super().__init__()
-
         efficientnet_lite0_model = torch.hub.load(
             "rwightman/gen-efficientnet-pytorch",
             "efficientnet_lite0",
@@ -26,13 +24,30 @@ class EfficientNet(BaseBackbone):
         self.out_indices = [1, 2, 4, 6]
         self.backbone = efficientnet_lite0_model
 
-    def forward(self, x):
+    def forward(self, X):
         outs = []
-        x = self.backbone.conv_stem(x)
-        x = self.backbone.bn1(x)
-        x = self.backbone.act1(x)
+        X = self.backbone.conv_stem(X)
+        X = self.backbone.bn1(X)
+        X = self.backbone.act1(X)
         for i, m in enumerate(self.backbone.blocks):
-            x = m(x)
+            X = m(X)
             if i in self.out_indices:
-                outs.append(x)
+                outs.append(X)
         return outs
+
+
+if __name__ == "__main__":
+    model = EfficientNet()
+    model.eval()
+
+    shapes = [224, 256, 384, 512]
+
+    for shape in shapes:
+        print("\n\nShape", shape)
+        x = torch.zeros(1, 3, shape, shape)
+        outs = model(x)
+        if isinstance(outs, list):
+            for out in outs:
+                print(out.shape)
+        else:
+            print(outs.shape)

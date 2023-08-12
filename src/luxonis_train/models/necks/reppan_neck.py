@@ -18,6 +18,7 @@ class RepPANNeck(BaseNeck):
         self,
         input_channels_shapes: list,
         num_heads: Literal[2, 3, 4] = 3,
+        offset: int = 0,
         channels_list: list = [256, 128, 128, 256, 256, 512],
         num_repeats: list = [12, 12, 12, 12],
         depth_mul: float = 0.33,
@@ -29,19 +30,21 @@ class RepPANNeck(BaseNeck):
         Args:
             input_channels_shapes (list): List of output shapes from previous module.
             num_heads (Literal[2,3,4], optional): Number of output heads.
-                (**Important: Should be same also on backbone and head**). Defaults to 3.
+                (**Important: Should be same also on head**). Defaults to 3.
+            offset (int, optional): Offset used if want to use backbone's higher resolution outputs.
+                If num_heads==2 then this can be one of [0,1,2], if num_heads==3 then this can be one of [1,2],
+                if num_heads==4 then this must be 0. Defaults to 0.
             channels_list (list, optional): List of number of channels for each block. Defaults to [256, 128, 128, 256, 256, 512].
             num_repeats (list, optiona): List of number of repeats of RepBlock. Defaults to [12, 12, 12, 12].
             depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
             width_mul (float, optional): Width multiplier. Defaults to 0.25.
         """
         super().__init__(input_channels_shapes=input_channels_shapes)
-        if num_heads not in [2, 3, 4]:
-            raise ValueError(
-                f"Specified number of heads not supported. Choose one of [2,3,4]"
-            )
 
+        self._validate_num_heads_and_offset(num_heads, offset)
         self.num_heads = num_heads
+        self.offset = offset
+
         # channels_list: [out UpBlock0, out UpBlock1, out downsample0, out DownBlock0, out downsample1, out DownBlock1]
         channels_list = [make_divisible(i * width_mul, 8) for i in channels_list]
         # num_repeats: [UpBlock0, UpBlock1, DownBlock0, DownBlock1]
@@ -53,9 +56,9 @@ class RepPANNeck(BaseNeck):
         # create num_heads-1 UpBlocks
         self.up_blocks = nn.ModuleList()
 
-        in_channels = input_channels_shapes[-1][1]
+        in_channels = input_channels_shapes[-(1 + self.offset)][1]
         out_channels = channels_list[0]
-        in_channels_next = input_channels_shapes[-2][1]
+        in_channels_next = input_channels_shapes[-(2 + self.offset)][1]
         curr_num_repeats = num_repeats[0]
         up_out_channel_list = [in_channels]  # used in DownBlocks
 
@@ -74,7 +77,7 @@ class RepPANNeck(BaseNeck):
 
             in_channels = out_channels
             out_channels = channels_list[i]
-            in_channels_next = input_channels_shapes[-(i + 2)][1]
+            in_channels_next = input_channels_shapes[-(i + 2 + self.offset)][1]
             curr_num_repeats = num_repeats[i]
 
         # create num_heads-1 DownBlocks
@@ -107,10 +110,10 @@ class RepPANNeck(BaseNeck):
             curr_num_repeats = num_repeats_down_blocks[i]
 
     def forward(self, x):
-        x0 = x[-1]
+        x0 = x[-(1 + self.offset)]
         up_block_outs = []
         for i, up_block in enumerate(self.up_blocks):
-            conv_out, x0 = up_block(x0, x[(-i + 2)])
+            conv_out, x0 = up_block(x0, x[-(i + 2 + self.offset)])
             up_block_outs.append(conv_out)
         up_block_outs.reverse()
 
@@ -120,8 +123,23 @@ class RepPANNeck(BaseNeck):
             outs.append(x0)
         return outs
 
+    def _validate_num_heads_and_offset(self, num_heads: int, offset: int):
+        if num_heads not in [2, 3, 4]:
+            raise ValueError(
+                f"Specified number of heads not supported. Choose one of [2,3,4]"
+            )
+        if (
+            (num_heads == 2 and offset not in [0, 1, 2])
+            or (num_heads == 3 and offset not in [0, 1])
+            or (num_heads == 4 and offset != 0)
+        ):
+            raise ValueError(
+                f"Specified offset ({offset}) not valid for num_heads ({num_heads})."
+            )
+
     def _fit_to_num_heads(self, channels_list: list, num_repeats: list):
-        """Fits channels_list and num_repeats to num_heads by removing or adding items"""
+        """Fits channels_list and num_repeats to num_heads by removing or adding items. Also scales
+        the numbers based on offset"""
         if self.num_heads == 3:
             pass
         elif self.num_heads == 2:
@@ -151,6 +169,10 @@ class RepPANNeck(BaseNeck):
             raise ValueError(
                 f"Specified number of heads ({self.num_heads}) not supported."
             )
+
+        # correct for offset
+        if self.offset != 0:
+            channels_list = [c // (2**self.offset) for c in channels_list]
 
         return channels_list, num_repeats
 

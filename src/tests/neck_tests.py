@@ -28,7 +28,7 @@ class NeckTestCases(unittest.TestCase):
                     for out in outs:
                         self.assertIsInstance(out, torch.Tensor)
 
-    def test_reppan_incorrect_num_heas(self):
+    def test_reppan_incorrect_num_heads(self):
         """Tests num_heads parameter of RepPAN neck"""
         input_channels_shapes = [
             [1, 32, 56, 56],
@@ -41,6 +41,24 @@ class NeckTestCases(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     neck = RepPANNeck(
                         input_channels_shapes=input_channels_shapes, num_heads=num_heads
+                    )
+
+    def test_reppan_incorrect_offset(self):
+        """Tests offset parameter of RepPAN neck"""
+        input_channels_shapes = [
+            [1, 32, 56, 56],
+            [1, 64, 28, 28],
+            [1, 128, 14, 14],
+            [1, 256, 7, 7],
+        ]
+        pairs = [(2, 3), (2, -1), (3, 2), (4, 1)]
+        for num_heads, offset in pairs:
+            with self.subTest(num_heads=num_heads, offset=offset):
+                with self.assertRaises(ValueError):
+                    neck = RepPANNeck(
+                        input_channels_shapes=input_channels_shapes,
+                        num_heads=num_heads,
+                        offset=offset,
                     )
 
 

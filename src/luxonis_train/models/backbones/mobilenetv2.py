@@ -4,13 +4,13 @@
 #
 
 
-import torch
-import torch.nn as nn
 import torchvision
 
+from luxonis_train.models.backbones.base_backbone import BaseBackbone
 
-class MobileNetV2(nn.Module):
-    def __init__(self, download_weights: bool = False):
+
+class MobileNetV2(BaseBackbone):
+    def __init__(self, download_weights: bool = False, **kwargs):
         """MobileNetV2 backbone
 
         Args:
@@ -31,15 +31,3 @@ class MobileNetV2(nn.Module):
             if i in self.out_indices:
                 outs.append(X)
         return outs
-
-
-if __name__ == "__main__":
-    model = MobileNetV2(download_weights=True)
-    model.eval()
-    shapes = [224, 256, 384, 512]
-    for shape in shapes:
-        print("\nShape", shape)
-        x = torch.zeros(1, 3, shape, shape)
-        outs = model(x)
-        for out in outs:
-            print(out.shape)

@@ -3,9 +3,11 @@
 # License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
 #
 
-import torch.nn as nn
-import torch
 
+import torch.nn as nn
+from typing import Optional
+
+from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import (
     RepVGGBlock,
     RepVGGBlockN,
@@ -14,26 +16,24 @@ from luxonis_train.models.modules import (
 from luxonis_train.utils.general import make_divisible
 
 
-class EfficientRep(nn.Module):
+class EfficientRep(BaseBackbone):
     def __init__(
         self,
-        channels_list: list,
-        num_repeats: list,
-        in_channels: int = 3,
-        depth_mul: float = 0.33,
-        width_mul: float = 0.25,
-        is_4head: bool = False,
+        channels_list: Optional[list] = [64, 128, 256, 512, 1024],
+        num_repeats: Optional[list] = [1, 6, 12, 18, 6],
+        in_channels: Optional[int] = 3,
+        depth_mul: Optional[float] = 0.33,
+        width_mul: Optional[float] = 0.25,
+        **kwargs
     ):
         """EfficientRep backbone, normally used with YoloV6 model.
 
         Args:
-            channels_list (list): List of number of channels for each block
-            num_repeats (list): List of number of repeats of RepVGGBlock
+            channels_list (list, optional): List of number of channels for each block. Defaults to [64, 128, 256, 512, 1024].
+            num_repeats (list, optional): List of number of repeats of RepBlock. Defaults to [1, 6, 12, 18, 6].
             in_channels (int, optional): Number of input channels, should be 3 in most cases . Defaults to 3.
             depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
             width_mul (float, optional): Width multiplier. Defaults to 0.25.
-            is_4head (bool, optional): Either build 4 headed architecture or 3 headed one \
-                (**Important: Should be same also on neck and head**). Defaults to False.
         """
         super().__init__()
 
@@ -41,8 +41,6 @@ class EfficientRep(nn.Module):
         num_repeats = [
             (max(round(i * depth_mul), 1) if i > 1 else i) for i in num_repeats
         ]
-
-        self.is_4head = is_4head
 
         self.stem = RepVGGBlock(
             in_channels=in_channels,
@@ -66,50 +64,20 @@ class EfficientRep(nn.Module):
                     num_blocks=num_repeats[i + 1],
                 ),
             )
-            if i == 3:
-                curr_block.append(
-                    SpatialPyramidPoolingBlock(
-                        in_channels=channels_list[i + 1],
-                        out_channels=channels_list[i + 1],
-                        kernel_size=5,
-                    )
-                )
-
             self.blocks.append(curr_block)
+
+        self.blocks[-1].append(
+            SpatialPyramidPoolingBlock(
+                in_channels=channels_list[4],
+                out_channels=channels_list[4],
+                kernel_size=5,
+            )
+        )
 
     def forward(self, x):
         outputs = []
         x = self.stem(x)
-        start_idx = 0 if self.is_4head else 1  # idx at which we start saving outputs
-        for i, block in enumerate(self.blocks):
+        for block in self.blocks:
             x = block(x)
-            if i >= start_idx:
-                outputs.append(x)
-
+            outputs.append(x)
         return outputs
-
-
-if __name__ == "__main__":
-    num_repeats = [1, 6, 12, 18, 6]
-    depth_mul = 0.33
-
-    channels_list = [64, 128, 256, 512, 1024]
-    width_mul = 0.25
-
-    model = EfficientRep(
-        in_channels=3,
-        channels_list=channels_list,
-        num_repeats=num_repeats,
-        depth_mul=depth_mul,
-        width_mul=width_mul,
-        is_4head=False,
-    )
-    model.eval()
-
-    shapes = [224, 256, 384, 512]
-    for shape in shapes:
-        print("\n\nShape", shape)
-        x = torch.zeros(1, 3, shape, shape)
-        outs = model(x)
-        for out in outs:
-            print(out.shape)

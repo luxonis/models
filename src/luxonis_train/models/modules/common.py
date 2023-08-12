@@ -345,6 +345,60 @@ class SpatialPyramidPoolingBlock(nn.Module):
         return x
 
 
+class AttentionRefinmentBlock(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+        """Attention Refinment block adapted from: https://github.com/taveraantonio/BiseNetv1 """
+
+        self.conv_3x3 = ConvModule(in_channels, out_channels, 3, 1, 1)
+        self.attention = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            ConvModule(
+                in_channels=out_channels,
+                out_channels=out_channels,
+                kernel_size=1,
+                activation=nn.Identity(),
+            ),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x):
+        x = self.conv_3x3(x)
+        attention = self.attention(x)
+        out = x * attention
+        return out
+
+
+class FeatureFusionBlock(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, reduction: int = 1):
+        super().__init__()
+        """Feature Fusion block adapted from: https://github.com/taveraantonio/BiseNetv1 """
+
+        self.conv_1x1 = ConvModule(in_channels, out_channels, 1, 1, 0)
+        self.attention = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            ConvModule(
+                in_channels=out_channels,
+                out_channels=out_channels // reduction,
+                kernel_size=1,
+            ),
+            ConvModule(
+                in_channels=out_channels,
+                out_channels=out_channels // reduction,
+                kernel_size=1,
+                activation=nn.Identity(),
+            ),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x1, x2):
+        fusion = torch.cat([x1, x2], dim=1)
+        x = self.conv_1x1(fusion)
+        attention = self.attention(x)
+        out = x + x * attention
+        return out
+
+
 def autopad(k: Union[int, tuple], p: Union[int, tuple] = None):
     """Compute padding based on kernel size.
 

@@ -41,7 +41,8 @@ class RepPANNeck(nn.Module):
         ]
 
         self.is_4head = is_4head
-        prev_out_start_idx = 1 if self.is_4head else 0
+        # prev_out_start_idx = 1 if self.is_4head else 0
+        prev_out_start_idx = 1
 
         self.Rep_p4 = RepVGGBlockN(
             in_channels=prev_out_shapes[prev_out_start_idx + 1][1] + channels_list[0],
@@ -147,10 +148,11 @@ class RepPANNeck(nn.Module):
             )
 
     def forward(self, x):
-        if self.is_4head:
-            x3, x2, x1, x0 = x
-        else:
-            x2, x1, x0 = x
+        x3, x2, x1, x0 = x
+        # if self.is_4head:
+        #     x2, x1, x0 = x
+        # else:
+        #     x2, x1, x0 = x
 
         fpn_out0 = self.reduce_layer0(x0)
         upsample_feat0 = self.upsample0(fpn_out0)
@@ -207,7 +209,6 @@ if __name__ == "__main__":
         num_repeats=num_repeats_backbone,
         depth_mul=depth_mul,
         width_mul=width_mul,
-        is_4head=False,
     )
     backbone_out_shapes = dummy_input_run(backbone, [1, 3, 224, 224])
     backbone.eval()

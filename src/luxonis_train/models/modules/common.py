@@ -80,7 +80,8 @@ class SqueezeExciteBlock(nn.Module):
         approx_sigmoid: bool = False,
         activation: object = nn.ReLU(),
     ):
-        """Squeeze and Excite block. Adapted from: https://github.com/apple/ml-mobileone/blob/main/mobileone.py
+        """Squeeze and Excite block from `Squeeze-and-Excitation Networks`,
+            https://arxiv.org/pdf/1709.01507.pdf. Adapted from: https://github.com/apple/ml-mobileone/blob/main/mobileone.py
 
         Args:
             in_channels (int): Number of input channels

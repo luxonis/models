@@ -6,7 +6,6 @@
 
 import torch
 import torch.nn as nn
-from typing import Optional
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.utils.general import make_divisible
@@ -16,12 +15,12 @@ from luxonis_train.models.modules import ConvModule
 class ReXNetV1_lite(BaseBackbone):
     def __init__(
         self,
-        fix_head_stem: Optional[bool] = False,
-        divisible_value: Optional[int] = 8,
-        input_ch: Optional[int] = 16,
-        final_ch: Optional[int] = 164,
-        multiplier: Optional[float] = 1.0,
-        kernel_conf: Optional[str] = "333333",
+        fix_head_stem: bool = False,
+        divisible_value: int = 8,
+        input_ch: int = 16,
+        final_ch: int = 164,
+        multiplier: float = 1.0,
+        kernel_conf: str = "333333",
         **kwargs
     ):
         """ReXNetV1_lite backbone

@@ -13,7 +13,7 @@ from luxonis_train.models.modules import ConvModule
 
 
 class MicroNet(BaseBackbone):
-    def __init__(self, variant: Optional[Literal["M1", "M2", "M3"]] = "M1", **kwargs):
+    def __init__(self, variant: Literal["M1", "M2", "M3"] = "M1", **kwargs):
         """MicroNet backbone
 
         Args:
@@ -87,13 +87,13 @@ class MicroBlock(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: Optional[int] = 3,
-        stride: Optional[int] = 1,
-        t1: Optional[tuple] = (2, 2),
-        gs1: Optional[int] = 4,
-        groups_1x1: Optional[tuple] = (1, 1),
-        dy: Optional[tuple] = (2, 0, 1),
-        r: Optional[int] = 1,
+        kernel_size: int = 3,
+        stride: int = 1,
+        t1: tuple = (2, 2),
+        gs1: int = 4,
+        groups_1x1: tuple = (1, 1),
+        dy: tuple = (2, 0, 1),
+        r: int = 1,
         init_a: Optional[tuple] = (1.0, 1.0),
         init_b: Optional[tuple] = (0.0, 0.0),
     ):
@@ -277,12 +277,12 @@ class DYShiftMax(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        init_a: Optional[list] = None,
-        init_b: Optional[list] = None,
-        act_relu: Optional[bool] = True,
+        init_a: Optional[tuple] = None,
+        init_b: Optional[tuple] = None,
+        act_relu: bool = True,
         g: Optional[list] = None,
-        reduction: Optional[int] = 4,
-        expansion: Optional[bool] = False,
+        reduction: int = 4,
+        expansion: bool = False,
     ):
         super().__init__()
         self.exp = 4 if act_relu else 2
@@ -398,7 +398,7 @@ class SpatialSepConvSF(nn.Module):
 
 
 class Stem(nn.Module):
-    def __init__(self, in_channels: int, stride: int, outs: Optional[list] = (4, 4)):
+    def __init__(self, in_channels: int, stride: int, outs: list = (4, 4)):
         super().__init__()
         self.stem = nn.Sequential(
             SpatialSepConvSF(in_channels, outs, 3, stride), nn.ReLU6(True)

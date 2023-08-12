@@ -6,7 +6,7 @@
 
 import torch
 import torch.nn as nn
-from typing import Optional, List, Literal
+from typing import List, Literal
 import torch
 import torch.nn as nn
 
@@ -15,9 +15,7 @@ from luxonis_train.models.modules import SEBlock, ConvModule
 
 
 class MobileOne(BaseBackbone):
-    def __init__(
-        self, variant: Optional[Literal["s0", "s1", "s2", "s3", "s4"]] = "s0", **kwargs
-    ):
+    def __init__(self, variant: Literal["s0", "s1", "s2", "s3", "s4"] = "s0", **kwargs):
         """MobileOne backbone
 
         Args:
@@ -60,16 +58,16 @@ class MobileOne_(nn.Module):
 
     def __init__(
         self,
-        num_blocks_per_stage: Optional[List[int]] = [2, 8, 10, 1],
-        width_multipliers: Optional[List[float]] = None,
-        use_se: Optional[bool] = False,
-        num_conv_branches: Optional[int] = 1,
+        num_blocks_per_stage: List[int] = [2, 8, 10, 1],
+        width_multipliers: List[float] = None,
+        use_se: bool = False,
+        num_conv_branches: int = 1,
     ):
         """Construct MobileOne model.
 
         Args:
             num_blocks_per_stage (List[int], optional): List of number of blocks per stage. Defaults to [2, 8, 10, 1].
-            width_multipliers (Optional[List[float]], optional): List of width multiplier for blocks in a stage.. Defaults to None.
+            width_multipliers (List[float], optional): List of width multiplier for blocks in a stage.. Defaults to None.
             use_se (bool, optional): Whether to use SE-ReLU activations.. Defaults to False.
             num_conv_branches (int, optional): Number of linear conv branches.. Defaults to 1.
         """
@@ -183,12 +181,12 @@ class MobileOneBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        stride: Optional[int] = 1,
-        padding: Optional[int] = 0,
-        dilation: Optional[int] = 1,
-        groups: Optional[int] = 1,
-        use_se: Optional[bool] = False,
-        num_conv_branches: Optional[int] = 1,
+        stride: int = 1,
+        padding: int = 0,
+        dilation: int = 1,
+        groups: int = 1,
+        use_se: bool = False,
+        num_conv_branches: int = 1,
     ):
         """Construct a MobileOneBlock module.
 

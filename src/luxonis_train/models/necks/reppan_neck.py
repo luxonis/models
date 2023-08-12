@@ -6,7 +6,7 @@
 
 import torch
 import torch.nn as nn
-from typing import Optional, Literal
+from typing import Literal
 
 from luxonis_train.models.necks.base_neck import BaseNeck
 from luxonis_train.models.modules import RepBlock, ConvModule
@@ -17,11 +17,11 @@ class RepPANNeck(BaseNeck):
     def __init__(
         self,
         input_channels_shapes: list,
-        num_heads: Optional[Literal[2, 3, 4]] = 3,
-        channels_list: Optional[list] = [256, 128, 128, 256, 256, 512],
-        num_repeats: Optional[list] = [12, 12, 12, 12],
-        depth_mul: Optional[float] = 0.33,
-        width_mul: Optional[float] = 0.25,
+        num_heads: Literal[2, 3, 4] = 3,
+        channels_list: list = [256, 128, 128, 256, 256, 512],
+        num_repeats: list = [12, 12, 12, 12],
+        depth_mul: float = 0.33,
+        width_mul: float = 0.25,
         **kwargs,
     ):
         """RepPANNeck normally used with YoloV6 model. It has the balance of feature fusion ability and hardware efficiency.

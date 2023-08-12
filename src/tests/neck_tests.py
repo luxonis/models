@@ -10,12 +10,7 @@ class NeckTestCases(unittest.TestCase):
         from luxonis_train.models.backbones import EfficientRep
 
         input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
-
-        backbone = EfficientRep(
-            channels_list=[64, 128, 256, 512, 1024],
-            num_repeats=[1, 6, 12, 18, 6],
-            is_4head=True,
-        )
+        backbone = EfficientRep()
 
         for input_shape in input_shapes:
             for num_heads in [2, 3, 4]:

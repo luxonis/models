@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from typing import Optional, Union
+from typing import Union
 import numpy as np
 
 from .activations import *
@@ -12,12 +12,12 @@ class ConvModule(nn.Sequential):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        stride: Optional[int] = 1,
-        padding: Optional[int] = 0,
-        dilation: Optional[int] = 1,
-        groups: Optional[int] = 1,
-        bias: Optional[bool] = False,
-        activation: Optional[object] = nn.ReLU(),
+        stride: int = 1,
+        padding: int = 0,
+        dilation: int = 1,
+        groups: int = 1,
+        bias: bool = False,
+        activation: object = nn.ReLU(),
     ):
         """Conv2d + BN + Activation
 
@@ -25,12 +25,12 @@ class ConvModule(nn.Sequential):
             in_channels (int): Number of input channels
             out_channels (int): Number of output channels
             kernel_size (int): Kernel size
-            stride (Optional[int], optional): Defaults to 1.
-            padding (Optional[int], optional): Defaults to 0.
-            dilation (Optional[int], optional): Defaults to 1.
-            groups (Optional[int], optional): Defaults to 1.
-            bias (Optional[bool], optional): Defaults to False.
-            activation (Optional[object], optional): Defaults to nn.ReLU().
+            stride (int, optional): Defaults to 1.
+            padding (int, optional): Defaults to 0.
+            dilation (int, optional): Defaults to 1.
+            groups (int, optional): Defaults to 1.
+            bias (bool, optional): Defaults to False.
+            activation (object, optional): Defaults to nn.ReLU().
         """
         super().__init__(
             nn.Conv2d(
@@ -53,16 +53,16 @@ class UpBlock(nn.Sequential):
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: Optional[int] = 2,
-        stride: Optional[int] = 2,
+        kernel_size: int = 2,
+        stride: int = 2,
     ):
         """Upsampling with ConvTranspose2D (similar to U-Net Up block)
 
         Args:
             in_channels (int): Number of input channels
             out_channels (int): Number of output channels
-            kernel_size (Optional[int], optional): Defaults to 2.
-            stride (Optional[int], optional): Defaults to 2.
+            kernel_size (int] optional): Defaults to 2.
+            stride (int] optional): Defaults to 2.
         """
         super().__init__(
             nn.ConvTranspose2d(
@@ -77,16 +77,16 @@ class SqueezeExciteBlock(nn.Module):
         self,
         in_channels: int,
         intermediate_channels: int,
-        approx_sigmoid: Optional[bool] = False,
-        activation: Optional[object] = nn.ReLU(),
+        approx_sigmoid: bool = False,
+        activation: object = nn.ReLU(),
     ):
         """Squeeze and Excite block. Adapted from: https://github.com/apple/ml-mobileone/blob/main/mobileone.py
 
         Args:
             in_channels (int): Number of input channels
             intermediate_channels (int): Number of intermediate channels
-            approx_sigmoid (Optional[bool], optional): Whether to use approximated sigmoid function. Defaults to False.
-            activation (Optional[object], optional): Defaults to nn.ReLU().
+            approx_sigmoid (bool, optional): Whether to use approximated sigmoid function. Defaults to False.
+            activation (object, optional): Defaults to nn.ReLU().
         """
         super().__init__()
 
@@ -121,14 +121,14 @@ class RepVGGBlock(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: Optional[int] = 3,
-        stride: Optional[int] = 1,
-        padding: Optional[int] = 1,
-        dilation: Optional[int] = 1,
-        groups: Optional[int] = 1,
-        padding_mode: Optional[str] = "zeros",
-        deploy: Optional[bool] = False,
-        use_se: Optional[bool] = False,
+        kernel_size: int = 3,
+        stride: int = 1,
+        padding: int = 1,
+        dilation: int = 1,
+        groups: int = 1,
+        padding_mode: str = "zeros",
+        deploy: bool = False,
+        use_se: bool = False,
     ):
         """RepVGGBlock is a basic rep-style block, including training and deploy status
         This code is based on https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
@@ -136,14 +136,14 @@ class RepVGGBlock(nn.Module):
         Args:
             in_channels (int): Number of input channels
             out_channels (int): Number of output channels
-            kernel_size (Optional[int], optional): Defaults to 3.
-            stride (Optional[int], optional): Defaults to 1.
-            padding (Optional[int], optional): Defaults to 1.
-            dilation (Optional[int], optional): Defaults to 1.
-            groups (Optional[int], optional): Defaults to 1.
-            padding_mode (Optional[str], optional): Defaults to "zeros".
-            deploy (Optional[bool], optional): Defaults to False.
-            use_se (Optional[bool], optional): Weather to use SqueezeExciteBlock. Defaults to False.
+            kernel_size (int, optional): Defaults to 3.
+            stride (int, optional): Defaults to 1.
+            padding (int, optional): Defaults to 1.
+            dilation (int, optional): Defaults to 1.
+            groups (int, optional): Defaults to 1.
+            padding_mode (str, optional): Defaults to "zeros".
+            deploy (bool, optional): Defaults to False.
+            use_se (bool, optional): Weather to use SqueezeExciteBlock. Defaults to False.
         """
         super().__init__()
 
@@ -289,15 +289,13 @@ class RepVGGBlock(nn.Module):
 
 
 class RepVGGBlockN(nn.Module):
-    def __init__(
-        self, in_channels: int, out_channels: int, num_blocks: Optional[int] = 1
-    ):
+    def __init__(self, in_channels: int, out_channels: int, num_blocks: int = 1):
         """Module which consists of multiple RepVGGBlocks
 
         Args:
             in_channels (int): Number of input channels
             out_channels (int): Number of output channels
-            num_blocks (Optional[int], optional): Number of RepVGG blocks. Defaults to 1.
+            num_blocks (int] optional): Number of RepVGG blocks. Defaults to 1.
         """
         super().__init__()
 
@@ -316,16 +314,14 @@ class RepVGGBlockN(nn.Module):
 
 
 class SpatialPyramidPoolingBlock(nn.Module):
-    def __init__(
-        self, in_channels: int, out_channels: int, kernel_size: Optional[int] = 5
-    ):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int = 5):
         """Spatial Pyramid Pooling block with ReLU activation
         Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
 
         Args:
             in_channels (int): Number of input channels
             out_channels (int): Number of output channels
-            kernel_size (Optional[int], optional): Defaults to 5.
+            kernel_size (int] optional): Defaults to 5.
         """
         super().__init__()
 

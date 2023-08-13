@@ -4,6 +4,7 @@ import torch.nn as nn
 import cv2
 from typing import List, Union, Optional
 from torchvision.utils import draw_segmentation_masks
+import warnings
 
 from luxonis_ml.loader import LabelType
 from luxonis_train.utils.visualization import (
@@ -22,6 +23,7 @@ class BaseHead(nn.Module, ABC):
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: Optional[str] = None,
+        **kwargs,
     ):
         """Base abstract head class from which all other heads are created
 
@@ -39,6 +41,9 @@ class BaseHead(nn.Module, ABC):
         self.input_channels_shapes = input_channels_shapes
         self.original_in_shape = original_in_shape
         self.main_metric = main_metric
+
+        if len(kwargs):
+            warnings.warn(f"Following head parameters not used: {kwargs}")
 
     @abstractmethod
     def forward(self, x):
@@ -130,6 +135,7 @@ class BaseClassificationHead(BaseHead, ABC):
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "f1",
+        **kwargs,
     ):
         """Base head for classification tasks
 
@@ -146,6 +152,7 @@ class BaseClassificationHead(BaseHead, ABC):
             original_in_shape=original_in_shape,
             attach_index=attach_index,
             main_metric=main_metric,
+            **kwargs,
         )
 
     def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
@@ -191,6 +198,7 @@ class BaseMultiLabelClassificationHead(BaseHead, ABC):
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "f1",
+        **kwargs,
     ):
         """Base head for multi-label classification tasks
 
@@ -207,6 +215,7 @@ class BaseMultiLabelClassificationHead(BaseHead, ABC):
             original_in_shape=original_in_shape,
             attach_index=attach_index,
             main_metric=main_metric,
+            **kwargs,
         )
 
     def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
@@ -250,6 +259,7 @@ class BaseSegmentationHead(BaseHead, ABC):
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "mIoU",
+        **kwargs,
     ):
         """Base head for segmentation tasks
 
@@ -266,6 +276,7 @@ class BaseSegmentationHead(BaseHead, ABC):
             original_in_shape=original_in_shape,
             attach_index=attach_index,
             main_metric=main_metric,
+            **kwargs,
         )
 
     def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
@@ -302,6 +313,7 @@ class BaseObjectDetection(BaseHead, ABC):
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "map",
+        **kwargs,
     ):
         """Base head for object detection tasks
 
@@ -318,6 +330,7 @@ class BaseObjectDetection(BaseHead, ABC):
             original_in_shape=original_in_shape,
             attach_index=attach_index,
             main_metric=main_metric,
+            **kwargs,
         )
 
 
@@ -332,6 +345,7 @@ class BaseKeypointDetection(BaseHead, ABC):
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "oks",
+        **kwargs,
     ):
         """Base head for keypoint detection tasks
 
@@ -348,4 +362,5 @@ class BaseKeypointDetection(BaseHead, ABC):
             original_in_shape=original_in_shape,
             attach_index=attach_index,
             main_metric=main_metric,
+            **kwargs,
         )

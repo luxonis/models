@@ -42,6 +42,7 @@ class YoloV6Head(BaseObjectDetection):
             input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            **kwargs,
         )
 
         self.no = n_classes + 5  # number of outputs per anchor

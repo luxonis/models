@@ -19,6 +19,7 @@ class EffiDeHead(BaseObjectDetection):
         original_in_shape: list,
         attach_index: int = -1,
         n_anchors: int = 1,
+        **kwargs,
     ):
         """EffieDeHead object detection head which is part of YoloV6 head
 
@@ -34,6 +35,7 @@ class EffiDeHead(BaseObjectDetection):
             input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            **kwargs,
         )
 
         self.n_anchors = n_anchors

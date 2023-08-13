@@ -55,6 +55,7 @@ class IKeypoint(BaseHead):
             input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            **kwargs,
         )
 
         self.main_metric: str = main_metric

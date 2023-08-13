@@ -27,6 +27,7 @@ class MultiLabelClassificationHead(BaseMultiLabelClassificationHead):
             input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            **kwargs
         )
 
         in_channels = self.input_channels_shapes[self.attach_index][1]

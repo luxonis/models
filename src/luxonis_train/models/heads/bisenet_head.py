@@ -37,6 +37,7 @@ class BiSeNetHead(BaseSegmentationHead):
             input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            **kwargs
         )
 
         ch = 256 if is_aux else 64

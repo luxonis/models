@@ -49,7 +49,7 @@ class Model(nn.Module):
 
         for head in modules_cfg["heads"]:
             curr_head = eval(head["name"])(
-                prev_out_shapes=self.neck_out_shapes
+                input_channels_shapes=self.neck_out_shapes
                 if self.neck
                 else self.backbone_out_shapes,
                 original_in_shape=dummy_input_shape,

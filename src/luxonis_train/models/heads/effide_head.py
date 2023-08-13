@@ -15,7 +15,7 @@ class EffiDeHead(BaseObjectDetection):
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
         n_anchors: int = 1,
@@ -24,14 +24,14 @@ class EffiDeHead(BaseObjectDetection):
 
         Args:
             n_classes (int): Number of classes
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             n_anchors (int, optional): Should stay default. Defaults to 1.
         """
         super().__init__(
             n_classes=n_classes,
-            prev_out_shapes=prev_out_shapes,
+            input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
         )
@@ -39,7 +39,7 @@ class EffiDeHead(BaseObjectDetection):
         self.n_anchors = n_anchors
         self.prior_prob = 1e-2
 
-        in_channels = self.prev_out_shapes[self.attach_index][1]
+        in_channels = self.input_channels_shapes[self.attach_index][1]
         self.head = nn.Sequential(
             *[
                 # stem

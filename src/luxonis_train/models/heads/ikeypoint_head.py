@@ -27,7 +27,7 @@ class IKeypoint(BaseHead):
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         n_keypoints: int,
         anchors: list,
@@ -41,7 +41,7 @@ class IKeypoint(BaseHead):
 
         Args:
             n_classes (int): Number of classes
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             n_keypoints (int): Number of keypoints
             anchors (list): Anchors used for object detection
@@ -52,7 +52,7 @@ class IKeypoint(BaseHead):
         """
         super().__init__(
             n_classes=n_classes,
-            prev_out_shapes=prev_out_shapes,
+            input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
         )
@@ -63,7 +63,7 @@ class IKeypoint(BaseHead):
         self.connectivity = connectivity
         self.visibility_threshold = visibility_threshold
 
-        ch = [prev[1] for prev in self.prev_out_shapes]
+        ch = [prev[1] for prev in self.input_channels_shapes]
         self.gr = 1.0  # TODO: find out what this is
         self.no_det = n_classes + 5  # number of outputs per anchor for box and class
         self.no_kpt = 3 * self.n_keypoints  # number of outputs per anchor for keypoints
@@ -152,7 +152,7 @@ class IKeypoint(BaseHead):
         )
 
         self.stride = torch.tensor(
-            [self.original_in_shape[2] / x[2] for x in self.prev_out_shapes]
+            [self.original_in_shape[2] / x[2] for x in self.input_channels_shapes]
         )
         self.anchors /= self.stride.view(-1, 1, 1)
         self._check_anchor_order()

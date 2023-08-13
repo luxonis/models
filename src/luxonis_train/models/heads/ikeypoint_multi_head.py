@@ -35,7 +35,7 @@ class IKeypointMultiHead(IKeypoint):
 
         for i in range(self.nl):
             curr_head = IKeypoint(
-                prev_out_shapes=[self.prev_out_shapes[i]],
+                input_channels_shapes=[self.input_channels_shapes[i]],
                 n_classes=self.n_classes,
                 n_keypoints=self.n_keypoints,
                 original_in_shape=self.original_in_shape,

@@ -20,7 +20,7 @@ class YoloV6Head(BaseObjectDetection):
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
         is_4head: bool = False,
@@ -31,7 +31,7 @@ class YoloV6Head(BaseObjectDetection):
 
         Args:
             n_classes (int): Number of classes
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             is_4head (bool, optional): Either build 4 headed architecture or 3 headed one
@@ -39,7 +39,7 @@ class YoloV6Head(BaseObjectDetection):
         """
         super().__init__(
             n_classes=n_classes,
-            prev_out_shapes=prev_out_shapes,
+            input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
         )
@@ -64,7 +64,7 @@ class YoloV6Head(BaseObjectDetection):
         self.head = nn.ModuleList()
         for i in range(self.nl):
             curr_head = EffiDeHead(
-                prev_out_shapes=[self.prev_out_shapes[i]],
+                input_channels_shapes=[self.input_channels_shapes[i]],
                 original_in_shape=self.original_in_shape,
                 n_classes=self.n_classes,
                 n_anchors=self.n_anchors,

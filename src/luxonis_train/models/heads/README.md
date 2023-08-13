@@ -1,7 +1,8 @@
 ## List of supported heads
-Every head takes this parameters:
- - n_classes: int # number of classes to predict
- - attach_index: int # on which backbone/neck layer should the head attach to. Defaults to -1.
+Every head takes these parameters:
+ - n_classes: int # Number of classes
+ - attach_index: int # Index of previous output that the head attaches to. Defaults to -1.
+ - main_metric: str # Name of the main metric which is used for tracking training process. Defaults to head specific value.
 
 Here is a list of all supported heads and any additional parameters they take:
 - ClassificationHead

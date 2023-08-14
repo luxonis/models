@@ -3,15 +3,15 @@
 # License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
 #
 
+import math
 import torch
 import torch.nn as nn
+from typing import Literal
 from torchvision.ops import box_convert
 from torchvision.utils import draw_bounding_boxes
 
-from .effide_head import EffiDeHead
-
-# from luxonis_train.models.heads.effide_head import EffiDeHead #import for unit testing
 from luxonis_train.models.heads.base_heads import BaseObjectDetection
+from luxonis_train.models.modules import ConvModule
 from luxonis_train.utils.assigners.anchor_generator import generate_anchors
 from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression_bbox
 
@@ -22,8 +22,9 @@ class YoloV6Head(BaseObjectDetection):
         n_classes: int,
         input_channels_shapes: list,
         original_in_shape: list,
+        num_heads: Literal[2, 3, 4] = 3,
+        offset: int = 0,
         attach_index: int = -1,
-        is_4head: bool = False,
         **kwargs,
     ):
         """YoloV6 object detection head. With hardware-aware degisn, the decoupled head is optimized with
@@ -33,9 +34,12 @@ class YoloV6Head(BaseObjectDetection):
             n_classes (int): Number of classes
             input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
+            num_heads (Literal[2,3,4], optional): Number of output heads.
+                (**Important: Should be same also on neck**). Defaults to 3.
+            offset (int, optional): Offset used if want to use backbone's higher resolution outputs.
+                If num_heads==2 then this can be one of [0,1,2], if num_heads==3 then this can be one of [1,2],
+                if num_heads==4 then this must be 0. (**Important: Should be same also on neck**). Defaults to 0.
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
-            is_4head (bool, optional): Either build 4 headed architecture or 3 headed one
-                (**Important: Should be same also on backbone and neck**). Defaults to False.
         """
         super().__init__(
             n_classes=n_classes,
@@ -45,30 +49,19 @@ class YoloV6Head(BaseObjectDetection):
             **kwargs,
         )
 
-        self.no = n_classes + 5  # number of outputs per anchor
-        self.is_4head = is_4head
-        self.nl = (
-            4 if self.is_4head else 3
-        )  # number of detection layers (support 3 and 4 heads)
+        self._validate_num_heads_and_offset(num_heads, offset)
+        self.num_heads = num_heads
+        self.offset = offset
 
-        self.prior_prob = 1e-2
-
-        self.n_anchors = 1
-        stride = (
-            [4, 8, 16, 32] if self.is_4head else [8, 16, 32]
-        )  # strides computed during build
-        self.stride = torch.tensor(stride)
-        self.grid = [torch.zeros(1)] * self.nl
+        self.stride = self._fit_to_num_heads()
+        self.grid = [torch.zeros(1)] * self.num_heads
         self.grid_cell_offset = 0.5
         self.grid_cell_size = 5.0
 
         self.head = nn.ModuleList()
-        for i in range(self.nl):
-            curr_head = EffiDeHead(
-                input_channels_shapes=[self.input_channels_shapes[i]],
-                original_in_shape=self.original_in_shape,
-                n_classes=self.n_classes,
-                n_anchors=self.n_anchors,
+        for i in range(self.num_heads):
+            curr_head = EfficientDecoupledBlock(
+                n_classes=self.n_classes, in_channels=self.input_channels_shapes[i][1]
             )
             self.head.append(curr_head)
 
@@ -77,7 +70,7 @@ class YoloV6Head(BaseObjectDetection):
         reg_distri_list = []
 
         for i, module in enumerate(self.head):
-            out_x, out_cls, out_reg = module([x[i]])
+            out_x, out_cls, out_reg = module(x[i])
             x[i] = out_x
             out_cls = torch.sigmoid(out_cls)
             cls_score_list.append(out_cls.flatten(2).permute((0, 2, 1)))
@@ -125,9 +118,7 @@ class YoloV6Head(BaseObjectDetection):
         return img
 
     def get_output_names(self, idx: int):
-        output_names = ["output1_yolov6r2", "output2_yolov6r2", "output3_yolov6r2"]
-        if self.is_4head:
-            output_names.append("output4_yolov6r2")
+        output_names = [f"output{i}_yolov6r2" for i in range(1, self.num_heads + 1)]
         return output_names
 
     def to_deploy(self):
@@ -143,6 +134,21 @@ class YoloV6Head(BaseObjectDetection):
             return outputs
 
         self.forward = deploy_forward
+
+    def _validate_num_heads_and_offset(self, num_heads: int, offset: int):
+        if num_heads not in [2, 3, 4]:
+            raise ValueError(
+                f"Specified number of heads not supported. Choose one of [2,3,4]"
+            )
+        if not (0 <= offset <= 4 - num_heads):
+            raise ValueError(
+                f"Specified offset ({offset}) not valid for num_heads ({num_heads})."
+            )
+
+    def _fit_to_num_heads(self):
+        base_stride = [4, 8, 16, 32]
+        stride = base_stride[-(self.num_heads + self.offset) :][: self.num_heads]
+        return torch.tensor(stride)
 
     def _out2box(self, output: tuple, **kwargs):
         """Performs post-processing of the YoloV6 output and returns bboxs after NMS"""
@@ -175,6 +181,77 @@ class YoloV6Head(BaseObjectDetection):
         return output_nms
 
 
+class EfficientDecoupledBlock(nn.Module):
+    def __init__(self, n_classes: int, in_channels: int):
+        """Efficient Decoupled block used for class and regression predictions.
+
+        Args:
+            n_classes (int): Number of classes
+            in_channels (int): Number of input channels
+        """
+        super().__init__()
+
+        self.stem = ConvModule(
+            in_channels=in_channels,
+            out_channels=in_channels,
+            kernel_size=1,
+            stride=1,
+            activation=nn.SiLU(),
+        )
+
+        self.cls_conv = ConvModule(
+            in_channels=in_channels,
+            out_channels=in_channels,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            activation=nn.SiLU(),
+        )
+        self.cls_pred = nn.Conv2d(
+            in_channels=in_channels, out_channels=n_classes, kernel_size=1
+        )
+
+        self.reg_conv = ConvModule(
+            in_channels=in_channels,
+            out_channels=in_channels,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            activation=nn.SiLU(),
+        )
+        self.reg_pred = nn.Conv2d(
+            in_channels=in_channels, out_channels=4, kernel_size=1
+        )
+
+        prior_prob = 1e-2
+        self._initialize_biases(prior_prob)
+
+    def forward(self, x):
+        out = self.stem(x)
+        # class branch
+        out_cls = self.cls_conv(out)
+        out_cls = self.cls_pred(out_cls)
+        # regression branch
+        out_reg = self.reg_conv(out)
+        out_reg = self.reg_pred(out_reg)
+
+        return [out, out_cls, out_reg]
+
+    def _initialize_biases(self, prior_prob: float):
+        data = [
+            (self.cls_pred, -math.log((1 - prior_prob) / prior_prob)),
+            (self.reg_pred, 1.0),
+        ]
+        for module, fill_value in data:
+            b = module.bias.view(-1)
+            b.data.fill_(fill_value)
+            module.bias = nn.Parameter(b.view(-1), requires_grad=True)
+
+            w = module.weight
+            w.data.fill_(0.0)
+            module.weight = nn.Parameter(w, requires_grad=True)
+
+
 if __name__ == "__main__":
     # test yolov6-n config
     from luxonis_train.models.backbones import EfficientRep
@@ -189,40 +266,33 @@ if __name__ == "__main__":
     channels_list_neck = [256, 128, 128, 256, 256, 512]
     width_mul = 0.25
 
-    backbone = EfficientRep(
-        in_channels=3,
-        channels_list=channels_list_backbone,
-        num_repeats=num_repeats_backbone,
-        depth_mul=depth_mul,
-        width_mul=width_mul,
-        is_4head=True,
-    )
+    backbone = EfficientRep()
     for module in backbone.modules():
         if hasattr(module, "switch_to_deploy"):
             module.switch_to_deploy()
     backbone_out_shapes = dummy_input_run(backbone, [1, 3, 224, 224])
     backbone.eval()
 
+    num_heads = 2
+    offset = 2
+
     neck = RepPANNeck(
-        prev_out_shape=backbone_out_shapes,
-        channels_list=channels_list_neck,
-        num_repeats=num_repeats_neck,
-        depth_mul=depth_mul,
-        width_mul=width_mul,
-        is_4head=True,
+        input_channels_shapes=backbone_out_shapes, num_heads=num_heads, offset=offset
     )
     neck_out_shapes = dummy_input_run(neck, backbone_out_shapes, multi_input=True)
     neck.eval()
 
     shapes = [224, 256, 384, 512]
+    shapes = [256]
     for shape in shapes:
         print("\n\nShape", shape)
         x = torch.zeros(1, 3, shape, shape)
         head = YoloV6Head(
-            prev_out_shape=neck_out_shapes,
+            input_channels_shapes=neck_out_shapes,
             n_classes=10,
             original_in_shape=x.shape,
-            is_4head=True,
+            num_heads=num_heads,
+            offset=offset,
         )
         head.eval()
         outs = backbone(x)

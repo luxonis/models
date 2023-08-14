@@ -14,7 +14,6 @@ Here is a list of all supported heads and any additional parameters they take:
 - SegmentationHead (adapted from [here](https://github.com/pytorch/vision/blob/main/torchvision/models/segmentation/fcn.py))
 - BiSeNetHead (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
   - Params:
-    - c1: int # Number of input channels. Defaults to 256.
     - upscale_factor: int # Factor used for upscaling input. Defaults to 8.
     - is_aux: bool # Either use 256 for intermediate channels or 64. Defaults to False
 - EffiDeHead (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
@@ -22,7 +21,10 @@ Here is a list of all supported heads and any additional parameters they take:
     - n_anchors: int # Should stay default. Defaults to 1.
 - YoloV6Head (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
   - Params:
-    - is_4head: bool # Either build 4 headed architecture or 3 headed one (**Important: Should be same also on backbone and neck**). Defaults to False.
+    - num_heads: bool # Number of output heads.
+      (**Important: Should be same also on neck**). Defaults to 3.
+    - offset: int # Offset used if want to use backbone's higher resolution outputs.
+      If num_heads==2 then this can be one of [0,1,2], if num_heads==3 then this can be one [1,2], if num_heads==4 then this must be 0. (**Important: Should be same also on neck**). Defaults to 0.
 - IKeypoint (adapted from [here](https://github.com/WongKinYiu/yolov7))
   - Params:
     - n_keypoints: int # Number of keypoints

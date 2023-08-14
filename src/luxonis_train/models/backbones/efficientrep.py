@@ -5,7 +5,6 @@
 
 
 import torch.nn as nn
-from typing import Optional
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import (
@@ -19,11 +18,11 @@ from luxonis_train.utils.general import make_divisible
 class EfficientRep(BaseBackbone):
     def __init__(
         self,
-        channels_list: Optional[list] = [64, 128, 256, 512, 1024],
-        num_repeats: Optional[list] = [1, 6, 12, 18, 6],
-        in_channels: Optional[int] = 3,
-        depth_mul: Optional[float] = 0.33,
-        width_mul: Optional[float] = 0.25,
+        channels_list: list = [64, 128, 256, 512, 1024],
+        num_repeats: list = [1, 6, 12, 18, 6],
+        in_channels: int = 3,
+        depth_mul: float = 0.33,
+        width_mul: float = 0.25,
         **kwargs
     ):
         """EfficientRep backbone, normally used with YoloV6 model.

@@ -13,7 +13,7 @@ from luxonis_train.models.modules import RepVGGBlock
 
 
 class RepVGG(BaseBackbone):
-    def __init__(self, variant: Optional[Literal["A0", "A1", "A2"]] = "A0", **kwargs):
+    def __init__(self, variant: Literal["A0", "A1", "A2"] = "A0", **kwargs):
         """RepVGG baackbone
 
         Args:
@@ -36,12 +36,12 @@ class RepVGG_(nn.Module):
     def __init__(
         self,
         num_blocks: list,
-        num_classes: Optional[int] = 1000,
+        num_classes: int = 1000,
         width_multiplier: Optional[list] = None,
         override_groups_map: Optional[list] = None,
-        deploy: Optional[bool] = False,
-        use_se: Optional[bool] = False,
-        use_checkpoint: Optional[bool] = False,
+        deploy: bool = False,
+        use_se: bool = False,
+        use_checkpoint: bool = False,
     ):
         super(RepVGG_, self).__init__()
         assert len(width_multiplier) == 4

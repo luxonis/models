@@ -5,13 +5,12 @@
 
 
 import torchvision
-from typing import Optional
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
 
 
 class ResNet18(BaseBackbone):
-    def __init__(self, download_weights: Optional[bool] = False, **kwargs):
+    def __init__(self, download_weights: bool = False, **kwargs):
         """ResNet18 backbone
 
         Args:

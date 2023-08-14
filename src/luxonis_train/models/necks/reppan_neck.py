@@ -6,228 +6,253 @@
 
 import torch
 import torch.nn as nn
+from typing import Literal
 
+from luxonis_train.models.necks.base_neck import BaseNeck
 from luxonis_train.models.modules import RepBlock, ConvModule
 from luxonis_train.utils.general import make_divisible
 
 
-class RepPANNeck(nn.Module):
+class RepPANNeck(BaseNeck):
     def __init__(
         self,
-        prev_out_shapes: list,
-        channels_list: list,
-        num_repeats: list,
+        input_channels_shapes: list,
+        num_heads: Literal[2, 3, 4] = 3,
+        offset: int = 0,
+        channels_list: list = [256, 128, 128, 256, 256, 512],
+        num_repeats: list = [12, 12, 12, 12],
         depth_mul: float = 0.33,
         width_mul: float = 0.25,
-        is_4head: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """RepPANNeck normally used with YoloV6 model. It has the balance of feature fusion ability and hardware efficiency.
 
         Args:
-            prev_out_shapes (list): List of shapes of previous outputs
-            channels_list (list): List of number of channels for each block.
-            num_repeats (list): List of number of repeats of RepBlock
+            input_channels_shapes (list): List of output shapes from previous module.
+            num_heads (Literal[2,3,4], optional): Number of output heads.
+                (**Important: Should be same also on head**). Defaults to 3.
+            offset (int, optional): Offset used if want to use backbone's higher resolution outputs.
+                If num_heads==2 then this can be one of [0,1,2], if num_heads==3 then this can be one of [1,2],
+                if num_heads==4 then this must be 0. Defaults to 0.
+            channels_list (list, optional): List of number of channels for each block. Defaults to [256, 128, 128, 256, 256, 512].
+            num_repeats (list, optiona): List of number of repeats of RepBlock. Defaults to [12, 12, 12, 12].
             depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
             width_mul (float, optional): Width multiplier. Defaults to 0.25.
-            is_4head (bool, optional): Either build 4 headed architecture or 3 headed one \
-                (**Important: Should be same also on backbone and head**). Defaults to False.
         """
-        super().__init__()
+        super().__init__(input_channels_shapes=input_channels_shapes)
 
+        self._validate_num_heads_and_offset(num_heads, offset)
+        self.num_heads = num_heads
+        self.offset = offset
+
+        # channels_list: [out UpBlock0, out UpBlock1, out downsample0, out DownBlock0, out downsample1, out DownBlock1]
         channels_list = [make_divisible(i * width_mul, 8) for i in channels_list]
+        # num_repeats: [UpBlock0, UpBlock1, DownBlock0, DownBlock1]
         num_repeats = [
             (max(round(i * depth_mul), 1) if i > 1 else i) for i in num_repeats
         ]
+        channels_list, num_repeats = self._fit_to_num_heads(channels_list, num_repeats)
 
-        self.is_4head = is_4head
-        # prev_out_start_idx = 1 if self.is_4head else 0
-        prev_out_start_idx = 1
+        # create num_heads-1 UpBlocks
+        self.up_blocks = nn.ModuleList()
 
-        self.Rep_p4 = RepBlock(
-            in_channels=prev_out_shapes[prev_out_start_idx + 1][1] + channels_list[0],
-            out_channels=channels_list[0],
-            n=num_repeats[0],
-        )
+        in_channels = input_channels_shapes[-(1 + self.offset)][1]
+        out_channels = channels_list[0]
+        in_channels_next = input_channels_shapes[-(2 + self.offset)][1]
+        curr_num_repeats = num_repeats[0]
+        up_out_channel_list = [in_channels]  # used in DownBlocks
 
-        self.Rep_p3 = RepBlock(
-            in_channels=prev_out_shapes[prev_out_start_idx][1] + channels_list[1],
-            out_channels=channels_list[1],
-            n=num_repeats[1],
-        )
-
-        self.Rep_n3 = RepBlock(
-            in_channels=channels_list[1] + channels_list[2],
-            out_channels=channels_list[3],
-            n=num_repeats[2],
-        )
-
-        self.Rep_n4 = RepBlock(
-            in_channels=channels_list[0] + channels_list[4],
-            out_channels=channels_list[5],
-            n=num_repeats[3],
-        )
-
-        self.reduce_layer0 = ConvModule(
-            in_channels=prev_out_shapes[prev_out_start_idx + 2][1],
-            out_channels=channels_list[0],
-            kernel_size=1,
-            stride=1,
-        )
-
-        self.upsample0 = torch.nn.ConvTranspose2d(
-            in_channels=channels_list[0],
-            out_channels=channels_list[0],
-            kernel_size=2,
-            stride=2,
-            bias=True,
-        )
-
-        self.reduce_layer1 = ConvModule(
-            in_channels=channels_list[0],
-            out_channels=channels_list[1],
-            kernel_size=1,
-            stride=1,
-        )
-
-        self.upsample1 = torch.nn.ConvTranspose2d(
-            in_channels=channels_list[1],
-            out_channels=channels_list[1],
-            kernel_size=2,
-            stride=2,
-            bias=True,
-        )
-
-        self.downsample2 = ConvModule(
-            in_channels=channels_list[1],
-            out_channels=channels_list[2],
-            kernel_size=3,
-            stride=2,
-            padding=3 // 2,
-        )
-
-        self.downsample1 = ConvModule(
-            in_channels=channels_list[3],
-            out_channels=channels_list[4],
-            kernel_size=3,
-            stride=2,
-            padding=3 // 2,
-        )
-
-        if self.is_4head:
-            self.reduce_layer2 = ConvModule(
-                in_channels=channels_list[1],
-                out_channels=channels_list[1] // 2,
-                kernel_size=1,
-                stride=1,
+        for i in range(1, num_heads):
+            curr_up_block = UpBlock(
+                in_channels=in_channels,
+                in_channels_next=in_channels_next,
+                out_channels=out_channels,
+                num_repeats=curr_num_repeats,
             )
-            self.upsample2 = torch.nn.ConvTranspose2d(
-                in_channels=channels_list[1] // 2,
-                out_channels=channels_list[1] // 2,
-                kernel_size=2,
-                stride=2,
-                bias=True,
+            up_out_channel_list.append(out_channels)
+            self.up_blocks.append(curr_up_block)
+            if len(self.up_blocks) == (num_heads - 1):
+                up_out_channel_list.reverse()
+                break
+
+            in_channels = out_channels
+            out_channels = channels_list[i]
+            in_channels_next = input_channels_shapes[-(i + 2 + self.offset)][1]
+            curr_num_repeats = num_repeats[i]
+
+        # create num_heads-1 DownBlocks
+        self.down_blocks = nn.ModuleList()
+        channels_list_down_blocks = channels_list[(num_heads - 1) :]
+        num_repeats_down_blocks = num_repeats[(num_heads - 1) :]
+
+        in_channels = out_channels
+        downsample_out_channels = channels_list_down_blocks[0]
+        in_channels_next = up_out_channel_list[0]
+        out_channels = channels_list_down_blocks[1]
+        curr_num_repeats = num_repeats_down_blocks[0]
+
+        for i in range(1, num_heads):
+            curr_down_block = DownBlock(
+                in_channels=in_channels,
+                downsample_out_channels=downsample_out_channels,
+                in_channels_next=in_channels_next,
+                out_channels=out_channels,
+                num_repeats=curr_num_repeats,
             )
-            self.Rep_p2 = RepBlock(
-                in_channels=prev_out_shapes[prev_out_start_idx - 1][1]
-                + channels_list[1] // 2,
-                out_channels=channels_list[1] // 2,
-                n=num_repeats[1],
-            )
-            self.downsample3 = ConvModule(
-                in_channels=channels_list[1] // 2,
-                out_channels=channels_list[1],
-                kernel_size=3,
-                stride=2,
-                padding=3 // 2,
-            )
-            self.Rep_n2 = RepBlock(
-                in_channels=channels_list[1] + channels_list[1] // 2,
-                out_channels=channels_list[1],
-                n=num_repeats[1],
-            )
+            self.down_blocks.append(curr_down_block)
+            if len(self.down_blocks) == (num_heads - 1):
+                break
+
+            in_channels = out_channels
+            downsample_out_channels = channels_list_down_blocks[2 * i]
+            in_channels_next = up_out_channel_list[i]
+            out_channels = channels_list_down_blocks[2 * i + 1]
+            curr_num_repeats = num_repeats_down_blocks[i]
 
     def forward(self, x):
-        x3, x2, x1, x0 = x
-        # if self.is_4head:
-        #     x2, x1, x0 = x
-        # else:
-        #     x2, x1, x0 = x
+        x0 = x[-(1 + self.offset)]
+        up_block_outs = []
+        for i, up_block in enumerate(self.up_blocks):
+            conv_out, x0 = up_block(x0, x[-(i + 2 + self.offset)])
+            up_block_outs.append(conv_out)
+        up_block_outs.reverse()
 
-        fpn_out0 = self.reduce_layer0(x0)
-        upsample_feat0 = self.upsample0(fpn_out0)
-        f_concat_layer0 = torch.cat([upsample_feat0, x1], dim=1)
-        f_out0 = self.Rep_p4(f_concat_layer0)
+        outs = [x0]
+        for i, down_block in enumerate(self.down_blocks):
+            x0 = down_block(x0, up_block_outs[i])
+            outs.append(x0)
+        return outs
 
-        fpn_out1 = self.reduce_layer1(f_out0)
-        upsample_feat1 = self.upsample1(fpn_out1)
-        f_concat_layer1 = torch.cat([upsample_feat1, x2], dim=1)
-        pan_out2 = self.Rep_p3(f_concat_layer1)
+    def _validate_num_heads_and_offset(self, num_heads: int, offset: int):
+        if num_heads not in [2, 3, 4]:
+            raise ValueError(
+                f"Specified number of heads not supported. Choose one of [2,3,4]"
+            )
+        if not (0 <= offset <= 4 - num_heads):
+            raise ValueError(
+                f"Specified offset ({offset}) not valid for num_heads ({num_heads})."
+            )
 
-        if self.is_4head:
-            fpn_out2 = self.reduce_layer2(pan_out2)
-            upsample_feat2 = self.upsample2(fpn_out2)
-            f_concat_layer2 = torch.cat([upsample_feat2, x3], dim=1)
-            pan_out3 = self.Rep_p2(f_concat_layer2)
-
-            down_feat2 = self.downsample3(pan_out3)
-            p_concat_layer0 = torch.cat([down_feat2, fpn_out2], dim=1)
-            pan_out2 = self.Rep_n2(p_concat_layer0)
-
-        down_feat1 = self.downsample2(pan_out2)
-        p_concat_layer1 = torch.cat([down_feat1, fpn_out1], dim=1)
-        pan_out1 = self.Rep_n3(p_concat_layer1)
-
-        down_feat0 = self.downsample1(pan_out1)
-        p_concat_layer2 = torch.cat([down_feat0, fpn_out0], dim=1)
-        pan_out0 = self.Rep_n4(p_concat_layer2)
-
-        if self.is_4head:
-            outputs = [pan_out3, pan_out2, pan_out1, pan_out0]
+    def _fit_to_num_heads(self, channels_list: list, num_repeats: list):
+        """Fits channels_list and num_repeats to num_heads by removing or adding items. Also scales
+        the numbers based on offset"""
+        if self.num_heads == 3:
+            pass
+        elif self.num_heads == 2:
+            channels_list = [channels_list[0], channels_list[4], channels_list[5]]
+            num_repeats = [num_repeats[0], num_repeats[3]]
+        elif self.num_heads == 4:
+            channels_list = [
+                channels_list[0],
+                channels_list[1],
+                channels_list[1] // 2,
+                channels_list[1] // 2,
+                channels_list[1],
+                channels_list[2],
+                channels_list[3],
+                channels_list[4],
+                channels_list[5],
+            ]
+            num_repeats = [
+                num_repeats[0],
+                num_repeats[1],
+                num_repeats[1],
+                num_repeats[2],
+                num_repeats[2],
+                num_repeats[3],
+            ]
         else:
-            outputs = [pan_out2, pan_out1, pan_out0]
+            raise ValueError(
+                f"Specified number of heads ({self.num_heads}) not supported."
+            )
 
-        return outputs
+        # correct for offset
+        if self.offset != 0:
+            channels_list = [c // (2**self.offset) for c in channels_list]
+
+        return channels_list, num_repeats
 
 
-if __name__ == "__main__":
-    # test together with EfficientRep backbone
-    from luxonis_train.models.backbones import EfficientRep
-    from luxonis_train.utils.general import dummy_input_run
+class UpBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        in_channels_next: int,
+        out_channels: int,
+        num_repeats: int,
+    ):
+        """UpBlock used in RepPAN neck
 
-    num_repeats_backbone = [1, 6, 12, 18, 6]
-    num_repeats_neck = [12, 12, 12, 12]
-    depth_mul = 0.33
+        Args:
+            in_channels (int): Number of input channels
+            in_channels_next (int): Number of input channels of next input which is used in concat
+            out_channels (int): Number of output channels
+            num_repeats (int): Number of RepBlock repeats
+        """
+        super().__init__()
 
-    channels_list_backbone = [64, 128, 256, 512, 1024]
-    channels_list_neck = [256, 128, 128, 256, 256, 512]
-    width_mul = 0.25
+        self.conv = ConvModule(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=1,
+        )
+        self.upsample = torch.nn.ConvTranspose2d(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=2,
+            stride=2,
+            bias=True,
+        )
+        self.rep_block = RepBlock(
+            in_channels=in_channels_next + out_channels,
+            out_channels=out_channels,
+            n=num_repeats,
+        )
 
-    backbone = EfficientRep(
-        in_channels=3,
-        channels_list=channels_list_backbone,
-        num_repeats=num_repeats_backbone,
-        depth_mul=depth_mul,
-        width_mul=width_mul,
-    )
-    backbone_out_shapes = dummy_input_run(backbone, [1, 3, 224, 224])
-    backbone.eval()
+    def forward(self, x0, x1):
+        conv_out = self.conv(x0)
+        upsample_out = self.upsample(conv_out)
+        concat_out = torch.cat([upsample_out, x1], dim=1)
+        out = self.rep_block(concat_out)
+        return conv_out, out
 
-    neck = RepPANNeck(
-        prev_out_shapes=backbone_out_shapes,
-        channels_list=channels_list_neck,
-        num_repeats=num_repeats_neck,
-        depth_mul=depth_mul,
-        width_mul=width_mul,
-        is_4head=False,
-    )
-    neck.eval()
 
-    shapes = [224, 256, 384, 512]
-    for shape in shapes:
-        print("\n\nShape", shape)
-        x = torch.zeros(1, 3, shape, shape)
-        outs = backbone(x)
-        outs = neck(outs)
-        for out in outs:
-            print(out.shape)
+class DownBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        downsample_out_channels: int,
+        in_channels_next: int,
+        out_channels: int,
+        num_repeats: int,
+    ):
+        """DownBlock used in RepPAN neck
+
+        Args:
+            in_channels (int): Number of input channels
+            downsample_out_channels (int): Number of output channels after downsample
+            in_channels_next (int): Number of input channels of next input which is used in concat
+            out_channels (int): Number of output channels
+            num_repeats (int): Number of RepBlock repeats
+        """
+        super().__init__()
+
+        self.downsample = ConvModule(
+            in_channels=in_channels,
+            out_channels=downsample_out_channels,
+            kernel_size=3,
+            stride=2,
+            padding=3 // 2,
+        )
+        self.rep_block = RepBlock(
+            in_channels=downsample_out_channels + in_channels_next,
+            out_channels=out_channels,
+            n=num_repeats,
+        )
+
+    def forward(self, x0, x1):
+        x = self.downsample(x0)
+        x = torch.cat([x, x1], dim=1)
+        x = self.rep_block(x)
+        return x

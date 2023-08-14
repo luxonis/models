@@ -17,9 +17,11 @@ class NeckTestCases(unittest.TestCase):
                 with self.subTest(input_shape=input_shape, num_heads=num_heads):
                     input = torch.zeros(input_shape)
                     input_channels_shapes = dummy_input_run(backbone, input_shape)
+                    backbone.eval()
                     neck = RepPANNeck(
                         input_channels_shapes=input_channels_shapes, num_heads=num_heads
                     )
+                    neck.eval()
 
                     outs = backbone(input)
                     outs = neck(outs)

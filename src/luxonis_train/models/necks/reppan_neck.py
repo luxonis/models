@@ -128,11 +128,7 @@ class RepPANNeck(BaseNeck):
             raise ValueError(
                 f"Specified number of heads not supported. Choose one of [2,3,4]"
             )
-        if (
-            (num_heads == 2 and offset not in [0, 1, 2])
-            or (num_heads == 3 and offset not in [0, 1])
-            or (num_heads == 4 and offset != 0)
-        ):
+        if not (0 <= offset <= 4 - num_heads):
             raise ValueError(
                 f"Specified offset ({offset}) not valid for num_heads ({num_heads})."
             )

@@ -4,7 +4,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import RichProgressBar
 from rich.table import Table
 
-from luxonis_train.utils.config import Config
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
@@ -95,6 +94,7 @@ class TestOnTrainEnd(pl.Callback):
     """Callback that performs test on pl_module when train ends"""
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        from luxonis_train.utils.config import Config
         from torch.utils.data import DataLoader
         from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
         from luxonis_ml.loader import LuxonisLoader, ValAugmentations
@@ -139,6 +139,7 @@ class ExportOnTrainEnd(pl.Callback):
         self.override_upload_directory = override_upload_directory
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        from luxonis_train.utils.config import Config
         from luxonis_train.core import Exporter
 
         cfg = Config()

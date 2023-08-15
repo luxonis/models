@@ -6,6 +6,7 @@ import re
 from typing import Union
 from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from copy import deepcopy
+from luxonis_train.models.heads import *
 
 
 class Config:
@@ -287,25 +288,14 @@ class Config:
             if not classes:
                 raise ValueError("Provided dataset doesn't have any classes.")
 
-            # TODO: implement per task number of classes
-            # for key in dataset.classes_by_task:
-            #     print(key, len(dataset.classes_by_task[key]))
-
             model_cfg = self._data["model"]
             for head in model_cfg["heads"]:
                 if not ("params" in head and head["params"]):
                     head["params"] = {}
 
                 curr_n_classes = head["params"].get("n_classes", None)
-                task_dict = {
-                    "IKeypoint": "keypoints",
-                    "SegmentationHead": "segmentation",
-                    "YoloV6Head": "boxes",
-                }
-                if head.get("name") in task_dict:
-                    dataset_n_classes = len(classes_by_task[task_dict[head.get("name")]])
-                else:
-                    dataset_n_classes = len(classes)
+                label_type = eval(head["name"]).label_types[0]
+                dataset_n_classes = len(classes_by_task[label_type.value])
                 if curr_n_classes is None:
                     warnings.warn(
                         f"Inheriting 'n_classes' parameter from dataset. Setting it to {dataset_n_classes}"

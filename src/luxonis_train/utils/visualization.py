@@ -1,3 +1,4 @@
+from typing import Optional
 import torch
 import cv2
 import numpy as np
@@ -7,7 +8,6 @@ from torchvision.utils import (
     draw_segmentation_masks,
     draw_keypoints,
 )
-from luxonis_train.utils.config import Config
 from torchvision.ops import box_convert
 
 from luxonis_ml.loader import LabelType
@@ -20,6 +20,7 @@ def draw_outputs(
     return_numpy: bool = True,
     unnormalize_img: bool = True,
     cvt_color: bool = False,
+    normalize_params: Optional[dict] = None,
 ):
     """Draw model outputs on a batch of images
 
@@ -40,7 +41,7 @@ def draw_outputs(
     for i in range(imgs.shape[0]):
         curr_img = imgs[i]
         if unnormalize_img:
-            curr_img = unnormalize(curr_img, to_uint8=True)
+            curr_img = unnormalize(curr_img, to_uint8=True, normalize_params=normalize_params)
 
         curr_img = head.draw_output_to_img(curr_img, output, i)
         out_imgs.append(curr_img)
@@ -52,12 +53,14 @@ def draw_outputs(
 
 
 def draw_labels(
-    imgs: torch.tensor,
+    imgs: torch.Tensor,
     label_dict: dict,
-    label_keys: list = None,
+    label_keys: Optional[list] = None,
     return_numpy: bool = True,
+    unnormalize_img: bool = True,
+    cvt_color: bool = False,
     overlay: bool = False,
-    config: Config = None,
+    normalize_params: Optional[dict] = None,
 ):
     """Draw all present labels on a batch of images
 
@@ -75,13 +78,6 @@ def draw_labels(
             (either torch tensors in CHW or numpy arrays in HWC format)
     """
 
-    unnormalize_img = config.get(
-        "train.preprocessing.normalize.active"
-    )
-    cvt_color = not config.get("train.preprocessing.train_rgb")
-    norm_params = config.get("train.preprocessing.normalize.params") or {}
-    mean = norm_params.get("mean", (0.485, 0.456, 0.406))
-    std = norm_params.get("std", (0.229, 0.224, 0.225))
     _, _, ih, iw = imgs.shape
     out_imgs = []
 
@@ -92,7 +88,7 @@ def draw_labels(
         curr_img = imgs[i]
         curr_out_imgs = []
         if unnormalize_img:
-            curr_img = unnormalize(curr_img, to_uint8=True, original_mean=mean, original_std=std)
+            curr_img = unnormalize(curr_img, to_uint8=True, normalize_params=normalize_params)
 
         for label_key in label_keys:
             if label_key == LabelType.CLASSIFICATION:
@@ -190,13 +186,13 @@ def seg_output_to_bool(data: torch.Tensor, binary_threshold: float = 0.5):
 
 def unnormalize(
     img: torch.Tensor,
-    original_mean: tuple = (0.485, 0.456, 0.406),
-    original_std: tuple = (0.229, 0.224, 0.225),
+    normalize_params: Optional[dict] = None,
     to_uint8: bool = False,
 ):
     """Unnormalizes image back to original values, optionally converts it to uin8"""
-    mean = np.array(original_mean)
-    std = np.array(original_std)
+    normalize_params = normalize_params or {}
+    mean = np.array(normalize_params.get("mean", [0.485, 0.456, 0.406]))
+    std = np.array(normalize_params.get("std", [0.229, 0.224, 0.225]))
     new_mean = -mean / std
     new_std = 1 / std
     out_img = F.normalize(img, mean=new_mean, std=new_std)

@@ -7,6 +7,7 @@ from torchvision.utils import (
     draw_segmentation_masks,
     draw_keypoints,
 )
+from luxonis_train.utils.config import Config
 from torchvision.ops import box_convert
 
 from luxonis_ml.loader import LabelType
@@ -55,9 +56,8 @@ def draw_labels(
     label_dict: dict,
     label_keys: list = None,
     return_numpy: bool = True,
-    unnormalize_img: bool = True,
-    cvt_color: bool = False,
     overlay: bool = False,
+    config: Config = None,
 ):
     """Draw all present labels on a batch of images
 
@@ -75,6 +75,13 @@ def draw_labels(
             (either torch tensors in CHW or numpy arrays in HWC format)
     """
 
+    unnormalize_img = config.get(
+        "train.preprocessing.normalize.active"
+    )
+    cvt_color = not config.get("train.preprocessing.train_rgb")
+    norm_params = config.get("train.preprocessing.normalize.params") or {}
+    mean = norm_params.get("mean", (0.485, 0.456, 0.406))
+    std = norm_params.get("std", (0.229, 0.224, 0.225))
     _, _, ih, iw = imgs.shape
     out_imgs = []
 
@@ -85,7 +92,7 @@ def draw_labels(
         curr_img = imgs[i]
         curr_out_imgs = []
         if unnormalize_img:
-            curr_img = unnormalize(curr_img, to_uint8=True)
+            curr_img = unnormalize(curr_img, to_uint8=True, original_mean=mean, original_std=std)
 
         for label_key in label_keys:
             if label_key == LabelType.CLASSIFICATION:

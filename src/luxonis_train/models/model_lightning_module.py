@@ -229,17 +229,12 @@ class ModelLightningModule(pl.LightningModule):
 
                     # images for visualization and logging
                     if batch_idx == 0:
-                        unnormalize_img = self.cfg.get(
-                            "train.preprocessing.normalize.active"
-                        )
-                        cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
                         label_imgs = draw_labels(
                             imgs=inputs,
                             label_dict=label_dict,
                             label_keys=curr_head.label_types,
-                            unnormalize_img=unnormalize_img,
-                            cvt_color=cvt_color,
                             overlay=True,
+                            config=self.cfg,
                         )
                         output_imgs = draw_outputs(
                             imgs=inputs, output=output, head=curr_head
@@ -311,15 +306,12 @@ class ModelLightningModule(pl.LightningModule):
 
             # images for visualization and logging
             if batch_idx == 0:
-                unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
-                cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
                 label_imgs = draw_labels(
                     imgs=inputs,
                     label_dict=label_dict,
                     label_keys=curr_head.label_types,
-                    unnormalize_img=unnormalize_img,
-                    cvt_color=cvt_color,
                     overlay=True,
+                    config=self.cfg,
                 )
                 output_imgs = draw_outputs(imgs=inputs, output=output, head=curr_head)
 
@@ -387,15 +379,12 @@ class ModelLightningModule(pl.LightningModule):
 
             # images for visualization and logging
             if batch_idx == 0:
-                unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
-                cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
                 label_imgs = draw_labels(
                     imgs=inputs,
                     label_dict=label_dict,
                     label_keys=curr_head.label_types,
-                    unnormalize_img=unnormalize_img,
-                    cvt_color=cvt_color,
                     overlay=True,
+                    config=self.cfg,
                 )
                 output_imgs = draw_outputs(imgs=inputs, output=output, head=curr_head)
                 merged_imgs = [

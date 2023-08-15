@@ -6,7 +6,7 @@
 import torch
 import torch.nn as nn
 import math
-from typing import List
+from typing import Optional, List
 from torchvision.ops import box_convert
 from torchvision.utils import draw_bounding_boxes, draw_keypoints
 
@@ -33,7 +33,7 @@ class IKeypoint(BaseHead):
         anchors: list,
         attach_index: int = -1,
         main_metric: str = "map",
-        connectivity: list = None,
+        connectivity: Optional[list] = None,
         visibility_threshold: float = 0.5,
         **kwargs,
     ):
@@ -47,7 +47,7 @@ class IKeypoint(BaseHead):
             anchors (list): Anchors used for object detection
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
-            connectivity (list, optional): Connectivity mapping used in visualization. Defaults to None.
+            connectivity (Optional[list], optional): Connectivity mapping used in visualization. Defaults to None.
             visibility_threshold (float, optional): Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
         """
         super().__init__(
@@ -64,122 +64,152 @@ class IKeypoint(BaseHead):
         self.connectivity = connectivity
         self.visibility_threshold = visibility_threshold
 
-        ch = [prev[1] for prev in self.input_channels_shapes]
-        self.gr = 1.0  # TODO: find out what this is
-        self.no_det = n_classes + 5  # number of outputs per anchor for box and class
-        self.no_kpt = 3 * self.n_keypoints  # number of outputs per anchor for keypoints
-        self.no = self.no_det + self.no_kpt
-        self.nl = len(anchors)  # number of detection layers
-        self.na = len(anchors[0]) // 2  # number of anchors
-        self.grid = [torch.zeros(1)] * self.nl  # init grid
-        self.flip_test = False
+        self.n_det_out = self.n_classes + 5
+        self.n_kpt_out = 3 * self.n_keypoints
+        self.n_out = self.n_det_out + self.n_kpt_out
+        self.num_heads = len(anchors)
+        self.n_anchors = len(anchors[0]) // 2
+        self.grid = [torch.zeros(1)] * self.num_heads
 
-        a = torch.tensor(anchors).float().view(self.nl, -1, 2)
-        self.anchors = a  # shape(nl,na,2)
-        self.anchor_grid = a.clone().view(self.nl, 1, -1, 1, 1, 2)
-        self.m = nn.ModuleList(nn.Conv2d(x, self.no_det * self.na, 1) for x in ch)
+        self.anchors = torch.tensor(anchors).float().view(self.num_heads, -1, 2)
+        self.anchor_grid = self.anchors.clone().view(self.num_heads, 1, -1, 1, 1, 2)
 
-        self.ia = nn.ModuleList(ImplicitA(x) for x in ch)
-        self.im = nn.ModuleList(ImplicitM(self.no_det * self.na) for _ in ch)
+        channel_list = [
+            input_channel_shape[1] for input_channel_shape in self.input_channels_shapes
+        ]
+        self.m = nn.ModuleList(
+            nn.Conv2d(in_channels, self.n_det_out * self.n_anchors, 1)
+            for in_channels in channel_list
+        )
+
+        self.implicit_a = nn.ModuleList(
+            ImplicitA(in_channels) for in_channels in channel_list
+        )
+        self.implicit_m = nn.ModuleList(
+            ImplicitM(self.n_det_out * self.n_anchors) for _ in channel_list
+        )
 
         self.m_kpt = nn.ModuleList(
             nn.Sequential(
                 ConvModule(
-                    x,
-                    x,
+                    in_channels,
+                    in_channels,
                     kernel_size=3,
                     padding=autopad(3),
-                    groups=math.gcd(x, x),
+                    groups=math.gcd(in_channels, in_channels),
                     activation=nn.SiLU(),
                 ),
                 ConvModule(
-                    x, x, kernel_size=1, padding=autopad(1), activation=nn.SiLU()
-                ),
-                ConvModule(
-                    x,
-                    x,
-                    kernel_size=3,
-                    padding=autopad(3),
-                    groups=math.gcd(x, x),
+                    in_channels,
+                    in_channels,
+                    kernel_size=1,
+                    padding=autopad(1),
                     activation=nn.SiLU(),
                 ),
                 ConvModule(
-                    x, x, kernel_size=1, padding=autopad(1), activation=nn.SiLU()
-                ),
-                ConvModule(
-                    x,
-                    x,
+                    in_channels,
+                    in_channels,
                     kernel_size=3,
                     padding=autopad(3),
-                    groups=math.gcd(x, x),
+                    groups=math.gcd(in_channels, in_channels),
                     activation=nn.SiLU(),
                 ),
                 ConvModule(
-                    x, x, kernel_size=1, padding=autopad(1), activation=nn.SiLU()
-                ),
-                ConvModule(
-                    x,
-                    x,
-                    kernel_size=3,
-                    padding=autopad(3),
-                    groups=math.gcd(x, x),
+                    in_channels,
+                    in_channels,
+                    kernel_size=1,
+                    padding=autopad(1),
                     activation=nn.SiLU(),
                 ),
                 ConvModule(
-                    x, x, kernel_size=1, padding=autopad(1), activation=nn.SiLU()
-                ),
-                ConvModule(
-                    x,
-                    x,
+                    in_channels,
+                    in_channels,
                     kernel_size=3,
                     padding=autopad(3),
-                    groups=math.gcd(x, x),
+                    groups=math.gcd(in_channels, in_channels),
                     activation=nn.SiLU(),
                 ),
                 ConvModule(
-                    x, x, kernel_size=1, padding=autopad(1), activation=nn.SiLU()
-                ),
-                ConvModule(
-                    x,
-                    x,
-                    kernel_size=3,
-                    padding=autopad(3),
-                    groups=math.gcd(x, x),
+                    in_channels,
+                    in_channels,
+                    kernel_size=1,
+                    padding=autopad(1),
                     activation=nn.SiLU(),
                 ),
-                nn.Conv2d(x, self.no_kpt * self.na, 1),
+                ConvModule(
+                    in_channels,
+                    in_channels,
+                    kernel_size=3,
+                    padding=autopad(3),
+                    groups=math.gcd(in_channels, in_channels),
+                    activation=nn.SiLU(),
+                ),
+                ConvModule(
+                    in_channels,
+                    in_channels,
+                    kernel_size=1,
+                    padding=autopad(1),
+                    activation=nn.SiLU(),
+                ),
+                ConvModule(
+                    in_channels,
+                    in_channels,
+                    kernel_size=3,
+                    padding=autopad(3),
+                    groups=math.gcd(in_channels, in_channels),
+                    activation=nn.SiLU(),
+                ),
+                ConvModule(
+                    in_channels,
+                    in_channels,
+                    kernel_size=1,
+                    padding=autopad(1),
+                    activation=nn.SiLU(),
+                ),
+                ConvModule(
+                    in_channels,
+                    in_channels,
+                    kernel_size=3,
+                    padding=autopad(3),
+                    groups=math.gcd(in_channels, in_channels),
+                    activation=nn.SiLU(),
+                ),
+                nn.Conv2d(in_channels, self.n_kpt_out * self.n_anchors, 1),
             )
-            for x in ch
+            for in_channels in channel_list
         )
 
         self.stride = torch.tensor(
-            [self.original_in_shape[2] / x[2] for x in self.input_channels_shapes]
+            [
+                self.original_in_shape[2] / input_channel_shape[2]
+                for input_channel_shape in self.input_channels_shapes
+            ]
         )
         self.anchors /= self.stride.view(-1, 1, 1)
         self._check_anchor_order()
 
     def forward(self, inputs):
-        z = []  # inference output
-        x = []  # layer outputs
+        outs = []  # predictions
+        x = []  # features
 
         if self.anchor_grid.device != inputs[0].device:
             self.anchor_grid = self.anchor_grid.to(inputs[0].device)
 
-        for i in range(self.nl):
+        for i in range(self.num_heads):
             x.append(
                 torch.cat(
                     (
-                        self.im[i](self.m[i](self.ia[i](inputs[i]))),
+                        self.implicit_m[i](self.m[i](self.implicit_a[i](inputs[i]))),
                         self.m_kpt[i](inputs[i]),
                     ),
                     axis=1,
                 )
-            )  # type: ignore
+            )
 
             bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
             x[i] = (
                 x[i]
-                .view(bs, self.na, self.no, ny, nx)
+                .view(bs, self.n_anchors, self.n_out, ny, nx)
                 .permute(0, 1, 3, 4, 2)
                 .contiguous()
             )
@@ -199,7 +229,7 @@ class IKeypoint(BaseHead):
 
             xy = (y[..., 0:2] * 2.0 - 0.5 + self.grid[i]) * self.stride[i]  # xy
             wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
-                1, self.na, 1, 1, 2
+                1, self.n_anchors, 1, 1, 2
             )  # wh
             a = (
                 x_kpt[..., ::3] * 2.0
@@ -219,10 +249,9 @@ class IKeypoint(BaseHead):
             x_kpt = torch.stack([a, b, c], dim=-1).view(*a.shape[:-1], -1)
 
             y = torch.cat((xy, wh, y[..., 4:], x_kpt), dim=-1)
-            z.append(y.view(bs, -1, self.no))
+            outs.append(y.view(bs, -1, self.n_out))
 
-        # returns Tuple[kpt, features]
-        return torch.cat(z, 1), x
+        return torch.cat(outs, 1), x
 
     def postprocess_for_loss(self, output: tuple, label_dict: dict):
         kpts = label_dict[LabelType.KEYPOINT]
@@ -327,17 +356,17 @@ class IKeypoint(BaseHead):
         return f"output{idx}"
 
     def forward_deploy(self, inputs):
-        z = []  # inference output
+        outs = []  # inference output
         x = []  # layer outputs
 
         if self.anchor_grid.device != inputs[0].device:
             self.anchor_grid = self.anchor_grid.to(inputs[0].device)
 
-        for i in range(self.nl):
+        for i in range(self.num_heads):
             x.append(
                 torch.cat(
                     (
-                        self.im[i](self.m[i](self.ia[i](inputs[i]))),
+                        self.implicit_m[i](self.m[i](self.implicit_a[i](inputs[i]))),
                         self.m_kpt[i](inputs[i]),
                     ),
                     axis=1,
@@ -347,7 +376,7 @@ class IKeypoint(BaseHead):
             bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
             x[i] = (
                 x[i]
-                .view(bs, self.na, self.no, ny, nx)
+                .view(bs, self.n_anchors, self.n_out, ny, nx)
                 .permute(0, 1, 3, 4, 2)
                 .contiguous()
             )
@@ -367,7 +396,7 @@ class IKeypoint(BaseHead):
 
             xy = (y[..., 0:2] * 2.0 - 0.5 + self.grid[i]) * self.stride[i]  # xy
             wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
-                1, self.na, 1, 1, 2
+                1, self.n_anchors, 1, 1, 2
             )  # wh
             a = (
                 x_kpt[..., ::3] * 2.0
@@ -387,9 +416,9 @@ class IKeypoint(BaseHead):
             x_kpt = torch.stack([a, b, c], dim=-1).view(*a.shape[:-1], -1)
 
             y = torch.cat((xy, wh, y[..., 4:], x_kpt), dim=-1)
-            z.append(y.view(bs, -1, self.no))
+            outs.append(y.view(bs, -1, self.n_out))
 
-        return torch.cat(z, 1)  # only return predictions without features
+        return torch.cat(outs, 1)  # only return predictions without features
 
     def to_deploy(self):
         self.forward = self.forward_deploy
@@ -428,3 +457,53 @@ class ImplicitM(nn.Module):
 
     def forward(self, x):
         return self.implicit.expand_as(x) * x
+
+
+if __name__ == "__main__":
+    from luxonis_train.models.backbones import EfficientRep
+    from luxonis_train.models.necks import RepPANNeck
+    from luxonis_train.utils.general import dummy_input_run
+
+    # input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
+    input_shapes = [[1, 3, 256, 256]]
+    backbone = EfficientRep()
+
+    # num_heads_offset_pairs = [(2, [0, 1, 2]), (3, [0, 1]), (4, [0])]
+    num_heads_offset_pairs = [(3, [0])]
+
+    for input_shape in input_shapes:
+        for num_heads, offsets in num_heads_offset_pairs:
+            for offset in offsets:
+                input = torch.zeros(input_shape)
+                input_channels_shapes = dummy_input_run(backbone, input_shape)
+                backbone.eval()
+                neck = RepPANNeck(
+                    input_channels_shapes=input_channels_shapes, num_heads=num_heads
+                )
+                input_channels_shapes = dummy_input_run(
+                    neck, input_channels_shapes, multi_input=True
+                )
+                neck.eval()
+
+                head = IKeypoint(
+                    n_classes=10,
+                    input_channels_shapes=input_channels_shapes,
+                    original_in_shape=input_shape,
+                    n_keypoints=17,
+                    anchors=[
+                        [12, 16, 19, 36, 40, 28],
+                        [36, 75, 76, 55, 72, 146],
+                        [142, 110, 192, 243, 459, 401],
+                    ],
+                )
+                print(head)
+                outs = backbone(input)
+                outs = neck(outs)
+                outs = head(outs)
+
+                print(
+                    "Keypoints:",
+                    [o.shape for o in outs[0]],
+                    "\nFeatures:",
+                    [o.shape for o in outs[1]],
+                )

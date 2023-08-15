@@ -24,16 +24,17 @@ class IKeypointMultiHead(IKeypoint):
             n_keypoints (int): Number of keypoints
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
-            connectivity (list, optional): Connectivity mapping used in visualization. Defaults to None.
+            connectivity (Optional[list], optional): Connectivity mapping used in visualization. Defaults to None.
+            visibility_threshold (float, optional): Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
         """
         super().__init__(
             anchors=anchors,
             **kwargs,
         )
 
-        self.head = nn.ModuleList()
+        self.heads = nn.ModuleList()
 
-        for i in range(self.nl):
+        for i in range(self.num_heads):
             curr_head = IKeypoint(
                 input_channels_shapes=[self.input_channels_shapes[i]],
                 n_classes=self.n_classes,
@@ -42,15 +43,16 @@ class IKeypointMultiHead(IKeypoint):
                 anchors=[anchors[i]],
                 main_metric=self.main_metric,
                 connectivity=self.connectivity,
+                visibility_threshold=self.visibility_threshold,
             )
             self.initialize_weights(curr_head)
-            self.head.append(curr_head)
+            self.heads.append(curr_head)
 
     def forward(self, x):
         z = []  # inference output
         out = []
 
-        for i, module in enumerate(self.head):
+        for i, module in enumerate(self.heads):
             out_z, out_x = module([x[i]])
             out += out_x
             z.append(out_z)
@@ -72,7 +74,7 @@ class IKeypointMultiHead(IKeypoint):
         # biases
         s = model.stride
         for mi in model.m:  # from
-            b = mi.bias.view(model.na, -1)  # conv.bias(255) to (3,85)
+            b = mi.bias.view(model.n_anchors, -1)  # conv.bias(255) to (3,85)
             b.data[:, 4] += math.log(
                 8 / (640 / s) ** 2
             )  # obj (8 objects per 640 image)

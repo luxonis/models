@@ -9,7 +9,7 @@ import torch.nn as nn
 from typing import Literal, Optional
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
-from luxonis_train.models.modules import ConvModule
+from luxonis_train.models.modules import HSigmoid, HSwish, ConvModule
 
 
 class MicroNet(BaseBackbone):
@@ -237,24 +237,6 @@ class MicroBlock(nn.Module):
         if self.identity:
             out += identity
         return out
-
-
-class HSigmoid(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.relu = nn.ReLU6(True)
-
-    def forward(self, x: torch.Tensor):
-        return self.relu(x + 3) / 6
-
-
-class HSwish(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.sigmoid = HSigmoid()
-
-    def forward(self, x: torch.Tensor):
-        return x * self.sigmoid(x)
 
 
 class ChannelShuffle(nn.Module):
@@ -868,7 +850,3 @@ MICRONET_VARIANTS_SETTINGS = {
         ],
     ],
 }
-
-if __name__ == "__main__":
-    test = MicroNet()
-    print(test)

@@ -7,7 +7,11 @@
 import torch.nn as nn
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
-from luxonis_train.models.modules import RepVGGBlock, RepBlock, SimplifiedSPPF
+from luxonis_train.models.modules import (
+    RepVGGBlock,
+    RepVGGBlockN,
+    SpatialPyramidPoolingBlock,
+)
 from luxonis_train.utils.general import make_divisible
 
 
@@ -53,16 +57,16 @@ class EfficientRep(BaseBackbone):
                     kernel_size=3,
                     stride=2,
                 ),
-                RepBlock(
+                RepVGGBlockN(
                     in_channels=channels_list[i + 1],
                     out_channels=channels_list[i + 1],
-                    n=num_repeats[i + 1],
+                    num_blocks=num_repeats[i + 1],
                 ),
             )
             self.blocks.append(curr_block)
 
         self.blocks[-1].append(
-            SimplifiedSPPF(
+            SpatialPyramidPoolingBlock(
                 in_channels=channels_list[4],
                 out_channels=channels_list[4],
                 kernel_size=5,

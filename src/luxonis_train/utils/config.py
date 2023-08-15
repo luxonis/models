@@ -4,9 +4,11 @@ import warnings
 import json
 import re
 from typing import Union
-from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from copy import deepcopy
+
+from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_train.utils.filesystem import LuxonisFileSystem
+from luxonis_train.models.heads import *
 
 
 class Config:
@@ -209,9 +211,11 @@ class Config:
             if key == "n_classes":
                 model_cfg["heads"][0]["params"]["n_classes"] = value
                 model_cfg["heads"][0]["loss"]["params"]["n_classes"] = value
+            # refactored in further PRs
             if key == "is_4head":
-                model_cfg["backbone"]["params"]["is_4head"] = value
-                model_cfg["neck"]["params"]["is_4head"] = value
+                # model_cfg["backbone"]["params"]["is_4head"] = value
+                # model_cfg["neck"]["params"]["is_4head"] = value
+                model_cfg["neck"]["params"]["num_heads"] = 4
                 model_cfg["heads"][0]["params"]["is_4head"] = value
 
         if "additional_heads" in model_cfg and isinstance(
@@ -291,14 +295,9 @@ class Config:
             bucket_storage=eval(self._data["dataset"]["bucket_storage"]),
         ) as dataset:
             classes, classes_by_task = dataset.get_classes()
-            dataset_n_classes = len(classes)
 
-            if dataset_n_classes == 0:
+            if not classes:
                 raise ValueError("Provided dataset doesn't have any classes.")
-
-            # TODO: implement per task number of classes
-            # for key in dataset.classes_by_task:
-            #     print(key, len(dataset.classes_by_task[key]))
 
             model_cfg = self._data["model"]
             for head in model_cfg["heads"]:
@@ -306,6 +305,8 @@ class Config:
                     head["params"] = {}
 
                 curr_n_classes = head["params"].get("n_classes", None)
+                label_type = eval(head["name"]).label_types[0]
+                dataset_n_classes = len(classes_by_task[label_type.value])
                 if curr_n_classes is None:
                     warnings.warn(
                         f"Inheriting 'n_classes' parameter from dataset. Setting it to {dataset_n_classes}"

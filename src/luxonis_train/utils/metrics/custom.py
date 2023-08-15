@@ -13,7 +13,7 @@ from pycocotools.cocoeval import COCOeval
 
 class ObjectKeypointSimilarity(Metric):
     is_differentiable: bool = False
-    higher_is_better: Optional[bool] = True
+    higher_is_better: bool = True
     full_state_update: bool = True
     plot_lower_bound: float = 0.0
     plot_upper_bound: float = 1.0
@@ -128,7 +128,7 @@ class ObjectKeypointSimilarity(Metric):
 
 class MeanAveragePrecisionKeypoints(Metric):
     is_differentiable: bool = False
-    higher_is_better: Optional[bool] = True
+    higher_is_better: bool = True
     full_state_update: bool = True
     plot_lower_bound: float = 0.0
     plot_upper_bound: float = 1.0

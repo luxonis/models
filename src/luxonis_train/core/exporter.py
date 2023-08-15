@@ -202,7 +202,7 @@ class Exporter(pl.LightningModule):
             "reverse_input_channels": self.cfg.get("exporter.reverse_input_channels"),
             "use_bgr": not self.cfg.get("train.preprocessing.train_rgb"),
             "input_shape": [1, 3] + self.cfg.get("exporter.export_image_size"),
-            "data_type": "f16",  # self.cfg.get("exporter.data_type"), # NOTE: change this when modelconverter is updated
+            "data_type": self.cfg.get("exporter.data_type"),
             "output": [{"name": name} for name in self._get_output_names()],
             "meta": {"description": self.cfg.get("exporter.export_model_name")},
         }

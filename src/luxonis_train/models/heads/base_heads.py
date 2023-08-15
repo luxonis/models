@@ -282,7 +282,7 @@ class BaseSegmentationHead(BaseHead):
     def postprocess_for_metric(self, output: torch.Tensor, label_dict: dict):
         label = label_dict[self.label_types[0]]
         if self.n_classes != 1:
-            labels = torch.argmax(labels, dim=1)
+            label = torch.argmax(label, dim=1)
         return output, label, None
 
     def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):

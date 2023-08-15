@@ -254,6 +254,9 @@ class ModelLightningModule(pl.LightningModule):
                         unnormalize_img = self.cfg.get(
                             "train.preprocessing.normalize.active"
                         )
+                        normalize_params = self.cfg.get(
+                            "train.preprocessing.normalize.params"
+                        )
                         cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
                         label_imgs = draw_labels(
                             imgs=inputs,
@@ -262,9 +265,15 @@ class ModelLightningModule(pl.LightningModule):
                             unnormalize_img=unnormalize_img,
                             cvt_color=cvt_color,
                             overlay=True,
+                            normalize_params=normalize_params,
                         )
                         output_imgs = draw_outputs(
-                            imgs=inputs, output=output, head=curr_head
+                            imgs=inputs,
+                            output=output,
+                            head=curr_head,
+                            unnormalize_img=unnormalize_img,
+                            cvt_color=cvt_color,
+                            normalize_params=normalize_params,
                         )
                         merged_imgs = [
                             cv2.hconcat([l_img, o_img])
@@ -334,6 +343,7 @@ class ModelLightningModule(pl.LightningModule):
             # images for visualization and logging
             if batch_idx == 0:
                 unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+                normalize_params = self.cfg.get("train.preprocessing.normalize.params")
                 cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
                 label_imgs = draw_labels(
                     imgs=inputs,
@@ -342,8 +352,16 @@ class ModelLightningModule(pl.LightningModule):
                     unnormalize_img=unnormalize_img,
                     cvt_color=cvt_color,
                     overlay=True,
+                    normalize_params=normalize_params,
                 )
-                output_imgs = draw_outputs(imgs=inputs, output=output, head=curr_head)
+                output_imgs = draw_outputs(
+                    imgs=inputs,
+                    output=output,
+                    head=curr_head,
+                    unnormalize_img=unnormalize_img,
+                    cvt_color=cvt_color,
+                    normalize_params=normalize_params,
+                )
 
                 merged_imgs = [
                     cv2.hconcat([l_img, o_img])
@@ -410,6 +428,7 @@ class ModelLightningModule(pl.LightningModule):
             # images for visualization and logging
             if batch_idx == 0:
                 unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+                normalize_params = self.cfg.get("train.preprocessing.normalize.params")
                 cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
                 label_imgs = draw_labels(
                     imgs=inputs,
@@ -418,8 +437,16 @@ class ModelLightningModule(pl.LightningModule):
                     unnormalize_img=unnormalize_img,
                     cvt_color=cvt_color,
                     overlay=True,
+                    normalize_params=normalize_params,
                 )
-                output_imgs = draw_outputs(imgs=inputs, output=output, head=curr_head)
+                output_imgs = draw_outputs(
+                    imgs=inputs,
+                    output=output,
+                    head=curr_head,
+                    unnormalize_img=unnormalize_img,
+                    cvt_color=cvt_color,
+                    normalize_params=normalize_params,
+                )
                 merged_imgs = [
                     cv2.hconcat([l_img, o_img])
                     for l_img, o_img in zip(label_imgs, output_imgs)

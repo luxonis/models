@@ -283,9 +283,8 @@ class Config:
             bucket_storage=eval(self._data["dataset"]["bucket_storage"]),
         ) as dataset:
             classes, classes_by_task = dataset.get_classes()
-            dataset_n_classes = len(classes)
 
-            if dataset_n_classes == 0:
+            if not classes:
                 raise ValueError("Provided dataset doesn't have any classes.")
 
             # TODO: implement per task number of classes
@@ -298,6 +297,15 @@ class Config:
                     head["params"] = {}
 
                 curr_n_classes = head["params"].get("n_classes", None)
+                task_dict = {
+                    "IKeypoint": "keypoints",
+                    "SegmentationHead": "segmentation",
+                    "YoloV6Head": "boxes",
+                }
+                if head.get("name") in task_dict:
+                    dataset_n_classes = len(classes_by_task[task_dict[head.get("name")]])
+                else:
+                    dataset_n_classes = len(classes)
                 if curr_n_classes is None:
                     warnings.warn(
                         f"Inheriting 'n_classes' parameter from dataset. Setting it to {dataset_n_classes}"

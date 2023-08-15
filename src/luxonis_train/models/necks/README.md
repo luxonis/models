@@ -6,6 +6,6 @@
     - offset: int # Offset used if want to use backbone's higher resolution outputs.
       If num_heads==2 then this can be one of [0,1,2], if num_heads==3 then this can be one [1,2], if num_heads==4 then this must be 0. Defaults to 0.
     - channels_list: List[int] # List of number of channels for each block. Defaults to [256, 128, 128, 256, 256, 512].
-    - num_repeats: List[int] # List of number of repeats of RepBlock. Defaults to [12, 12, 12, 12].
+    - num_repeats: List[int] # List of number of repeats of RepVGGBlock. Defaults to [12, 12, 12, 12].
     - depth_mul: int # Depth multiplier. Defaults to 0.33.
     - width_mul: int # Width multiplier. Defaults to 0.25.

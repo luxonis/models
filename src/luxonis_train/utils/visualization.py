@@ -31,6 +31,7 @@ def draw_outputs(
         return_numpy (bool, optional): Flag if should return images in numpy format (HWC). Defaults to True.
         unnormalize_img (bool, optional): Unormalize image before drawing to it. Defaults to True.
         cvt_color (bool, optional): Convert from BGR to RGB. Defaults to False.
+        normalize_params (Optional[dict], optional): Params used for normalization. Defaults to None.
 
     Returns:
         list[Union[torch.Tensor, np.ndarray]]: list of images with visualizations
@@ -41,7 +42,9 @@ def draw_outputs(
     for i in range(imgs.shape[0]):
         curr_img = imgs[i]
         if unnormalize_img:
-            curr_img = unnormalize(curr_img, to_uint8=True, normalize_params=normalize_params)
+            curr_img = unnormalize(
+                curr_img, to_uint8=True, normalize_params=normalize_params
+            )
 
         curr_img = head.draw_output_to_img(curr_img, output, i)
         out_imgs.append(curr_img)
@@ -72,6 +75,7 @@ def draw_labels(
         unnormalize_img (bool, optional): Unormalize image before drawing to it. Defaults to True.
         cvt_color (bool, optional): Convert from BGR to RGB. Defaults to False.
         overlay (bool, optional): Draw all labels on the same image. Defaults to False.
+        normalize_params (Optional[dict], optional): Params used for normalization. Defaults to None.
 
     Returns:
         list[Union[torch.Tensor, np.ndarray]]: list of images with visualizations
@@ -88,7 +92,9 @@ def draw_labels(
         curr_img = imgs[i]
         curr_out_imgs = []
         if unnormalize_img:
-            curr_img = unnormalize(curr_img, to_uint8=True, normalize_params=normalize_params)
+            curr_img = unnormalize(
+                curr_img, to_uint8=True, normalize_params=normalize_params
+            )
 
         for label_key in label_keys:
             if label_key == LabelType.CLASSIFICATION:

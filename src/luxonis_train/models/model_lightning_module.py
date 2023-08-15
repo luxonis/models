@@ -234,7 +234,8 @@ class ModelLightningModule(pl.LightningModule):
                         )
                         cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
                         normalize_params = self.cfg.get(
-                            "train.preprocessing.normalize.params")
+                            "train.preprocessing.normalize.params"
+                        )
                         label_imgs = draw_labels(
                             imgs=inputs,
                             label_dict=label_dict,
@@ -320,8 +321,8 @@ class ModelLightningModule(pl.LightningModule):
             # images for visualization and logging
             if batch_idx == 0:
                 unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
-                cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
                 normalize_params = self.cfg.get("train.preprocessing.normalize.params")
+                cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
                 label_imgs = draw_labels(
                     imgs=inputs,
                     label_dict=label_dict,

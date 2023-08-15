@@ -8,7 +8,7 @@ import math
 import warnings
 import torch.nn as nn
 
-from luxonis_train.models.modules import Up
+from luxonis_train.models.modules import UpBlock
 from luxonis_train.models.heads.base_heads import BaseSegmentationHead
 
 
@@ -51,7 +51,9 @@ class SegmentationHead(BaseSegmentationHead):
         modules = []
         in_channels = self.input_channels_shapes[self.attach_index][1]
         for _ in range(int(num_up)):
-            modules.append(Up(in_channels=in_channels, out_channels=in_channels // 2))
+            modules.append(
+                UpBlock(in_channels=in_channels, out_channels=in_channels // 2)
+            )
             in_channels //= 2
 
         self.head = nn.Sequential(

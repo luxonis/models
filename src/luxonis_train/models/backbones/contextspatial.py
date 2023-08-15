@@ -10,8 +10,8 @@ from luxonis_train.models.backbones import *
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import (
     ConvModule,
-    AttentionRefinmentModule,
-    FeatureFusionModule,
+    AttentionRefinmentBlock,
+    FeatureFusionBlock,
 )
 
 
@@ -26,7 +26,7 @@ class ContextSpatial(BaseBackbone):
 
         self.context_path = ContextPath(eval(context_backbone)())
         self.spatial_path = SpatialPath(3, 128)
-        self.ffm = FeatureFusionModule(256, 256)
+        self.ffm = FeatureFusionBlock(256, 256)
 
     def forward(self, x):
         spatial_out = self.spatial_path(x)
@@ -62,8 +62,8 @@ class ContextPath(nn.Module):
         self.backbone = backbone
         c3, c4 = self.backbone.channels[-2:]
 
-        self.arm16 = AttentionRefinmentModule(c3, 128)
-        self.arm32 = AttentionRefinmentModule(c4, 128)
+        self.arm16 = AttentionRefinmentBlock(c3, 128)
+        self.arm32 = AttentionRefinmentBlock(c4, 128)
 
         self.global_context = nn.Sequential(
             nn.AdaptiveAvgPool2d(1), ConvModule(c4, 128, 1, 1, 0)

@@ -9,7 +9,7 @@ import torch.nn as nn
 from typing import Literal
 
 from luxonis_train.models.necks.base_neck import BaseNeck
-from luxonis_train.models.modules import RepBlock, ConvModule
+from luxonis_train.models.modules import RepVGGBlockN, ConvModule
 from luxonis_train.utils.general import make_divisible
 
 
@@ -35,7 +35,7 @@ class RepPANNeck(BaseNeck):
                 If num_heads==2 then this can be one of [0,1,2], if num_heads==3 then this can be one of [1,2],
                 if num_heads==4 then this must be 0. (**Important: Should be same also on head**). Defaults to 0.
             channels_list (list, optional): List of number of channels for each block. Defaults to [256, 128, 128, 256, 256, 512].
-            num_repeats (list, optiona): List of number of repeats of RepBlock. Defaults to [12, 12, 12, 12].
+            num_repeats (list, optiona): List of number of repeats of RepVGGBlock. Defaults to [12, 12, 12, 12].
             depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
             width_mul (float, optional): Width multiplier. Defaults to 0.25.
         """
@@ -187,7 +187,7 @@ class UpBlock(nn.Module):
             in_channels (int): Number of input channels
             in_channels_next (int): Number of input channels of next input which is used in concat
             out_channels (int): Number of output channels
-            num_repeats (int): Number of RepBlock repeats
+            num_repeats (int): Number of RepVGGBlock repeats
         """
         super().__init__()
 
@@ -204,10 +204,10 @@ class UpBlock(nn.Module):
             stride=2,
             bias=True,
         )
-        self.rep_block = RepBlock(
+        self.rep_block = RepVGGBlockN(
             in_channels=in_channels_next + out_channels,
             out_channels=out_channels,
-            n=num_repeats,
+            num_blocks=num_repeats,
         )
 
     def forward(self, x0, x1):
@@ -234,7 +234,7 @@ class DownBlock(nn.Module):
             downsample_out_channels (int): Number of output channels after downsample
             in_channels_next (int): Number of input channels of next input which is used in concat
             out_channels (int): Number of output channels
-            num_repeats (int): Number of RepBlock repeats
+            num_repeats (int): Number of RepVGGBlock repeats
         """
         super().__init__()
 
@@ -245,10 +245,10 @@ class DownBlock(nn.Module):
             stride=2,
             padding=3 // 2,
         )
-        self.rep_block = RepBlock(
+        self.rep_block = RepVGGBlockN(
             in_channels=downsample_out_channels + in_channels_next,
             out_channels=out_channels,
-            n=num_repeats,
+            num_blocks=num_repeats,
         )
 
     def forward(self, x0, x1):

@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
-from luxonis_train.models.modules import SEBlock, ConvModule
+from luxonis_train.models.modules import SqueezeExciteBlock, ConvModule
 
 
 class MobileOne(BaseBackbone):
@@ -214,7 +214,7 @@ class MobileOneBlock(nn.Module):
 
         # Check if SE-ReLU is requested
         if use_se:
-            self.se = SEBlock(
+            self.se = SqueezeExciteBlock(
                 in_channels=out_channels, internal_channels=int(out_channels * 0.0625)
             )
         else:

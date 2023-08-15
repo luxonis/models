@@ -110,7 +110,7 @@ class YoloV6Head(BaseObjectDetection):
 
         return output_list, label_list, None
 
-    def draw_output_to_img(self, img: torch.Tensor, output: tuple, idx: int):
+    def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
         curr_output = self._out2box(output, conf_thres=0.3, iou_thres=0.6)
         curr_output = curr_output[idx]
         bboxs = curr_output[:, :4]
@@ -121,19 +121,18 @@ class YoloV6Head(BaseObjectDetection):
         output_names = [f"output{i}_yolov6r2" for i in range(1, self.num_heads + 1)]
         return output_names
 
-    def to_deploy(self):
-        # change definition of forward()
-        def deploy_forward(x):
-            outputs = []
-            for i, module in enumerate(self.head):
-                out_x, out_cls, out_reg = module([x[i]])
-                out_cls = torch.sigmoid(out_cls)
-                conf, _ = out_cls.max(1, keepdim=True)
-                output = torch.cat([out_reg, conf, out_cls], axis=1)
-                outputs.append(output)
-            return outputs
+    def forward_deploy(self, x):
+        outputs = []
+        for i, module in enumerate(self.head):
+            _, out_cls, out_reg = module([x[i]])
+            out_cls = torch.sigmoid(out_cls)
+            conf, _ = out_cls.max(1, keepdim=True)
+            output = torch.cat([out_reg, conf, out_cls], axis=1)
+            outputs.append(output)
+        return outputs
 
-        self.forward = deploy_forward
+    def to_deploy(self):
+        self.forward = self.forward_deploy
 
     def _validate_num_heads_and_offset(self, num_heads: int, offset: int):
         if num_heads not in [2, 3, 4]:

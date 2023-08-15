@@ -16,6 +16,9 @@ from luxonis_train.utils.constants import HeadType
 
 
 class BaseHead(nn.Module, ABC):
+    head_types: List[HeadType] = []
+    label_types: List[LabelType] = []
+
     def __init__(
         self,
         n_classes: int,
@@ -85,9 +88,7 @@ class BaseHead(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def draw_output_to_img(
-        self, img: torch.Tensor, output: Union[tuple, torch.Tensor], idx: int
-    ):
+    def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
         """Draws model output to an img
 
         Args:
@@ -118,6 +119,21 @@ class BaseHead(nn.Module, ABC):
         if idx is not None:
             class_name += f"_{idx}"
         return class_name
+
+    def check_annotations(self, label_dict: dict):
+        """Checks if all required annotations are present in label dictionary
+
+        Args:
+            label_dict (dict): Dictionary with labels
+
+        Raises:
+            KeyError: Required label type missing in annotations
+        """
+        for label_type in self.label_types:
+            if label_type not in label_dict:
+                raise KeyError(
+                    f"Required label type `{label_type}` missing in annotations."
+                )
 
     def to_deploy(self):
         """All changes required to prepare module for deployment"""
@@ -286,7 +302,7 @@ class BaseSegmentationHead(BaseHead, ABC):
     def postprocess_for_metric(self, output: torch.Tensor, label_dict: dict):
         label = label_dict[self.label_types[0]]
         if self.n_classes != 1:
-            labels = torch.argmax(labels, dim=1)
+            label = torch.argmax(label, dim=1)
         return output, label, None
 
     def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):

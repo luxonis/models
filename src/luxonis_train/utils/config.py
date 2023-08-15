@@ -4,8 +4,10 @@ import warnings
 import json
 import re
 from typing import Union
-from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from copy import deepcopy
+
+from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
+from luxonis_train.utils.filesystem import LuxonisFileSystem
 from luxonis_train.models.heads import *
 
 
@@ -100,16 +102,25 @@ class Config:
             base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
         if isinstance(cfg, str):
-            if cfg.startswith("mlflow://"):
-                # load config from mlflow artifact
-                run_info = cfg.split("mlflow://")[-1]
-                user_cfg = mlflow_load_artifact_dict(run_info)
-            else:
-                # load config from local file
-                if not os.path.isfile(cfg):
-                    raise ValueError("Provided file path doesn't exists.")
-                with open(cfg, "r") as f:
-                    user_cfg = yaml.load(f, Loader=yaml.SafeLoader)
+            from dotenv import load_dotenv
+
+            load_dotenv()  # load environment variables needed for authorization
+
+            fs = LuxonisFileSystem(cfg)
+            buffer = fs.read_to_byte_buffer()
+            user_cfg = yaml.load(buffer, Loader=yaml.SafeLoader)
+            if fs.is_mlflow:
+                warnings.warn(
+                    "Setting `project_id` and `run_id` to config's MLFlow run"
+                )
+                # set logger parameters to continue run
+                if "logger" in user_cfg:
+                    user_cfg["logger"]["project_id"] = fs.experiment_id
+                    user_cfg["logger"]["run_id"] = fs.run_id
+                else:
+                    base_cfg["logger"]["project_id"] = fs.experiment_id
+                    base_cfg["logger"]["run_id"] = fs.experiment_id
+
         elif isinstance(cfg, dict):
             user_cfg = cfg
         else:
@@ -404,29 +415,6 @@ class Config:
             self._data["train"]["optimizers"]["optimizer"]["params"] = {}
         if not self._data["train"]["optimizers"]["scheduler"]["params"]:
             self._data["train"]["optimizers"]["scheduler"]["params"] = {}
-
-
-def mlflow_load_artifact_dict(run_info):
-    """Loads config dictionary from MLFlow artifact and updates logger config"""
-    from dotenv import load_dotenv
-
-    load_dotenv()  # load environment variables needed for authorization
-
-    import mlflow
-
-    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-    if tracking_uri is None:
-        raise KeyError("There is no 'MLFLOW_TRACKING_URI' in environment variables")
-
-    experiment_id, run_id = run_info.split("/")
-    mlflow.set_tracking_uri(tracking_uri)
-    mlflow.set_experiment(experiment_id=experiment_id)
-    run = mlflow.get_run(run_id)
-    cfg = mlflow.artifacts.load_dict(run.info.artifact_uri + "/config.json")
-    cfg["logger"]["run_id"] = run_id  # set run_id to continue run in MLFlow
-    cfg["logger"]["project_id"] = experiment_id
-
-    return cfg
 
 
 def remove_chars_inside_brackets(string):

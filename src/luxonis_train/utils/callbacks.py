@@ -1,26 +1,16 @@
+from typing import Any
+import warnings
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import RichProgressBar
 from rich.table import Table
 
+from luxonis_train.utils.config import Config
+from luxonis_train.utils.filesystem import LuxonisFileSystem
+
 
 class LuxonisProgressBar(RichProgressBar):
-    """Custom rich text progress bar based on RichProgressBar from Pytorch Lightning"""
-
     def __init__(self):
-        # TODO: play with values to create custom output
-        # from pytorch_lightning.callbacks.progress.rich_progress import RichProgressBarTheme
-        # progress_bar = RichProgressBar(
-        #     theme = RichProgressBarTheme(
-        #     description="green_yellow",
-        #     progress_bar="green1",
-        #     progress_bar_finished="green1",
-        #     batch_progress="green_yellow",
-        #     time="gray82",
-        #     processing_speed="grey82",
-        #     metrics="yellow1"
-        #     )
-        # )
-
+        """Custom rich text progress bar based on RichProgressBar from Pytorch Lightning"""
         super().__init__(leave=True)
 
     def print_single_line(self, text: str):
@@ -50,14 +40,64 @@ class LuxonisProgressBar(RichProgressBar):
         self._console.rule(style="bold magenta")
 
 
+class AnnotationChecker(pl.Callback):
+    def __init__(self):
+        """Callback that checks if all annotatios that are required by the heads are present in the label dict"""
+        super().__init__()
+        self.first_train_batch = True
+        self.first_val_batch = True
+        self.first_test_batch = True
+
+    def on_train_batch_start(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
+        batch_idx: int,
+    ):
+        super().on_train_batch_start(trainer, pl_module, batch, batch_idx)
+        if self.first_train_batch:
+            pl_module.model.check_annotations(batch[1])
+            self.first_train_batch = False
+
+    def on_validation_batch_start(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ):
+        super().on_validation_batch_start(
+            trainer, pl_module, batch, batch_idx, dataloader_idx
+        )
+        if self.first_val_batch:
+            pl_module.model.check_annotations(batch[1])
+            self.first_val_batch = False
+
+    def on_test_batch_start(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ):
+        super().on_test_batch_start(
+            trainer, pl_module, batch, batch_idx, dataloader_idx
+        )
+        if self.first_test_batch:
+            pl_module.model.check_annotations(batch[1])
+            self.first_test_batch = False
+
+
 class TestOnTrainEnd(pl.Callback):
     """Callback that performs test on pl_module when train ends"""
 
-    def on_train_end(self, trainer, pl_module):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         from torch.utils.data import DataLoader
         from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
         from luxonis_ml.loader import LuxonisLoader, ValAugmentations
-        from luxonis_train.utils.config import Config
 
         cfg = Config()
         with LuxonisDataset(
@@ -88,10 +128,20 @@ class TestOnTrainEnd(pl.Callback):
 
 
 class ExportOnTrainEnd(pl.Callback):
-    """Callback that performs export on train end with best weights according to the validation loss"""
+    def __init__(self, override_upload_directory: bool):
+        """Callback that performs export on train end with best weights according to the validation loss
 
-    def on_train_end(self, trainer, pl_module):
+        Args:
+            override_upload_directory (bool): If True override upload_directory in Exporter with
+                currently active MLFlow run (if present)
+        """
+        super().__init__()
+        self.override_upload_directory = override_upload_directory
+
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         from luxonis_train.core import Exporter
+
+        cfg = Config()
 
         model_checkpoint_callbacks = [
             c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)
@@ -101,7 +151,49 @@ class ExportOnTrainEnd(pl.Callback):
 
         # override export_weights path with path to currently best weights
         override = f"exporter.export_weights {best_model_path}"
+        if self.override_upload_directory:
+            if cfg.get("logger.is_mlflow"):
+                new_upload_directory = (
+                    f"mlflow://{trainer.logger.project_id}/{trainer.logger.run_id}"
+                )
+                override += f" exporter.upload.upload_directory {new_upload_directory}"
+            else:
+                warnings.warn(
+                    "`override_upload_directory` specified but no MLFlow active run, skipping."
+                )
+
         exporter = Exporter(
             cfg="", args={"override": override}  # singleton instance already present
         )
         exporter.export()
+
+
+class UploadCheckpointOnTrainEnd(pl.Callback):
+    def __init__(self, upload_directory: str):
+        """Callback that uploads best checkpoint to specified storage according to the validation loss
+
+        Args:
+            upload_directory (str): Path used as upload directory
+        """
+        super().__init__()
+        if upload_directory is None:
+            raise ValueError(
+                "Should specify `upload_directory` if using `upload_checkpoint_on_finish` callback."
+            )
+        self.fs = LuxonisFileSystem(
+            upload_directory, allow_active_mlflow_run=True, allow_local=False
+        )
+
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        print(f"Started checkpoint upload to {self.fs.full_path()}...")
+        model_checkpoint_callbacks = [
+            c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)
+        ]
+        # NOTE: assume that first checkpoint callback is based on val loss
+        local_path = model_checkpoint_callbacks[0].best_model_path
+        self.fs.put_file(
+            local_path=local_path,
+            remote_path=local_path.split("/")[-1],
+            mlflow_instance=trainer.logger.experiment.get("mlflow", None),
+        )
+        print("Checkpoint upload finished")

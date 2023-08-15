@@ -6,6 +6,7 @@ from .heads import *
 
 from luxonis_train.utils.config import Config
 from luxonis_train.utils.general import dummy_input_run
+from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
 class Model(nn.Module):
@@ -32,9 +33,12 @@ class Model(nn.Module):
         )
         # load local backbone weights if avaliable
         if modules_cfg["backbone"]["pretrained"]:
-            self.backbone.load_state_dict(
-                torch.load(modules_cfg["backbone"]["pretrained"])["state_dict"]
-            )
+            path = modules_cfg["backbone"]["pretrained"]
+            print(f"Loading backbone weights from: {path}")
+            fs = LuxonisFileSystem(path)
+            checkpoint = torch.load(fs.read_to_byte_buffer())
+            state_dict = checkpoint["state_dict"]
+            self.backbone.load_state_dict(state_dict)
 
         self.backbone_out_shapes = dummy_input_run(self.backbone, dummy_input_shape)
 
@@ -56,6 +60,11 @@ class Model(nn.Module):
                 **head["params"],
             )
             self.heads.append(curr_head)
+
+    def check_annotations(self, label_dict: dict):
+        """Checks if all required annotations are present"""
+        for head in self.heads:
+            head.check_annotations(label_dict)
 
     def forward(self, x: torch.Tensor):
         """Models forward method

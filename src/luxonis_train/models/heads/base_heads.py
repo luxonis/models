@@ -14,6 +14,9 @@ from luxonis_train.utils.constants import HeadType
 
 
 class BaseHead(nn.Module):
+    head_types: List[HeadType] = []
+    label_types: List[LabelType] = []
+
     def __init__(
         self,
         n_classes: int,
@@ -39,6 +42,21 @@ class BaseHead(nn.Module):
     def get_name(self, idx: int):
         """Generate a string head name based on class name and passed index"""
         return f"{self.__class__.__name__}_{idx}"
+
+    def check_annotations(self, label_dict: dict):
+        """Checks if all required annotations are present in label dictionary
+
+        Args:
+            label_dict (dict): Dictionary with labels
+
+        Raises:
+            KeyError: Required label type missing in annotations
+        """
+        for label_type in self.label_types:
+            if label_type not in label_dict:
+                raise KeyError(
+                    f"Required label type `{label_type}` missing in annotations."
+                )
 
     def forward(self, x):
         """torch.nn.Module forward method"""
@@ -76,9 +94,7 @@ class BaseHead(nn.Module):
         """
         raise NotImplementedError
 
-    def draw_output_to_img(
-        self, img: torch.Tensor, output: Union[tuple, torch.Tensor], idx: int
-    ):
+    def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
         """Draws model output to an img
 
         Args:
@@ -101,6 +117,10 @@ class BaseHead(nn.Module):
             output_name (Union[str, List[str]]): Either output name (string) or list of strings if head has multiple outputs.
         """
         raise NotImplementedError
+
+    def to_deploy(self):
+        """Makes changes needed to prepare head for deploy"""
+        pass
 
 
 class BaseClassificationHead(BaseHead):

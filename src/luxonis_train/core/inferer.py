@@ -15,6 +15,7 @@ from luxonis_train.utils.config import Config
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
+from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
 class Inferer(pl.LightningModule):
@@ -43,7 +44,9 @@ class Inferer(pl.LightningModule):
     def load_checkpoint(self, path: str):
         """Loads checkpoint weights from provided path"""
         print(f"Loading weights from: {path}")
-        state_dict = torch.load(path)["state_dict"]
+        fs = LuxonisFileSystem(path)
+        checkpoint = torch.load(fs.read_to_byte_buffer())
+        state_dict = checkpoint["state_dict"]
         # remove weights that are not part of the model
         removed = []
         for key in list(state_dict.keys()):

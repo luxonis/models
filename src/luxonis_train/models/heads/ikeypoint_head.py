@@ -77,104 +77,22 @@ class IKeypoint(BaseHead):
         channel_list = [
             input_channel_shape[1] for input_channel_shape in self.input_channels_shapes
         ]
-        self.m = nn.ModuleList(
+        self.det_conv = nn.ModuleList(
             nn.Conv2d(in_channels, self.n_det_out * self.n_anchors, 1)
             for in_channels in channel_list
         )
 
-        self.implicit_a = nn.ModuleList(
-            ImplicitA(in_channels) for in_channels in channel_list
+        self.implicit_feat = nn.ModuleList(
+            ImplicitFeatures(in_channels) for in_channels in channel_list
         )
-        self.implicit_m = nn.ModuleList(
-            ImplicitM(self.n_det_out * self.n_anchors) for _ in channel_list
+        self.implicit_det = nn.ModuleList(
+            ImplicitDetections(self.n_det_out * self.n_anchors) for _ in channel_list
         )
 
-        self.m_kpt = nn.ModuleList(
-            nn.Sequential(
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=3,
-                    padding=autopad(3),
-                    groups=math.gcd(in_channels, in_channels),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=1,
-                    padding=autopad(1),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=3,
-                    padding=autopad(3),
-                    groups=math.gcd(in_channels, in_channels),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=1,
-                    padding=autopad(1),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=3,
-                    padding=autopad(3),
-                    groups=math.gcd(in_channels, in_channels),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=1,
-                    padding=autopad(1),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=3,
-                    padding=autopad(3),
-                    groups=math.gcd(in_channels, in_channels),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=1,
-                    padding=autopad(1),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=3,
-                    padding=autopad(3),
-                    groups=math.gcd(in_channels, in_channels),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=1,
-                    padding=autopad(1),
-                    activation=nn.SiLU(),
-                ),
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=3,
-                    padding=autopad(3),
-                    groups=math.gcd(in_channels, in_channels),
-                    activation=nn.SiLU(),
-                ),
-                nn.Conv2d(in_channels, self.n_kpt_out * self.n_anchors, 1),
+        self.kpt_heads = nn.ModuleList(
+            KeypointBlock(
+                in_channels=in_channels,
+                out_channels=self.n_kpt_out * self.n_anchors,
             )
             for in_channels in channel_list
         )
@@ -199,8 +117,10 @@ class IKeypoint(BaseHead):
             x.append(
                 torch.cat(
                     (
-                        self.implicit_m[i](self.m[i](self.implicit_a[i](inputs[i]))),
-                        self.m_kpt[i](inputs[i]),
+                        self.implicit_det[i](
+                            self.det_conv[i](self.implicit_feat[i](inputs[i]))
+                        ),
+                        self.kpt_heads[i](inputs[i]),
                     ),
                     axis=1,
                 )
@@ -222,34 +142,31 @@ class IKeypoint(BaseHead):
             kpt_grid_x = self.grid[i][..., 0:1]
             kpt_grid_y = self.grid[i][..., 1:2]
 
-            if self.n_keypoints == 0:
-                y = x[i].sigmoid()
-            else:
-                y = x_det.sigmoid()
-
-            xy = (y[..., 0:2] * 2.0 - 0.5 + self.grid[i]) * self.stride[i]  # xy
-            wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
+            # det inference
+            out_det = x_det.sigmoid()
+            out_det_xy = (out_det[..., 0:2] * 2.0 - 0.5 + self.grid[i]) * self.stride[i]
+            out_det_wh = (out_det[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
                 1, self.n_anchors, 1, 1, 2
-            )  # wh
-            a = (
+            )
+
+            # kpt inference
+            out_kpt_x = (
                 x_kpt[..., ::3] * 2.0
                 - 0.5
                 + kpt_grid_x.repeat(1, 1, 1, 1, self.n_keypoints)
-            ) * self.stride[
-                i
-            ]  # xy
-            b = (
+            ) * self.stride[i]
+            out_kpt_y = (
                 x_kpt[..., 1::3] * 2.0
                 - 0.5
                 + kpt_grid_y.repeat(1, 1, 1, 1, self.n_keypoints)
-            ) * self.stride[
-                i
-            ]  # xy
-            c = x_kpt[..., 2::3].sigmoid()
-            x_kpt = torch.stack([a, b, c], dim=-1).view(*a.shape[:-1], -1)
+            ) * self.stride[i]
+            out_kpt_cls = x_kpt[..., 2::3].sigmoid()
+            out_kpt = torch.stack([out_kpt_x, out_kpt_y, out_kpt_cls], dim=-1).view(
+                *out_kpt_x.shape[:-1], -1
+            )
 
-            y = torch.cat((xy, wh, y[..., 4:], x_kpt), dim=-1)
-            outs.append(y.view(bs, -1, self.n_out))
+            out = torch.cat((out_det_xy, out_det_wh, out_det[..., 4:], out_kpt), dim=-1)
+            outs.append(out.view(bs, -1, self.n_out))
 
         return torch.cat(outs, 1), x
 
@@ -356,8 +273,8 @@ class IKeypoint(BaseHead):
         return f"output{idx}"
 
     def forward_deploy(self, inputs):
-        outs = []  # inference output
-        x = []  # layer outputs
+        outs = []  # predictions
+        x = []  # features
 
         if self.anchor_grid.device != inputs[0].device:
             self.anchor_grid = self.anchor_grid.to(inputs[0].device)
@@ -366,12 +283,14 @@ class IKeypoint(BaseHead):
             x.append(
                 torch.cat(
                     (
-                        self.implicit_m[i](self.m[i](self.implicit_a[i](inputs[i]))),
-                        self.m_kpt[i](inputs[i]),
+                        self.implicit_det[i](
+                            self.det_conv[i](self.implicit_feat[i](inputs[i]))
+                        ),
+                        self.kpt_heads[i](inputs[i]),
                     ),
                     axis=1,
                 )
-            )  # type: ignore
+            )
 
             bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
             x[i] = (
@@ -389,36 +308,33 @@ class IKeypoint(BaseHead):
             kpt_grid_x = self.grid[i][..., 0:1]
             kpt_grid_y = self.grid[i][..., 1:2]
 
-            if self.n_keypoints == 0:
-                y = x[i].sigmoid()
-            else:
-                y = x_det.sigmoid()
-
-            xy = (y[..., 0:2] * 2.0 - 0.5 + self.grid[i]) * self.stride[i]  # xy
-            wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
+            # det inference
+            out_det = x_det.sigmoid()
+            out_det_xy = (out_det[..., 0:2] * 2.0 - 0.5 + self.grid[i]) * self.stride[i]
+            out_det_wh = (out_det[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
                 1, self.n_anchors, 1, 1, 2
-            )  # wh
-            a = (
+            )
+
+            # kpt inference
+            out_kpt_x = (
                 x_kpt[..., ::3] * 2.0
                 - 0.5
                 + kpt_grid_x.repeat(1, 1, 1, 1, self.n_keypoints)
-            ) * self.stride[
-                i
-            ]  # xy
-            b = (
+            ) * self.stride[i]
+            out_kpt_y = (
                 x_kpt[..., 1::3] * 2.0
                 - 0.5
                 + kpt_grid_y.repeat(1, 1, 1, 1, self.n_keypoints)
-            ) * self.stride[
-                i
-            ]  # xy
-            c = x_kpt[..., 2::3].sigmoid()
-            x_kpt = torch.stack([a, b, c], dim=-1).view(*a.shape[:-1], -1)
+            ) * self.stride[i]
+            out_kpt_cls = x_kpt[..., 2::3].sigmoid()
+            out_kpt = torch.stack([out_kpt_x, out_kpt_y, out_kpt_cls], dim=-1).view(
+                *out_kpt_x.shape[:-1], -1
+            )
 
-            y = torch.cat((xy, wh, y[..., 4:], x_kpt), dim=-1)
-            outs.append(y.view(bs, -1, self.n_out))
+            out = torch.cat((out_det_xy, out_det_wh, out_det[..., 4:], out_kpt), dim=-1)
+            outs.append(out.view(bs, -1, self.n_out))
 
-        return torch.cat(outs, 1)  # only return predictions without features
+        return torch.cat(outs, 1)
 
     def to_deploy(self):
         self.forward = self.forward_deploy
@@ -437,9 +353,10 @@ class IKeypoint(BaseHead):
             self.anchor_grid[:] = self.anchor_grid.flip(0)
 
 
-class ImplicitA(nn.Module):
-    def __init__(self, channel):
-        super(ImplicitA, self).__init__()
+class ImplicitFeatures(nn.Module):
+    def __init__(self, channel: int):
+        """Implicit block used for features"""
+        super().__init__()
         self.channel = channel
         self.implicit = nn.Parameter(torch.zeros(1, channel, 1, 1))
         nn.init.normal_(self.implicit, std=0.02)
@@ -448,9 +365,10 @@ class ImplicitA(nn.Module):
         return self.implicit.expand_as(x) + x
 
 
-class ImplicitM(nn.Module):
-    def __init__(self, channel):
-        super(ImplicitM, self).__init__()
+class ImplicitDetections(nn.Module):
+    def __init__(self, channel: int):
+        """Implicit block used for detection output"""
+        super().__init__()
         self.channel = channel
         self.implicit = nn.Parameter(torch.ones(1, channel, 1, 1))
         nn.init.normal_(self.implicit, mean=1.0, std=0.02)
@@ -459,13 +377,49 @@ class ImplicitM(nn.Module):
         return self.implicit.expand_as(x) * x
 
 
+class KeypointBlock(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        """Keypoint head block for keypoint predictions"""
+        super().__init__()
+        layers = []
+        for i in range(6):
+            depth_wise_conv = ConvModule(
+                in_channels,
+                in_channels,
+                kernel_size=3,
+                padding=autopad(3),
+                groups=math.gcd(in_channels, in_channels),
+                activation=nn.SiLU(),
+            )
+            conv = (
+                ConvModule(
+                    in_channels,
+                    in_channels,
+                    kernel_size=1,
+                    padding=autopad(1),
+                    activation=nn.SiLU(),
+                )
+                if i < 5
+                else nn.Conv2d(in_channels, out_channels, 1)
+            )
+
+            layers.append(depth_wise_conv)
+            layers.append(conv)
+
+        self.block = nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = self.block(x)
+        return out
+
+
 if __name__ == "__main__":
     from luxonis_train.models.backbones import EfficientRep
     from luxonis_train.models.necks import RepPANNeck
     from luxonis_train.utils.general import dummy_input_run
 
-    # input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
-    input_shapes = [[1, 3, 256, 256]]
+    input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
+    # input_shapes = [[1, 3, 256, 256]]
     backbone = EfficientRep()
 
     # num_heads_offset_pairs = [(2, [0, 1, 2]), (3, [0, 1]), (4, [0])]
@@ -496,7 +450,7 @@ if __name__ == "__main__":
                         [142, 110, 192, 243, 459, 401],
                     ],
                 )
-                print(head)
+
                 outs = backbone(input)
                 outs = neck(outs)
                 outs = head(outs)

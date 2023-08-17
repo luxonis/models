@@ -31,10 +31,10 @@ class IKeypoint(BaseHead):
         original_in_shape: list,
         n_keypoints: int,
         anchors: list,
-        attach_index: int = -1,
-        main_metric: str = "map",
         connectivity: Optional[list] = None,
         visibility_threshold: float = 0.5,
+        attach_index: int = 0,
+        main_metric: str = "map",
         **kwargs,
     ):
         """IKeypoint head which is used for object and keypoint detection
@@ -45,20 +45,22 @@ class IKeypoint(BaseHead):
             original_in_shape (list): Original input shape to the model
             n_keypoints (int): Number of keypoints
             anchors (list): Anchors used for object detection
-            attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
-            main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
             connectivity (Optional[list], optional): Connectivity mapping used in visualization. Defaults to None.
             visibility_threshold (float, optional): Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
+            attach_index (int, optional): Index of previous output that the head attaches to. Defaults to 0.
+                ***Note:** Value must be non-negative.**
+            main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
         """
         super().__init__(
             n_classes=n_classes,
             input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            main_metric=main_metric,
             **kwargs,
         )
 
-        self.main_metric: str = main_metric
+        self._validate_num_heads_and_attach_index(len(anchors))
 
         self.n_keypoints = n_keypoints
         self.connectivity = connectivity
@@ -74,19 +76,21 @@ class IKeypoint(BaseHead):
         self.anchors = torch.tensor(anchors).float().view(self.num_heads, -1, 2)
         self.anchor_grid = self.anchors.clone().view(self.num_heads, 1, -1, 1, 1, 2)
 
-        channel_list = [
-            input_channel_shape[1] for input_channel_shape in self.input_channels_shapes
-        ]
+        self.channel_list, self.stride = self._fit_to_num_heads(
+            [c[1] for c in self.input_channels_shapes]
+        )
+
         self.det_conv = nn.ModuleList(
             nn.Conv2d(in_channels, self.n_det_out * self.n_anchors, 1)
-            for in_channels in channel_list
+            for in_channels in self.channel_list
         )
 
         self.implicit_feat = nn.ModuleList(
-            ImplicitFeatures(in_channels) for in_channels in channel_list
+            ImplicitFeatures(in_channels) for in_channels in self.channel_list
         )
         self.implicit_det = nn.ModuleList(
-            ImplicitDetections(self.n_det_out * self.n_anchors) for _ in channel_list
+            ImplicitDetections(self.n_det_out * self.n_anchors)
+            for _ in self.channel_list
         )
 
         self.kpt_heads = nn.ModuleList(
@@ -94,33 +98,30 @@ class IKeypoint(BaseHead):
                 in_channels=in_channels,
                 out_channels=self.n_kpt_out * self.n_anchors,
             )
-            for in_channels in channel_list
+            for in_channels in self.channel_list
         )
 
-        self.stride = torch.tensor(
-            [
-                self.original_in_shape[2] / input_channel_shape[2]
-                for input_channel_shape in self.input_channels_shapes
-            ]
-        )
         self.anchors /= self.stride.view(-1, 1, 1)
         self._check_anchor_order()
+        self._initialize_weights_and_biases()
 
     def forward(self, inputs):
         outs = []  # predictions
         x = []  # features
 
-        if self.anchor_grid.device != inputs[0].device:
-            self.anchor_grid = self.anchor_grid.to(inputs[0].device)
+        if self.anchor_grid.device != inputs[self.attach_index].device:
+            self.anchor_grid = self.anchor_grid.to(inputs[self.attach_index].device)
 
         for i in range(self.num_heads):
             x.append(
                 torch.cat(
                     (
                         self.implicit_det[i](
-                            self.det_conv[i](self.implicit_feat[i](inputs[i]))
+                            self.det_conv[i](
+                                self.implicit_feat[i](inputs[self.attach_index + i])
+                            )
                         ),
-                        self.kpt_heads[i](inputs[i]),
+                        self.kpt_heads[i](inputs[self.attach_index + i]),
                     ),
                     axis=1,
                 )
@@ -276,17 +277,19 @@ class IKeypoint(BaseHead):
         outs = []  # predictions
         x = []  # features
 
-        if self.anchor_grid.device != inputs[0].device:
-            self.anchor_grid = self.anchor_grid.to(inputs[0].device)
+        if self.anchor_grid.device != inputs[self.attach_index].device:
+            self.anchor_grid = self.anchor_grid.to(inputs[self.attach_index].device)
 
         for i in range(self.num_heads):
             x.append(
                 torch.cat(
                     (
                         self.implicit_det[i](
-                            self.det_conv[i](self.implicit_feat[i](inputs[i]))
+                            self.det_conv[i](
+                                self.implicit_feat[i](inputs[self.attach_index + i])
+                            )
                         ),
-                        self.kpt_heads[i](inputs[i]),
+                        self.kpt_heads[i](inputs[self.attach_index + i]),
                     ),
                     axis=1,
                 )
@@ -338,6 +341,52 @@ class IKeypoint(BaseHead):
 
     def to_deploy(self):
         self.forward = self.forward_deploy
+
+    def _validate_num_heads_and_attach_index(self, num_heads: int):
+        """Checks if specified number of heads is supported and if cumulative offset is valid"""
+        if num_heads not in [2, 3, 4]:
+            raise ValueError(
+                "Specified number of heads not supported. Choose one of [2,3,4]"
+            )
+
+        if self.attach_index < 0:
+            raise ValueError("Value of attach_index must be non-negative")
+
+        if len(self.input_channels_shapes) - (self.attach_index + num_heads) < 0:
+            raise ValueError("Cumulative offset (attach_index+num_head) out of range.")
+
+    def _fit_to_num_heads(self, channel_list: list):
+        """Returns correct channel list and stride based on num_heads and attach_index"""
+        out_channel_list = channel_list[self.attach_index :][: self.num_heads]
+
+        base_stride = [4, 8, 16, 32]
+        stride = torch.tensor(base_stride[self.attach_index :][: self.num_heads])
+
+        return out_channel_list, stride
+
+    def _initialize_weights_and_biases(self, class_freq: Optional[torch.Tensor] = None):
+        for m in self.modules():
+            t = type(m)
+            if t is nn.Conv2d:
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif t is nn.BatchNorm2d:
+                m.eps = 1e-3
+                m.momentum = 0.03
+            elif t in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6]:
+                m.inplace = True
+
+        # biases
+        for mi, s in zip(self.det_conv, self.stride):  # from
+            b = mi.bias.view(self.n_anchors, -1)  # conv.bias(255) to (3,85)
+            b.data[:, 4] += math.log(
+                8 / (640 / s) ** 2
+            )  # obj (8 objects per 640 image)
+            b.data[:, 5:] += (
+                math.log(0.6 / (self.n_classes - 0.99))
+                if class_freq is None
+                else torch.log(class_freq / class_freq.sum())
+            )  # cls
+            mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
     def _make_grid(self, nx=20, ny=20):
         yv, xv = torch.meshgrid([torch.arange(ny), torch.arange(nx)], indexing="ij")
@@ -423,7 +472,7 @@ if __name__ == "__main__":
     backbone = EfficientRep()
 
     # num_heads_offset_pairs = [(2, [0, 1, 2]), (3, [0, 1]), (4, [0])]
-    num_heads_offset_pairs = [(3, [0])]
+    num_heads_offset_pairs = [(4, [-1])]
 
     for input_shape in input_shapes:
         for num_heads, offsets in num_heads_offset_pairs:
@@ -432,7 +481,9 @@ if __name__ == "__main__":
                 input_channels_shapes = dummy_input_run(backbone, input_shape)
                 backbone.eval()
                 neck = RepPANNeck(
-                    input_channels_shapes=input_channels_shapes, num_heads=num_heads
+                    input_channels_shapes=input_channels_shapes,
+                    num_heads=num_heads,
+                    attach_index=offset,
                 )
                 input_channels_shapes = dummy_input_run(
                     neck, input_channels_shapes, multi_input=True
@@ -447,8 +498,9 @@ if __name__ == "__main__":
                     anchors=[
                         [12, 16, 19, 36, 40, 28],
                         [36, 75, 76, 55, 72, 146],
-                        [142, 110, 192, 243, 459, 401],
+                        # [142, 110, 192, 243, 459, 401],
                     ],
+                    attach_index=2,
                 )
 
                 outs = backbone(input)

@@ -34,6 +34,8 @@ Every head takes these parameters:
     - connectivity: list # Connectivity mapping used in visualization. Defaults to None.
     - visibility_threshold: float # Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
 
+  ***Note:** attach_index: Defaults to 0. Value must be non-negative.*
+
 - **IKeypointMultiHead** (adapted from [here](https://github.com/WongKinYiu/yolov7))
   - Params:
     - anchors: list # Anchors used for object detection

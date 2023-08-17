@@ -23,8 +23,7 @@ class YoloV6Head(BaseObjectDetection):
         input_channels_shapes: list,
         original_in_shape: list,
         num_heads: Literal[2, 3, 4] = 3,
-        offset: int = 0,
-        attach_index: int = -1,
+        attach_index: int = 0,
         **kwargs,
     ):
         """YoloV6 object detection head. With hardware-aware degisn, the decoupled head is optimized with
@@ -34,12 +33,10 @@ class YoloV6Head(BaseObjectDetection):
             n_classes (int): Number of classes
             input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
-            num_heads (Literal[2,3,4], optional): Number of output heads.
-                (**Important: Should be same also on neck**). Defaults to 3.
-            offset (int, optional): Offset used if want to use backbone's higher resolution outputs.
-                If num_heads==2 then this can be one of [0,1,2], if num_heads==3 then this can be one of [1,2],
-                if num_heads==4 then this must be 0. (**Important: Should be same also on neck**). Defaults to 0.
-            attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
+            num_heads (Literal[2,3,4], optional): Number of output heads. Defaults to 3.
+                ***Note:** Should be same also on neck in most cases.*
+            attach_index (int, optional): Index of previous output that the head attaches to. Defaults to 0.
+                ***Note:** Value must be non-negative.**
         """
         super().__init__(
             n_classes=n_classes,
@@ -49,27 +46,27 @@ class YoloV6Head(BaseObjectDetection):
             **kwargs,
         )
 
-        self._validate_num_heads_and_offset(num_heads, offset)
+        self._validate_num_heads_and_attach_index(num_heads)
         self.num_heads = num_heads
-        self.offset = offset
 
-        self.stride = self._fit_to_num_heads()
+        self.stride = self._fit_stride_to_num_heads()
         self.grid = [torch.zeros(1)] * self.num_heads
         self.grid_cell_offset = 0.5
         self.grid_cell_size = 5.0
 
-        self.head = nn.ModuleList()
+        self.heads = nn.ModuleList()
         for i in range(self.num_heads):
             curr_head = EfficientDecoupledBlock(
-                n_classes=self.n_classes, in_channels=self.input_channels_shapes[i][1]
+                n_classes=self.n_classes,
+                in_channels=self.input_channels_shapes[self.attach_index + i][1],
             )
-            self.head.append(curr_head)
+            self.heads.append(curr_head)
 
     def forward(self, x):
         cls_score_list = []
         reg_distri_list = []
 
-        for i, module in enumerate(self.head):
+        for i, module in enumerate(self.heads):
             out_x, out_cls, out_reg = module(x[i])
             x[i] = out_x
             out_cls = torch.sigmoid(out_cls)
@@ -123,7 +120,7 @@ class YoloV6Head(BaseObjectDetection):
 
     def forward_deploy(self, x):
         outputs = []
-        for i, module in enumerate(self.head):
+        for i, module in enumerate(self.heads):
             _, out_cls, out_reg = module([x[i]])
             out_cls = torch.sigmoid(out_cls)
             conf, _ = out_cls.max(1, keepdim=True)
@@ -134,19 +131,23 @@ class YoloV6Head(BaseObjectDetection):
     def to_deploy(self):
         self.forward = self.forward_deploy
 
-    def _validate_num_heads_and_offset(self, num_heads: int, offset: int):
+    def _validate_num_heads_and_attach_index(self, num_heads: int):
+        """Checks if specified number of heads is supported and if cumulative offset is valid"""
         if num_heads not in [2, 3, 4]:
             raise ValueError(
-                f"Specified number of heads not supported. Choose one of [2,3,4]"
-            )
-        if not (0 <= offset <= 4 - num_heads):
-            raise ValueError(
-                f"Specified offset ({offset}) not valid for num_heads ({num_heads})."
+                "Specified number of heads not supported. Choose one of [2,3,4]"
             )
 
-    def _fit_to_num_heads(self):
+        if self.attach_index < 0:
+            raise ValueError("Value of attach_index must be non-negative")
+
+        if len(self.input_channels_shapes) - (self.attach_index + num_heads) < 0:
+            raise ValueError("Cumulative offset (attach_index+num_head) out of range.")
+
+    def _fit_stride_to_num_heads(self):
+        """Returns correct stride for number of heads and attach index"""
         base_stride = [4, 8, 16, 32]
-        stride = base_stride[-(self.num_heads + self.offset) :][: self.num_heads]
+        stride = base_stride[-(self.num_heads + self.attach_index) :][: self.num_heads]
         return torch.tensor(stride)
 
     def _out2box(self, output: tuple, **kwargs):
@@ -249,3 +250,43 @@ class EfficientDecoupledBlock(nn.Module):
             w = module.weight
             w.data.fill_(0.0)
             module.weight = nn.Parameter(w, requires_grad=True)
+
+
+if __name__ == "__main__":
+    from luxonis_train.models.backbones import EfficientRep
+    from luxonis_train.models.necks import RepPANNeck
+    from luxonis_train.utils.general import dummy_input_run
+
+    input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
+    backbone = EfficientRep()
+
+    num_heads_offset_pairs = [(2, [-1, -2, -3]), (3, [-1, -2]), (4, [-1])]
+
+    for input_shape in input_shapes:
+        for num_heads, offsets in num_heads_offset_pairs:
+            for offset in offsets:
+                input = torch.zeros(input_shape)
+                input_channels_shapes = dummy_input_run(backbone, input_shape)
+                backbone.eval()
+                neck = RepPANNeck(
+                    input_channels_shapes=input_channels_shapes,
+                    num_heads=num_heads,
+                    attach_index=offset,
+                )
+                input_channels_shapes = dummy_input_run(
+                    neck, input_channels_shapes, multi_input=True
+                )
+                neck.eval()
+
+                head = YoloV6Head(
+                    n_classes=10,
+                    input_channels_shapes=input_channels_shapes,
+                    original_in_shape=input_shape,
+                    num_heads=num_heads,
+                )
+
+                outs = backbone(input)
+                outs = neck(outs)
+                outs = head(outs)
+
+                print([o.shape for o in outs[0]], outs[1].shape, outs[2].shape)

@@ -39,6 +39,8 @@ class BaseHead(nn.Module, ABC):
         """
         super().__init__()
 
+        self._validate_attach_index(attach_index, len(input_channels_shapes))
+
         self.n_classes = n_classes
         self.attach_index = attach_index
         self.input_channels_shapes = input_channels_shapes
@@ -132,12 +134,29 @@ class BaseHead(nn.Module, ABC):
         for label_type in self.label_types:
             if label_type not in label_dict:
                 raise KeyError(
-                    f"Required label type `{label_type}` missing in annotations."
+                    f"Required label type `{label_type}` for {self.get_name()} missing in annotations."
                 )
 
     def to_deploy(self):
         """All changes required to prepare module for deployment"""
         pass
+
+    def _validate_attach_index(self, index: int, inputs_len: int):
+        """Validates attach index based on length of inputs
+
+        Args:
+            index (int): Attach index
+            inputs_len (int): Length of inputs
+
+        Raises:
+            ValueError: Specified attach index out of range
+        """
+        if (index < 0 and abs(index) > inputs_len) or (
+            index >= 0 and index >= inputs_len
+        ):
+            raise ValueError(
+                f"Specified attach index for {self.get_name()} out of range."
+            )
 
 
 class BaseClassificationHead(BaseHead, ABC):

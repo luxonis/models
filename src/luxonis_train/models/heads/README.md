@@ -1,36 +1,40 @@
-## List of supported heads
+## Heads
+
 Every head takes these parameters:
  - n_classes: int # Number of classes
  - attach_index: int # Index of previous output that the head attaches to. Defaults to -1.
  - main_metric: str # Name of the main metric which is used for tracking training process. Defaults to head specific value.
 
-Here is a list of all supported heads and any additional parameters they take:
-- ClassificationHead
+### List
+- **ClassificationHead**
   - Params:
     - fc_dropout: float # Dropout rate before last layer, range [0,1]. Defaults to 0.2.
-- MultiLabelClassificationHead
+
+- **MultiLabelClassificationHead**
   - Params:
     - fc_dropout: float # Dropout rate before last layer, range [0,1]. Defaults to 0.2.
-- SegmentationHead (adapted from [here](https://github.com/pytorch/vision/blob/main/torchvision/models/segmentation/fcn.py))
-- BiSeNetHead (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
+
+- **SegmentationHead** (adapted from [here](https://github.com/pytorch/vision/blob/main/torchvision/models/segmentation/fcn.py))
+
+- **BiSeNetHead** (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
   - Params:
     - upscale_factor: int # Factor used for upscaling input. Defaults to 8.
-    - is_aux: bool # Either use 256 for intermediate channels or 64. Defaults to False
-- EffiDeHead (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
+    - is_aux: bool # Either use 256 for intermediate channels or 64. Defaults to False.
+
+- **YoloV6Head** (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
   - Params:
-    - n_anchors: int # Should stay default. Defaults to 1.
-- YoloV6Head (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
-  - Params:
-    - num_heads: bool # Number of output heads.
-      (**Important: Should be same also on neck**). Defaults to 3.
-    - offset: int # Offset used if want to use backbone's higher resolution outputs.
-      If num_heads==2 then this can be one of [0,1,2], if num_heads==3 then this can be one [1,2], if num_heads==4 then this must be 0. (**Important: Should be same also on neck**). Defaults to 0.
-- IKeypoint (adapted from [here](https://github.com/WongKinYiu/yolov7))
+    - num_heads: bool # Number of output heads. Defaults to 3. ***Note:** Should be same also on neck in most cases.*
+    
+  ***Note:** attach_index: Defaults to 0. Value must be non-negative.* 
+
+- **IKeypoint** (adapted from [here](https://github.com/WongKinYiu/yolov7))
   - Params:
     - n_keypoints: int # Number of keypoints
     - anchors: list # Anchors used for object detection
     - connectivity: list # Connectivity mapping used in visualization. Defaults to None.
-- IKeypointMultiHead (adapted from [here](https://github.com/WongKinYiu/yolov7))
+    - visibility_threshold: float # Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
+
+- **IKeypointMultiHead** (adapted from [here](https://github.com/WongKinYiu/yolov7))
   - Params:
     - anchors: list # Anchors used for object detection
     - n_keypoints: int # Number of keypoints

@@ -21,7 +21,8 @@ class MobileOne(BaseBackbone):
         Args:
             variant (Literal["s0", "s1", "s2", "s3", "s4"], optional): Defaults to "s0".
         """
-        super().__init__()
+        super().__init__(**kwargs)
+
         if variant not in MOBILEONE_VARIANTS_SETTINGS.keys():
             raise ValueError(
                 f"MobileOne model variant should be in {list(MOBILEONE_VARIANTS_SETTINGS.keys())}"

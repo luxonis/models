@@ -16,7 +16,8 @@ class MobileNetV2(BaseBackbone):
         Args:
             download_weights (bool, optional): If True download weights from imagenet. Defaults to False.
         """
-        super().__init__()
+        super().__init__(**kwargs)
+
         mobilenet_v2 = torchvision.models.mobilenet_v2(
             weights="DEFAULT" if download_weights else None
         )

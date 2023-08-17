@@ -19,7 +19,8 @@ class MicroNet(BaseBackbone):
         Args:
             variant (Literal["M1", "M2", "M3"], optional): Defaults to "M1".
         """
-        super().__init__()
+        super().__init__(**kwargs)
+
         if variant not in MICRONET_VARIANTS_SETTINGS.keys():
             raise ValueError(
                 f"MicroNet model variant should be in {list(MICRONET_VARIANTS_SETTINGS.keys())}"

@@ -4,7 +4,6 @@ from .segmentation_head import SegmentationHead
 from .bisenet_head import BiSeNetHead
 from .yolov6_head import YoloV6Head
 from .ikeypoint_head import IKeypointHead
-from .ikeypoint_multi_head import IKeypointMultiHead
 
 __all__ = [
     "ClassificationHead",
@@ -13,5 +12,4 @@ __all__ = [
     "BiSeNetHead",
     "YoloV6Head",
     "IKeypointHead",
-    "IKeypointMultiHead",
 ]

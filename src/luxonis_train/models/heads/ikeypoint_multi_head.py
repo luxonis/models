@@ -7,10 +7,10 @@ import math
 import torch
 import torch.nn as nn
 
-from luxonis_train.models.heads.ikeypoint_head import IKeypoint
+from luxonis_train.models.heads.ikeypoint_head import IKeypointHead
 
 
-class IKeypointMultiHead(IKeypoint):
+class IKeypointMultiHead(IKeypointHead):
     def __init__(
         self,
         anchors: list,
@@ -35,7 +35,7 @@ class IKeypointMultiHead(IKeypoint):
         self.heads = nn.ModuleList()
 
         for i in range(self.num_heads):
-            curr_head = IKeypoint(
+            curr_head = IKeypointHead(
                 input_channels_shapes=[self.input_channels_shapes[i]],
                 n_classes=self.n_classes,
                 n_keypoints=self.n_keypoints,

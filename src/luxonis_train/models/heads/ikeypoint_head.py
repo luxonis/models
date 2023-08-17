@@ -17,7 +17,7 @@ from luxonis_train.utils.constants import HeadType
 from luxonis_train.utils.boxutils import non_max_suppression_kpts
 
 
-class IKeypoint(BaseHead):
+class IKeypointHead(BaseHead):
     head_types: List[HeadType] = [
         HeadType.OBJECT_DETECTION,
         HeadType.KEYPOINT_DETECTION,
@@ -490,7 +490,7 @@ if __name__ == "__main__":
                 )
                 neck.eval()
 
-                head = IKeypoint(
+                head = IKeypointHead(
                     n_classes=10,
                     input_channels_shapes=input_channels_shapes,
                     original_in_shape=input_shape,

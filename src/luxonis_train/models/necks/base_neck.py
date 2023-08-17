@@ -1,6 +1,7 @@
 import torch.nn as nn
 from abc import ABC, abstractmethod
 import warnings
+from typing import Optional
 
 
 class BaseNeck(nn.Module, ABC):
@@ -25,6 +26,13 @@ class BaseNeck(nn.Module, ABC):
     def forward(self, x: any):
         """torch.nn.Module forward method"""
         pass
+
+    def get_name(self, idx: Optional[int] = None):
+        """Generate a string neck name based on class name and passed index (if present)"""
+        class_name = self.__class__.__name__
+        if idx is not None:
+            class_name += f"_{idx}"
+        return class_name
 
     def _validate_attach_index(self, index: int, inputs_len: int):
         """Validates attach index based on length of inputs

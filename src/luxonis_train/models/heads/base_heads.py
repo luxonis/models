@@ -115,7 +115,7 @@ class BaseHead(nn.Module, ABC):
         """
         pass
 
-    def get_name(self, idx: Optional[int]):
+    def get_name(self, idx: Optional[int] = None):
         """Generate a string head name based on class name and passed index (if present)"""
         class_name = self.__class__.__name__
         if idx is not None:

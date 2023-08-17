@@ -63,12 +63,13 @@ class YoloV6Head(BaseObjectDetection):
             self.heads.append(curr_head)
 
     def forward(self, x):
+        feature_list = []
         cls_score_list = []
         reg_distri_list = []
 
         for i, module in enumerate(self.heads):
-            out_x, out_cls, out_reg = module(x[i])
-            x[i] = out_x
+            out_x, out_cls, out_reg = module(x[self.attach_index + i])
+            feature_list.append(out_x)
             out_cls = torch.sigmoid(out_cls)
             cls_score_list.append(out_cls.flatten(2).permute((0, 2, 1)))
             reg_distri_list.append(out_reg.flatten(2).permute((0, 2, 1)))
@@ -76,7 +77,7 @@ class YoloV6Head(BaseObjectDetection):
         cls_score_list = torch.cat(cls_score_list, axis=1)
         reg_distri_list = torch.cat(reg_distri_list, axis=1)
 
-        return [x, cls_score_list, reg_distri_list]
+        return [feature_list, cls_score_list, reg_distri_list]
 
     def postprocess_for_loss(self, output: tuple, label_dict: dict):
         label = label_dict[self.label_types[0]]
@@ -121,7 +122,7 @@ class YoloV6Head(BaseObjectDetection):
     def forward_deploy(self, x):
         outputs = []
         for i, module in enumerate(self.heads):
-            _, out_cls, out_reg = module([x[i]])
+            _, out_cls, out_reg = module([x[self.attach_index + i]])
             out_cls = torch.sigmoid(out_cls)
             conf, _ = out_cls.max(1, keepdim=True)
             output = torch.cat([out_reg, conf, out_cls], axis=1)
@@ -147,7 +148,7 @@ class YoloV6Head(BaseObjectDetection):
     def _fit_stride_to_num_heads(self):
         """Returns correct stride for number of heads and attach index"""
         base_stride = [4, 8, 16, 32]
-        stride = base_stride[-(self.num_heads + self.attach_index) :][: self.num_heads]
+        stride = base_stride[self.attach_index :][: self.num_heads]
         return torch.tensor(stride)
 
     def _out2box(self, output: tuple, **kwargs):
@@ -224,7 +225,7 @@ class EfficientDecoupledBlock(nn.Module):
         )
 
         prior_prob = 1e-2
-        self._initialize_biases(prior_prob)
+        self._initialize_weights_and_biases(prior_prob)
 
     def forward(self, x):
         out = self.stem(x)
@@ -237,7 +238,7 @@ class EfficientDecoupledBlock(nn.Module):
 
         return [out, out_cls, out_reg]
 
-    def _initialize_biases(self, prior_prob: float):
+    def _initialize_weights_and_biases(self, prior_prob: float):
         data = [
             (self.cls_pred, -math.log((1 - prior_prob) / prior_prob)),
             (self.reg_pred, 1.0),
@@ -250,43 +251,3 @@ class EfficientDecoupledBlock(nn.Module):
             w = module.weight
             w.data.fill_(0.0)
             module.weight = nn.Parameter(w, requires_grad=True)
-
-
-if __name__ == "__main__":
-    from luxonis_train.models.backbones import EfficientRep
-    from luxonis_train.models.necks import RepPANNeck
-    from luxonis_train.utils.general import dummy_input_run
-
-    input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
-    backbone = EfficientRep()
-
-    num_heads_offset_pairs = [(2, [-1, -2, -3]), (3, [-1, -2]), (4, [-1])]
-
-    for input_shape in input_shapes:
-        for num_heads, offsets in num_heads_offset_pairs:
-            for offset in offsets:
-                input = torch.zeros(input_shape)
-                input_channels_shapes = dummy_input_run(backbone, input_shape)
-                backbone.eval()
-                neck = RepPANNeck(
-                    input_channels_shapes=input_channels_shapes,
-                    num_heads=num_heads,
-                    attach_index=offset,
-                )
-                input_channels_shapes = dummy_input_run(
-                    neck, input_channels_shapes, multi_input=True
-                )
-                neck.eval()
-
-                head = YoloV6Head(
-                    n_classes=10,
-                    input_channels_shapes=input_channels_shapes,
-                    original_in_shape=input_shape,
-                    num_heads=num_heads,
-                )
-
-                outs = backbone(input)
-                outs = neck(outs)
-                outs = head(outs)
-
-                print([o.shape for o in outs[0]], outs[1].shape, outs[2].shape)

@@ -30,15 +30,9 @@ Every head takes these parameters:
 - **IKeypoint** (adapted from [here](https://github.com/WongKinYiu/yolov7))
   - Params:
     - n_keypoints: int # Number of keypoints
-    - anchors: list # Anchors used for object detection
+    - num_heads: bool # Number of output heads. Defaults to 3. ***Note:** Should be same also on neck in most cases.*
+    - anchors: list # Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)*
     - connectivity: list # Connectivity mapping used in visualization. Defaults to None.
     - visibility_threshold: float # Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
 
   ***Note:** attach_index: Defaults to 0. Value must be non-negative.*
-
-- **IKeypointMultiHead** (adapted from [here](https://github.com/WongKinYiu/yolov7))
-  - Params:
-    - anchors: list # Anchors used for object detection
-    - n_keypoints: int # Number of keypoints
-    - connectivity: list # Connectivity mapping used in visualization. Defaults to None.
-    - visibility_threshold: float # Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.

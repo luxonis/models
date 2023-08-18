@@ -6,6 +6,7 @@
 import torch
 import torch.nn as nn
 import math
+import warnings
 from typing import Optional, List
 from torchvision.ops import box_convert
 from torchvision.utils import draw_bounding_boxes, draw_keypoints
@@ -30,7 +31,12 @@ class IKeypointHead(BaseHead):
         input_channels_shapes: list,
         original_in_shape: list,
         n_keypoints: int,
-        anchors: list,
+        num_heads: int = 3,
+        anchors: List[List[int]] = [
+            [12, 16, 19, 36, 40, 28],
+            [36, 75, 76, 55, 72, 146],
+            [142, 110, 192, 243, 459, 401],
+        ],
         connectivity: Optional[list] = None,
         visibility_threshold: float = 0.5,
         attach_index: int = 0,
@@ -44,7 +50,9 @@ class IKeypointHead(BaseHead):
             input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             n_keypoints (int): Number of keypoints
-            anchors (list): Anchors used for object detection
+            num_heads (int): Number of output heads. Defaults to 3.
+                ***Note:** Should be same also on neck in most cases.*
+            anchors (list): Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)*
             connectivity (Optional[list], optional): Connectivity mapping used in visualization. Defaults to None.
             visibility_threshold (float, optional): Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to 0.
@@ -60,16 +68,16 @@ class IKeypointHead(BaseHead):
             **kwargs,
         )
 
-        self._validate_num_heads_and_attach_index(len(anchors))
+        self._validate_params(num_heads, anchors)
 
         self.n_keypoints = n_keypoints
+        self.num_heads = num_heads
         self.connectivity = connectivity
         self.visibility_threshold = visibility_threshold
 
         self.n_det_out = self.n_classes + 5
         self.n_kpt_out = 3 * self.n_keypoints
         self.n_out = self.n_det_out + self.n_kpt_out
-        self.num_heads = len(anchors)
         self.n_anchors = len(anchors[0]) // 2
         self.grid = [torch.zeros(1)] * self.num_heads
 
@@ -103,6 +111,7 @@ class IKeypointHead(BaseHead):
 
         self.anchors /= self.stride.view(-1, 1, 1)
         self._check_anchor_order()
+
         self._initialize_weights_and_biases()
 
     def forward(self, inputs):
@@ -169,7 +178,7 @@ class IKeypointHead(BaseHead):
             out = torch.cat((out_det_xy, out_det_wh, out_det[..., 4:], out_kpt), dim=-1)
             outs.append(out.view(bs, -1, self.n_out))
 
-        return torch.cat(outs, 1), x
+        return [torch.cat(outs, 1), x]
 
     def postprocess_for_loss(self, output: tuple, label_dict: dict):
         kpts = label_dict[LabelType.KEYPOINT]
@@ -342,11 +351,16 @@ class IKeypointHead(BaseHead):
     def to_deploy(self):
         self.forward = self.forward_deploy
 
-    def _validate_num_heads_and_attach_index(self, num_heads: int):
-        """Checks if specified number of heads is supported and if cumulative offset is valid"""
+    def _validate_params(self, num_heads: int, anchors: List[List[int]]):
+        """Checks num_heads, cumultive offset and anchors"""
         if num_heads not in [2, 3, 4]:
             raise ValueError(
                 "Specified number of heads not supported. Choose one of [2,3,4]"
+            )
+
+        if len(anchors) != num_heads:
+            raise ValueError(
+                f"Number of anchors ({len(anchors)}) doesn't match number of heads ({num_heads})"
             )
 
         if self.attach_index < 0:
@@ -397,7 +411,7 @@ class IKeypointHead(BaseHead):
         da = a[-1] - a[0]  # delta a
         ds = self.stride[-1] - self.stride[0]  # delta s
         if da.sign() != ds.sign():  # same order
-            print("Reversing anchor order")
+            warnings.warn("Reversing anchor order")
             self.anchors[:] = self.anchors.flip(0)
             self.anchor_grid[:] = self.anchor_grid.flip(0)
 
@@ -460,56 +474,3 @@ class KeypointBlock(nn.Module):
     def forward(self, x):
         out = self.block(x)
         return out
-
-
-if __name__ == "__main__":
-    from luxonis_train.models.backbones import EfficientRep
-    from luxonis_train.models.necks import RepPANNeck
-    from luxonis_train.utils.general import dummy_input_run
-
-    input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
-    # input_shapes = [[1, 3, 256, 256]]
-    backbone = EfficientRep()
-
-    # num_heads_offset_pairs = [(2, [0, 1, 2]), (3, [0, 1]), (4, [0])]
-    num_heads_offset_pairs = [(4, [-1])]
-
-    for input_shape in input_shapes:
-        for num_heads, offsets in num_heads_offset_pairs:
-            for offset in offsets:
-                input = torch.zeros(input_shape)
-                input_channels_shapes = dummy_input_run(backbone, input_shape)
-                backbone.eval()
-                neck = RepPANNeck(
-                    input_channels_shapes=input_channels_shapes,
-                    num_heads=num_heads,
-                    attach_index=offset,
-                )
-                input_channels_shapes = dummy_input_run(
-                    neck, input_channels_shapes, multi_input=True
-                )
-                neck.eval()
-
-                head = IKeypointHead(
-                    n_classes=10,
-                    input_channels_shapes=input_channels_shapes,
-                    original_in_shape=input_shape,
-                    n_keypoints=17,
-                    anchors=[
-                        [12, 16, 19, 36, 40, 28],
-                        [36, 75, 76, 55, 72, 146],
-                        # [142, 110, 192, 243, 459, 401],
-                    ],
-                    attach_index=2,
-                )
-
-                outs = backbone(input)
-                outs = neck(outs)
-                outs = head(outs)
-
-                print(
-                    "Keypoints:",
-                    [o.shape for o in outs[0]],
-                    "\nFeatures:",
-                    [o.shape for o in outs[1]],
-                )

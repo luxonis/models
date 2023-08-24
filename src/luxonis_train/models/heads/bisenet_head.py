@@ -51,22 +51,3 @@ class BiSeNetHead(BaseSegmentationHead):
         out = self.conv_1x1(out)
         out = self.upscale(out)
         return out
-
-
-if __name__ == "__main__":
-    from luxonis_train.models.backbones import ContextSpatial
-
-    backbone = ContextSpatial()
-    backbone.eval()
-
-    head = BiSeNetHead(n_classes=2)
-    head.eval()
-
-    shapes = [224, 256, 384, 512]
-    for shape in shapes:
-        print("\nShape", shape)
-        x = torch.zeros(1, 3, shape, shape)
-        outs = backbone(x)
-        outs = head(outs)
-        for out in outs:
-            print(out.shape)

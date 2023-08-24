@@ -48,7 +48,9 @@ class BaseHead(nn.Module, ABC):
         self.main_metric = main_metric
 
         if len(kwargs):
-            warnings.warn(f"Following head parameters not used: {kwargs}")
+            warnings.warn(
+                f"Following head parameters for `{self.get_name()}` not used: {kwargs}"
+            )
 
     @abstractmethod
     def forward(self, x):

@@ -16,7 +16,5 @@ model:
         params:
 
 dataset:
-  team_id: luxonis_team_id
-  dataset_id: 64c6b30cae3d8c25bdd126dd
-  team_name: luxonis
-  dataset_name: coco_people
+  team_id: # TODO
+  dataset_id: # TODO

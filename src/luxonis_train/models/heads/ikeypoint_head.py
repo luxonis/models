@@ -39,6 +39,7 @@ class IKeypointHead(BaseHead):
         ],
         connectivity: Optional[list] = None,
         visibility_threshold: float = 0.5,
+        init_coco_biases: bool = True,
         attach_index: int = 0,
         main_metric: str = "map",
         **kwargs,
@@ -55,6 +56,7 @@ class IKeypointHead(BaseHead):
             anchors (list): Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)*
             connectivity (Optional[list], optional): Connectivity mapping used in visualization. Defaults to None.
             visibility_threshold (float, optional): Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
+            init_coco_biases (bool, optional): Weather to use COCO bias and weight initialization. Defaults to True.
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to 0.
                 ***Note:** Value must be non-negative.**
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
@@ -112,7 +114,8 @@ class IKeypointHead(BaseHead):
         self.anchors /= self.stride.view(-1, 1, 1)
         self._check_anchor_order()
 
-        self._initialize_weights_and_biases()
+        if init_coco_biases:
+            self._initialize_weights_and_biases()
 
     def forward(self, inputs):
         outs = []  # predictions

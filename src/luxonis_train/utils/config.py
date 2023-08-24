@@ -416,6 +416,56 @@ class Config:
         if not self._data["train"]["optimizers"]["scheduler"]["params"]:
             self._data["train"]["optimizers"]["scheduler"]["params"] = {}
 
+        # handle IKeypointHead with anchors=None by generating them from dataset
+        ikeypoint_head_indices = [
+            i
+            for i, head in enumerate(self._data["model"]["heads"])
+            if head["name"] == "IKeypointHead"
+        ]
+        if len(ikeypoint_head_indices):
+            from torch.utils.data import DataLoader
+            from luxonis_ml.loader import ValAugmentations, LuxonisLoader
+            from luxonis_train.utils.boxutils import anchors_from_dataset
+
+            for i in ikeypoint_head_indices:
+                head = self._data["model"]["heads"][i]
+                anchors = head["params"].get("anchors", -1)
+                if anchors is None:
+                    with LuxonisDataset(
+                        team_id=self._data["dataset"]["team_id"],
+                        dataset_id=self._data["dataset"]["dataset_id"],
+                        bucket_type=eval(self._data["dataset"]["bucket_type"]),
+                        bucket_storage=eval(self._data["dataset"]["bucket_storage"]),
+                    ) as dataset:
+                        val_augmentations = ValAugmentations(
+                            image_size=self._data["train"]["preprocessing"][
+                                "train_image_size"
+                            ],
+                            augmentations=[{"name": "Normalize", "params": {}}],
+                            train_rgb=self._data["train"]["preprocessing"]["train_rgb"],
+                            keep_aspect_ratio=self._data["train"]["preprocessing"][
+                                "keep_aspect_ratio"
+                            ],
+                        )
+                        loader = LuxonisLoader(
+                            dataset,
+                            view=self._data["dataset"]["train_view"],
+                            augmentations=val_augmentations,
+                        )
+                        pytorch_loader = DataLoader(
+                            loader,
+                            batch_size=self._data["train"]["batch_size"],
+                            num_workers=self._data["train"]["num_workers"],
+                            collate_fn=loader.collate_fn,
+                        )
+                        num_heads = head["params"].get("num_heads", 3)
+                        proposed_anchors = anchors_from_dataset(
+                            pytorch_loader, n_anchors=num_heads * 3
+                        )
+                        head["params"]["anchors"] = proposed_anchors.reshape(
+                            -1, 6
+                        ).tolist()
+
 
 def remove_chars_inside_brackets(string):
     """Find and remove all spaces, single and double quotes inside substring which starts

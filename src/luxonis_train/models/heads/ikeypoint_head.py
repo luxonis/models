@@ -372,10 +372,16 @@ class IKeypointHead(BaseHead):
     def _fit_to_num_heads(self, channel_list: list):
         """Returns correct channel list and stride based on num_heads and attach_index"""
         out_channel_list = channel_list[self.attach_index :][: self.num_heads]
-
-        base_stride = [4, 8, 16, 32]
-        stride = torch.tensor(base_stride[self.attach_index :][: self.num_heads])
-
+        # dynamically compute stride
+        stride = torch.tensor(
+            [
+                self.original_in_shape[2] / x[2]
+                for x in self.input_channels_shapes[self.attach_index :][
+                    : self.num_heads
+                ]
+            ],
+            dtype=int,
+        )
         return out_channel_list, stride
 
     def _initialize_weights_and_biases(self, class_freq: Optional[torch.Tensor] = None):

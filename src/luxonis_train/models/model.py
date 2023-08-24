@@ -32,7 +32,7 @@ class Model(nn.Module):
             **modules_cfg["backbone"].get("params", {})
         )
         # load local backbone weights if avaliable
-        if modules_cfg["backbone"]["pretrained"]:
+        if modules_cfg["backbone"].get("pretrained", False):
             path = modules_cfg["backbone"]["pretrained"]
             print(f"Loading backbone weights from: {path}")
             fs = LuxonisFileSystem(path)

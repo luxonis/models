@@ -147,9 +147,17 @@ class YoloV6Head(BaseObjectDetection):
 
     def _fit_stride_to_num_heads(self):
         """Returns correct stride for number of heads and attach index"""
-        base_stride = [4, 8, 16, 32]
-        stride = base_stride[self.attach_index :][: self.num_heads]
-        return torch.tensor(stride)
+        # dynamically compute stride
+        stride = torch.tensor(
+            [
+                self.original_in_shape[2] / x[2]
+                for x in self.input_channels_shapes[self.attach_index :][
+                    : self.num_heads
+                ]
+            ],
+            dtype=int,
+        )
+        return stride
 
     def _out2box(self, output: tuple, **kwargs):
         """Performs post-processing of the YoloV6 output and returns bboxs after NMS"""

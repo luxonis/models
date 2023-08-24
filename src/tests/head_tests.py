@@ -420,12 +420,20 @@ class HeadTestCases(unittest.TestCase):
                 "expected_stride": [4, 8, 16, 32],
             },
             {
+                "neck_num_heads": 3,
+                "neck_attach_index": -1,
+                "head_num_heads": 3,
+                "head_attach_index": 0,
+                "head_anchor_len": 3,
+                "expected_stride": [8, 16, 32],
+            },
+            {
                 "neck_num_heads": 2,
                 "neck_attach_index": -1,
                 "head_num_heads": 2,
                 "head_attach_index": 0,
                 "head_anchor_len": 2,
-                "expected_stride": [4, 8],
+                "expected_stride": [16, 32],
             },
             {
                 "neck_num_heads": 3,

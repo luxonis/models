@@ -12,7 +12,8 @@ from torchvision.utils import draw_bounding_boxes
 
 from luxonis_train.models.heads.base_heads import BaseObjectDetection
 from luxonis_train.models.modules import ConvModule
-from luxonis_train.utils.assigners.anchor_generator import generate_anchors
+
+from luxonis_train.utils.boxutils import anchors_for_fpn_features
 from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression_bbox
 
 
@@ -162,9 +163,10 @@ class YoloV6Head(BaseObjectDetection):
     def _out2box(self, output: tuple, **kwargs):
         """Performs post-processing of the YoloV6 output and returns bboxs after NMS"""
         x, cls_score_list, reg_dist_list = output
-        anchor_points, stride_tensor = generate_anchors(
+        _, anchor_points, _, stride_tensor = anchors_for_fpn_features(
             x, self.stride, self.grid_cell_size, self.grid_cell_offset, is_eval=True
         )
+
         pred_bboxes = dist2bbox(reg_dist_list, anchor_points, box_format="xywh")
 
         pred_bboxes *= stride_tensor

@@ -14,9 +14,8 @@ from luxonis_train.utils.config import Config
 from luxonis_train.utils.assigners import (
     ATSSAssigner,
     TaskAlignedAssigner,
-    generate_anchors,
 )
-from luxonis_train.utils.boxutils import dist2bbox, bbox_iou
+from luxonis_train.utils.boxutils import anchors_for_fpn_features, dist2bbox, bbox_iou
 
 
 class YoloV6Loss(nn.Module):
@@ -37,7 +36,7 @@ class YoloV6Loss(nn.Module):
         super(YoloV6Loss, self).__init__()
 
         head_attributes = kwargs.get("head_attributes")
-        self.fpn_strides = head_attributes.get("stride")
+        self.stride = head_attributes.get("stride")
         self.grid_cell_size = grid_cell_size
         self.grid_cell_offset = grid_cell_offset
         self.num_classes = n_classes
@@ -69,8 +68,17 @@ class YoloV6Loss(nn.Module):
         step_num = kwargs["step"]
 
         feats, pred_scores, pred_distri = outputs
-        anchors, anchor_points, n_anchors_list, stride_tensor = generate_anchors(
-            feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset
+        (
+            anchors,
+            anchor_points,
+            n_anchors_list,
+            stride_tensor,
+        ) = anchors_for_fpn_features(
+            feats,
+            self.stride,
+            self.grid_cell_size,
+            self.grid_cell_offset,
+            is_eval=False,
         )
         assert pred_scores.type() == pred_distri.type()
 

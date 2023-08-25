@@ -1,6 +1,7 @@
 import torch
 import time
 import math
+from typing import List
 from torchvision.ops import box_convert, nms
 
 
@@ -398,3 +399,69 @@ def anchors_from_dataset(
     )
 
     return proposed_anchors
+
+
+def anchors_for_fpn_features(
+    features: List[torch.Tensor],
+    strides: torch.Tensor,
+    grid_cell_size: float = 5.0,
+    grid_cell_offset: float = 0.5,
+    is_eval: bool = False,
+):
+    """Generated anchor boxes, anchor points, number of anchors and
+    strides based on FPN feature shapes and strides.
+
+    Args:
+        features (List[torch.Tensor]): List of FPN features
+        strides (torch.Tensor): Strides of FPN features
+        grid_cell_size (float, optional): Cell size in respect to input image size. Defaults to 5.0.
+        grid_cell_offset (float, optional): Percent grid cell center's offset. Defaults to 0.5.
+        is_eval (bool, optional): Weather return data is used for eval or not. Defaults to False.
+
+    Returns:
+        Tuple: Bbox anchors, center anchors, number of anchors, strides
+    """
+    anchors = []
+    anchor_points = []
+    n_anchors_list = []
+    stride_tensor = []
+    for feature, stride in zip(features, strides):
+        _, _, h, w = feature.shape
+        cell_half_size = grid_cell_size * stride * 0.5
+        shift_x = torch.arange(end=w) + grid_cell_offset
+        shift_y = torch.arange(end=h) + grid_cell_offset
+        if not is_eval:
+            shift_x *= stride
+            shift_y *= stride
+        shift_y, shift_x = torch.meshgrid(shift_y, shift_x, indexing="ij")
+
+        # achor boxes
+        anchor = (
+            torch.stack(
+                [
+                    shift_x - cell_half_size,
+                    shift_y - cell_half_size,
+                    shift_x + cell_half_size,
+                    shift_y + cell_half_size,
+                ],
+                axis=-1,
+            )
+            .reshape(-1, 4)
+            .to(feature.dtype)
+        )
+        anchors.append(anchor)
+
+        # achor box centers
+        anchor_point = (
+            torch.stack([shift_x, shift_y], axis=-1).reshape(-1, 2).to(feature.dtype)
+        )
+        anchor_points.append(anchor_point)
+
+        n_anchors_list.append(h * w)
+        stride_tensor.append(torch.full((h * w, 1), stride, dtype=feature.dtype))
+
+    device = feature.device
+    anchors = torch.cat(anchors).to(device)
+    anchor_points = torch.cat(anchor_points).to(device)
+    stride_tensor = torch.cat(stride_tensor).to(device)
+    return anchors, anchor_points, n_anchors_list, stride_tensor

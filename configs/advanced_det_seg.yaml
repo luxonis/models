@@ -1,7 +1,6 @@
 model:
   name: AdvancedDetectionSegmentation
   type: yolov6-n
-  pretrained:
   params:
     n_classes: null
 
@@ -10,8 +9,7 @@ model:
       params:
         n_classes: null
       loss: 
-        name: FocalLoss
-        params:
+        name: BinaryFocalLoss
 
 dataset:
   team_id: # TODO

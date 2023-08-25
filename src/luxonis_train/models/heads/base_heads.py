@@ -136,7 +136,7 @@ class BaseHead(nn.Module, ABC):
         for label_type in self.label_types:
             if label_type not in label_dict:
                 raise KeyError(
-                    f"Required label type `{label_type}` for {self.get_name()} missing in annotations."
+                    f"Required label type `{label_type}` for `{self.get_name()}` missing in annotations."
                 )
 
     def to_deploy(self):
@@ -157,7 +157,7 @@ class BaseHead(nn.Module, ABC):
             index >= 0 and index >= inputs_len
         ):
             raise ValueError(
-                f"Specified attach index for {self.get_name()} out of range."
+                f"Specified attach index for `{self.get_name()}` out of range."
             )
 
 

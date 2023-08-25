@@ -6,14 +6,14 @@
 import torch
 import torch.nn as nn
 
+from luxonis_train.utils.losses.base_loss import BaseLoss
 from luxonis_train.utils.boxutils import bbox_iou
-from luxonis_train.utils.losses.common import FocalLoss, BCEWithLogitsLoss
+from luxonis_train.utils.losses.common import BCEWithLogitsLoss
 
 
-class YoloV7PoseLoss(nn.Module):
+class YoloV7PoseLoss(BaseLoss):
     def __init__(
         self,
-        n_classes,
         cls_pw=1.0,
         obj_pw=1.0,
         gamma=2,
@@ -28,14 +28,13 @@ class YoloV7PoseLoss(nn.Module):
         anchor_t=4.0,
         **kwargs
     ):
-        super().__init__()
+        super().__init__(**kwargs)
 
-        self.n_classes = n_classes
-        head_attributes = kwargs.get("head_attributes")
-        self.n_keypoints = head_attributes.get("n_keypoints")
-        self.n_anchors = head_attributes.get("n_anchors")
-        self.num_heads = head_attributes.get("num_heads")
-        self.anchors = head_attributes.get("anchors")
+        self.n_classes = self.head_attributes.get("n_classes")
+        self.n_keypoints = self.head_attributes.get("n_keypoints")
+        self.n_anchors = self.head_attributes.get("n_anchors")
+        self.num_heads = self.head_attributes.get("num_heads")
+        self.anchors = self.head_attributes.get("anchors")
         self.balance = {3: [4.0, 1.0, 0.4]}.get(
             self.num_heads, [4.0, 1.0, 0.25, 0.06, 0.02]
         )
@@ -50,7 +49,6 @@ class YoloV7PoseLoss(nn.Module):
 
         self.BCEcls = BCEWithLogitsLoss(pos_weight=torch.tensor([cls_pw]))
         self.BCEobj = BCEWithLogitsLoss(pos_weight=torch.tensor([obj_pw]))
-        self.focal_loss = FocalLoss(alpha=alpha, gamma=gamma, use_sigmoid=False)
 
         # Class label smoothing targets (https://arxiv.org/pdf/1902.04103.pdf eqn 3)
         self.positive_smooth_const, self.negative_smooth_const = self._smooth_BCE(

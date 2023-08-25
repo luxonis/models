@@ -1,11 +1,8 @@
 model:
   name: SimpleKeypoint
-  type: 
-  pretrained: 
 
   backbone:
     name: EfficientRep
-    pretrained:
 
   neck:
     name: RepPANNeck
@@ -13,11 +10,10 @@ model:
   heads:
     - name: IKeypointHead
       params:
-        n_classes: 1
+        n_classes: null
         n_keypoints: 17
       loss:
         name: YoloV7PoseLoss
-        params:
 
 dataset:
   team_id: # TODO

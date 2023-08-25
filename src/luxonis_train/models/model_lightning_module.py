@@ -38,7 +38,7 @@ class ModelLightningModule(pl.LightningModule):
         for i, head in enumerate(self.cfg.get("model.heads")):
             # pass config params + head instance attributes
             params = {
-                **head["loss"]["params"],
+                **head["loss"].get("params", {}),
                 "head_attributes": self.model.heads[i].__dict__,
             }
             self.losses.append(init_loss(name=head["loss"]["name"], **params))
@@ -49,7 +49,7 @@ class ModelLightningModule(pl.LightningModule):
             self.metrics[curr_head.get_name(i)] = init_metrics(curr_head)
 
         # load pretrained weights if defined
-        if self.cfg.get("model.pretrained"):
+        if self.cfg.get("model").get("pretrained"):
             self.load_checkpoint(self.cfg.get("model.pretrained"))
 
         # freeze modules if defined

@@ -161,7 +161,7 @@ class Config:
         if model_cfg is None:
             raise KeyError("Model config must be present in config file.")
         # check if we should load predefined model
-        if model_cfg["type"] is not None:
+        if model_cfg.get("type"):
             warnings.warn(
                 "Loading predefined model overrides local config of backbone, neck and head."
             )
@@ -316,18 +316,10 @@ class Config:
                     )
                 head["params"]["n_classes"] = dataset_n_classes
 
-                # also set n_classes to loss params
-                if not ("loss" in head and head["loss"]):
-                    # loss definition should be present in every head
-                    raise KeyError("Loss must be defined for every head.")
-                if not ("params" in head["loss"] and head["loss"]["params"]):
-                    head["loss"]["params"] = {}
-                head["loss"]["params"]["n_classes"] = dataset_n_classes
-
     def _validate_config(self):
         """Validates whole config based on specified rules"""
         model_cfg = self._data["model"]
-        model_predefined = model_cfg["type"] != None
+        model_predefined = model_cfg.get("type") != None
         backbone_specified = "backbone" in model_cfg and model_cfg["backbone"]
         neck_specified = "neck" in model_cfg and model_cfg["neck"]
         heads_specified = "heads" in model_cfg and isinstance(model_cfg["heads"], list)
@@ -341,12 +333,17 @@ class Config:
                     "Model-wise parameters won't be taken into account if you don't specify model type."
                 )
 
-        if model_cfg["pretrained"] and model_cfg["backbone"]["pretrained"]:
+        if model_cfg.get("pretrained") and model_cfg["backbone"].get("pretrained"):
             warnings.warn(
                 "Weights of the backbone will be overridden by whole model weights."
             )
 
         n_heads = len(model_cfg["heads"])
+
+        # loss definition should be present in every head
+        for head in self._data["model"]["heads"]:
+            if not ("loss" in head and head["loss"]):
+                raise KeyError("Loss must be defined for every head.")
 
         # handle main_head_index
         if not (0 <= self._data["train"]["main_head_index"] < n_heads):

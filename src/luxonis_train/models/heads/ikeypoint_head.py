@@ -357,19 +357,23 @@ class IKeypointHead(BaseHead):
         """Checks num_heads, cumultive offset and anchors"""
         if num_heads not in [2, 3, 4]:
             raise ValueError(
-                "Specified number of heads not supported. Choose one of [2,3,4]"
+                f"Specified number of heads for `{self.get_name()}` not supported. Choose one of [2,3,4]"
             )
 
         if len(anchors) != num_heads:
             raise ValueError(
-                f"Number of anchors ({len(anchors)}) doesn't match number of heads ({num_heads})"
+                f"Number of anchors ({len(anchors)}) doesn't match number of heads ({num_heads}) for `{self.get_name()}`"
             )
 
         if self.attach_index < 0:
-            raise ValueError("Value of attach_index must be non-negative")
+            raise ValueError(
+                f"Value of attach_index for `{self.get_name()}` must be non-negative"
+            )
 
         if len(self.input_channels_shapes) - (self.attach_index + num_heads) < 0:
-            raise ValueError("Cumulative offset (attach_index+num_head) out of range.")
+            raise ValueError(
+                f"Cumulative offset (attach_index+num_head) out of range for `{self.get_name()}`"
+            )
 
     def _fit_to_num_heads(self, channel_list: list):
         """Returns correct channel list and stride based on num_heads and attach_index"""

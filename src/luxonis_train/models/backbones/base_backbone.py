@@ -10,7 +10,9 @@ class BaseBackbone(nn.Module, ABC):
         super().__init__()
 
         if len(kwargs):
-            warnings.warn(f"Following backbone parameters not used: {kwargs}")
+            warnings.warn(
+                f"Following backbone parameters for `{self.get_name()}` not used: {kwargs}"
+            )
 
     @abstractmethod
     def forward(self, x: any):

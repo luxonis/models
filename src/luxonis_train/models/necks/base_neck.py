@@ -20,7 +20,9 @@ class BaseNeck(nn.Module, ABC):
         self.attach_index = attach_index
 
         if len(kwargs):
-            warnings.warn(f"Following neck parameters not used: {kwargs}")
+            warnings.warn(
+                f"Following neck parameters for `{self.get_name()}` not used: {kwargs}"
+            )
 
     @abstractmethod
     def forward(self, x: any):

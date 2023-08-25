@@ -8,9 +8,10 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
+from typing import Literal
 from torchvision.ops import box_convert
 
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.losses.base_loss import BaseLoss
 from luxonis_train.utils.assigners import (
     ATSSAssigner,
     TaskAlignedAssigner,
@@ -18,55 +19,36 @@ from luxonis_train.utils.assigners import (
 from luxonis_train.utils.boxutils import anchors_for_fpn_features, dist2bbox, bbox_iou
 
 
-class YoloV6Loss(nn.Module):
-    """Loss computation func."""
-
+class YoloV6Loss(BaseLoss):
     def __init__(
         self,
-        n_classes,
-        image_size=None,
-        fpn_strides=None,
-        grid_cell_size=5.0,
-        grid_cell_offset=0.5,
-        warmup_epoch=4,
-        iou_type="giou",
-        loss_weight={"class": 1.0, "iou": 2.5},
+        n_warmup_epochs: int = 4,
+        iou_type: Literal["none", "ciou", "diou", "giou", "siou"] = "giou",
+        loss_weight: dict = {"class": 1.0, "iou": 2.5},
         **kwargs,
     ):
-        super(YoloV6Loss, self).__init__()
+        super().__init__(**kwargs)
 
-        head_attributes = kwargs.get("head_attributes")
-        self.stride = head_attributes.get("stride")
-        self.grid_cell_size = grid_cell_size
-        self.grid_cell_offset = grid_cell_offset
-        self.num_classes = n_classes
+        self.n_classes = self.head_attributes.get("n_classes")
+        self.stride = self.head_attributes.get("stride")
+        self.grid_cell_size = self.head_attributes.get("grid_cell_size")
+        self.grid_cell_offset = self.head_attributes.get("grid_cell_offset")
+        self.original_img_size = self.head_attributes.get("original_in_shape")[
+            :2
+        ]  # take only [H,W]
 
-        # if no image size provided get it from config
-        if image_size is None:
-            cfg = Config()
-            image_size = cfg.get("train.preprocessing.train_image_size")
-        self.original_img_size = image_size
-
-        self.warmup_epoch = warmup_epoch
-        self.warmup_assigner = ATSSAssigner(9, num_classes=self.num_classes)
+        self.n_warmup_epochs = n_warmup_epochs
+        self.warmup_assigner = ATSSAssigner(9, num_classes=self.n_classes)
         self.formal_assigner = TaskAlignedAssigner(
-            topk=13, num_classes=self.num_classes, alpha=1.0, beta=6.0
+            topk=13, num_classes=self.n_classes, alpha=1.0, beta=6.0
         )
 
         self.iou_type = iou_type
         self.varifocal_loss = VarifocalLoss()
-        self.bbox_loss = BboxLoss(self.num_classes, self.iou_type)
+        self.bbox_loss = BboxLoss(self.n_classes, self.iou_type)
         self.loss_weight = loss_weight
 
-    def forward(
-        self,
-        outputs,
-        targets,
-        **kwargs,
-    ):
-        epoch_num = kwargs["epoch"]
-        step_num = kwargs["step"]
-
+    def forward(self, outputs, targets, epoch, step):
         feats, pred_scores, pred_distri = outputs
         (
             anchors,
@@ -106,7 +88,7 @@ class YoloV6Loss(nn.Module):
         pred_bboxes = dist2bbox(pred_distri, anchor_points_s)
 
         try:
-            if epoch_num < self.warmup_epoch:
+            if epoch < self.n_warmup_epochs:
                 (
                     target_labels,
                     target_bboxes,
@@ -143,7 +125,7 @@ class YoloV6Loss(nn.Module):
             )
             torch.cuda.empty_cache()
             print("------------CPU Mode for This Batch-------------")
-            if epoch_num < self.warmup_epoch:
+            if epoch < self.n_warmup_epochs:
                 _anchors = anchors.cpu().float()
                 _n_anchors_list = n_anchors_list
                 _gt_labels = gt_labels.cpu().float()
@@ -195,7 +177,7 @@ class YoloV6Loss(nn.Module):
             fg_mask = fg_mask.cuda()
 
         # Dynamic release GPU memory
-        if step_num % 10 == 0:
+        if step % 10 == 0:
             torch.cuda.empty_cache()
 
         # rescale bbox
@@ -203,9 +185,9 @@ class YoloV6Loss(nn.Module):
 
         # cls loss
         target_labels = torch.where(
-            fg_mask > 0, target_labels, torch.full_like(target_labels, self.num_classes)
+            fg_mask > 0, target_labels, torch.full_like(target_labels, self.n_classes)
         )
-        one_hot_label = F.one_hot(target_labels.long(), self.num_classes + 1)[..., :-1]
+        one_hot_label = F.one_hot(target_labels.long(), self.n_classes + 1)[..., :-1]
         loss_cls = self.varifocal_loss(pred_scores, target_scores, one_hot_label)
 
         target_scores_sum = target_scores.sum()
@@ -269,7 +251,7 @@ class VarifocalLoss(nn.Module):
 class BboxLoss(nn.Module):
     def __init__(self, num_classes, iou_type="giou"):
         super(BboxLoss, self).__init__()
-        self.num_classes = num_classes
+        self.n_classes = num_classes
         self.iou_loss = IOUloss(box_format="xyxy", iou_type=iou_type, eps=1e-10)
 
     def forward(

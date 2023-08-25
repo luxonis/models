@@ -1,6 +1,5 @@
 backbone:
   name: EfficientRep
-  pretrained:
   params:
     channels_list: [64, 128, 256, 512, 1024]
     num_repeats: [1, 6, 12, 18, 6]

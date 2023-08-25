@@ -1,19 +1,15 @@
 model:
   name: SimpleSegmentation
-  type: 
-  pretrained:
   
   backbone:
     name: ContextSpatial #ResNet18
-    pretrained:
 
   heads:
     - name: BiSeNetHead #SegmentationHead
       params:
         n_classes: null
       loss: 
-        name: FocalLoss
-        params:
+        name: BinaryFocalLoss
 
 dataset:
   team_id: # TODO

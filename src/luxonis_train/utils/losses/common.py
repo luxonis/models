@@ -1,121 +1,161 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional, Literal, Union
+from torchvision.ops import sigmoid_focal_loss
+
+from luxonis_train.utils.losses.base_loss import BaseLoss
 
 
-class CrossEntropyLoss(nn.Module):
-    def __init__(self, **kwargs):
-        super(CrossEntropyLoss, self).__init__()
-        self.n_classes = kwargs.get("n_classes")
-        loss_dict = kwargs
-        loss_dict.pop("n_classes", None)
-        loss_dict.pop("head_attributes", None)
-        self.criterion = nn.CrossEntropyLoss(**loss_dict)
+class CrossEntropyLoss(BaseLoss):
+    def __init__(
+        self,
+        weight: Optional[torch.Tensor] = None,
+        size_average: Optional[bool] = None,
+        ignore_index: int = -100,
+        reduce: Optional[bool] = None,
+        reduction: Literal["none", "mean", "sum"] = "mean",
+        label_smoothing: float = 0.0,
+        **kwargs,
+    ):
+        """Pytorch CrossEntropyLoss wrapper. For attribute definitions check
+        https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html
+        """
+        super().__init__(**kwargs)
 
-    def forward(self, preds, labels, **kwargs):
-        if labels.ndim == 4:
+        if self.head_attributes.get("n_classes") == 1:
+            raise ValueError(
+                f"`{self.get_name()}` should be only used for multi-class/multi-label tasks"
+            )
+
+        self.criterion = nn.CrossEntropyLoss(
+            weight=weight,
+            size_average=size_average,
+            ignore_index=ignore_index,
+            reduce=reduce,
+            reduction=reduction,
+            label_smoothing=label_smoothing,
+        )
+
+    def forward(self, preds, target, **kwargs):
+        if target.ndim == 4:
             # target should be of size (N,...)
-            labels = labels.argmax(dim=1)
-        return self.criterion(preds, labels)
+            target = target.argmax(dim=1)
+        return self.criterion(preds, target)
 
 
-class BCEWithLogitsLoss(nn.Module):
-    def __init__(self, **kwargs):
-        super(BCEWithLogitsLoss, self).__init__()
-        self.n_classes = kwargs.get("n_classes")
-        loss_dict = kwargs
-        loss_dict.pop("n_classes", None)
-        loss_dict.pop("head_attributes", None)
-        self.criterion = nn.BCEWithLogitsLoss(**loss_dict)
+class BCEWithLogitsLoss(BaseLoss):
+    def __init__(
+        self,
+        weight: Optional[torch.Tensor] = None,
+        size_average: Optional[bool] = None,
+        reduce: Optional[bool] = None,
+        reduction: Literal["none", "mean", "sum"] = "mean",
+        pos_weight: Optional[torch.Tensor] = None,
+        **kwargs,
+    ):
+        """Pytorch BCEWithLogitsLoss wrapper. For attribute definitions check
+        https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html
+        """
+        super().__init__(**kwargs)
 
-    def forward(self, preds, labels, **kwargs):
-        return self.criterion(preds, labels)
+        if self.head_attributes.get("n_classes") != 1:
+            raise ValueError(
+                f"`{self.get_name()}` should be only used for binary tasks"
+            )
+
+        self.criterion = nn.BCEWithLogitsLoss(
+            weight=weight,
+            size_average=size_average,
+            reduce=reduce,
+            reduction=reduction,
+            pos_weight=pos_weight,
+        )
+
+    def forward(self, preds, target, **kwargs):
+        return self.criterion(preds, target)
 
 
-class FocalLoss(nn.Module):
-    # Source: https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch/notebook
-    def __init__(self, alpha=0.8, gamma=2, **kwargs):
-        super(FocalLoss, self).__init__()
+class BinaryFocalLoss(BaseLoss):
+    def __init__(
+        self,
+        alpha: float = 0.25,
+        gamma: float = 2.0,
+        reduction: Literal["none", "mean", "sum"] = "mean",
+        **kwargs,
+    ):
+        """Focal loss from `Focal Loss for Dense Object Detection`,
+        https://arxiv.org/abs/1708.02002
+
+        Args:
+            alpha (float, optional): Defaults to 0.8.
+            gamma (float, optional): Defaults to 2.0.
+            reduction (Literal["none", "mean", "sum"], optional): Defaults to "mean".
+        """
+        super().__init__(**kwargs)
+
+        if self.head_attributes.get("n_classes") != 1:
+            raise ValueError(
+                f"`{self.get_name()}` should be only used for binary tasks"
+            )
+
         self.alpha = alpha
         self.gamma = gamma
-        self.use_sigmoid = kwargs.get("use_sigmoid", True)
+        self.reduction = reduction
 
-    def forward(self, inputs, targets, **kwargs):
-        if self.use_sigmoid:
-            inputs = torch.sigmoid(inputs)
+    def forward(self, preds, target, **kwargs):
+        loss = sigmoid_focal_loss(
+            preds, target, alpha=self.alpha, gamma=self.gamma, reduction=self.reduction
+        )
 
-        # flatten label and prediction tensors
-        inputs = inputs.view(-1).to(torch.float32)
-        targets = targets.view(-1).to(torch.float32)
-
-        # first compute binary cross-entropy
-        BCE = F.binary_cross_entropy(inputs, targets, reduction="mean")
-        BCE_EXP = torch.exp(-BCE)
-        focal_loss = self.alpha * (1 - BCE_EXP) ** self.gamma * BCE
-
-        return focal_loss
+        return loss
 
 
-class SegmentationLoss(nn.Module):
-    def __init__(self, n_classes, alpha=4.0, gamma=2.0, **kwargs):
-        super(SegmentationLoss, self).__init__()
+class MultiClassFocalLoss(BaseLoss):
+    def __init__(
+        self,
+        alpha: Union[float, list] = 0.25,
+        gamma: float = 2.0,
+        reduction: Literal["none", "mean", "sum"] = "mean",
+        **kwargs,
+    ):
+        """Focal loss implementation for multi-class/multi-label tasks
 
-        self.bce = nn.BCELoss(reduction="none")
-        self.nc = n_classes
-        self.alpha = alpha  # currently not used
+        Args:
+            alpha (Union[float, list], optional): Either a float for all channels or
+            list of alphas for each channel with length C. Defaults to 0.25.
+            gamma (float, optional): Defaults to 2.0.
+            reduction (Literal["none", "mean", "sum"], optional): Defaults to "mean".
+        """
+        super().__init__(**kwargs)
+
+        if self.head_attributes.get("n_classes") == 1:
+            raise ValueError(
+                f"`{self.get_name()}` should be only used for multi-class/multi-label tasks"
+            )
+
+        self.alpha = alpha
         self.gamma = gamma
+        self.reduction = reduction
 
-    def focal_loss(self, logits, labels):
-        epsilon = 1.0e-9
+    def forward(self, preds, target, **kwargs):
+        if target.ndim == 4:
+            # target should be of size (N,...)
+            target = target.argmax(dim=1)
 
-        # Focal loss
-        fl = -(labels * torch.log(logits + epsilon)) * (1.0 - logits) ** self.gamma
-        fl = fl.sum(1)  # Sum focal loss along channel dimension
+        ce_loss = F.cross_entropy(preds, target, reduction="none")
+        pt = torch.exp(-ce_loss)
+        loss = ce_loss * ((1 - pt) ** self.gamma)
 
-        # Return mean of the focal loss along spatial
-        return fl.mean([1, 2])
+        if isinstance(self.alpha, float) and self.alpha >= 0:
+            loss = self.alpha * loss
+        elif isinstance(self.alpha, list):
+            alpha_t = torch.tensor(self.alpha)[target]
+            loss = alpha_t * loss
 
-    def forward(self, predictions, targets, **kwargs):
-        predictions = torch.nn.functional.softmax(predictions, dim=1)
+        if self.reduction == "mean":
+            loss = loss.mean()
+        elif self.reduction == "sum":
+            loss = loss.sum()
 
-        bs = predictions.shape[0]
-        ps = predictions.view(bs, -1)
-        ts = targets.view(bs, -1)
-
-        lseg = self.bce(ps, ts.float()).mean(1)
-
-        # focal
-        fcl = self.focal_loss(predictions.clone(), targets.clone())
-
-        # iou
-        preds = torch.argmax(predictions, dim=1)
-        preds = torch.unsqueeze(preds, 1)
-
-        targets = torch.argmax(targets, dim=1)
-        masks = torch.unsqueeze(targets, 1)
-
-        ious = torch.zeros(preds.shape[0], device=predictions.device)
-        present_classes = torch.zeros(preds.shape[0], device=predictions.device)
-
-        for cls in range(0, self.nc + 1):
-            masks_c = masks == cls
-            outputs_c = preds == cls
-            TP = torch.sum(
-                torch.logical_and(masks_c, outputs_c), dim=[1, 2, 3]
-            )  # .cpu()
-            FP = torch.sum(
-                torch.logical_and(torch.logical_not(masks_c), outputs_c), dim=[1, 2, 3]
-            )  # .cpu()
-            FN = torch.sum(
-                torch.logical_and(masks_c, torch.logical_not(outputs_c)), dim=[1, 2, 3]
-            )  # .cpu()
-            ious += torch.nan_to_num(TP / (TP + FP + FN))
-            present_classes += (masks.view(preds.shape[0], -1) == cls).any(
-                dim=1
-            )  # .cpu()
-
-        iou = ious / present_classes
-
-        liou = 1 - iou
-
-        return (lseg + liou + fcl).mean()
+        return loss

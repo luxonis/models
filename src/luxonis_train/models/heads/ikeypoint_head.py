@@ -95,12 +95,11 @@ class IKeypointHead(BaseHead):
             for in_channels in self.channel_list
         )
 
-        self.implicit_feat = nn.ModuleList(
-            ImplicitFeatures(in_channels) for in_channels in self.channel_list
+        self.implicit_add = nn.ModuleList(
+            ImplicitAdd(in_channels) for in_channels in self.channel_list
         )
-        self.implicit_det = nn.ModuleList(
-            ImplicitDetections(self.n_det_out * self.n_anchors)
-            for _ in self.channel_list
+        self.implicit_mul = nn.ModuleList(
+            ImplicitMultiply(self.n_det_out * self.n_anchors) for _ in self.channel_list
         )
 
         self.kpt_heads = nn.ModuleList(
@@ -128,9 +127,9 @@ class IKeypointHead(BaseHead):
             x.append(
                 torch.cat(
                     (
-                        self.implicit_det[i](
+                        self.implicit_mul[i](
                             self.det_conv[i](
-                                self.implicit_feat[i](inputs[self.attach_index + i])
+                                self.implicit_add[i](inputs[self.attach_index + i])
                             )
                         ),
                         self.kpt_heads[i](inputs[self.attach_index + i]),
@@ -296,9 +295,9 @@ class IKeypointHead(BaseHead):
             x.append(
                 torch.cat(
                     (
-                        self.implicit_det[i](
+                        self.implicit_mul[i](
                             self.det_conv[i](
-                                self.implicit_feat[i](inputs[self.attach_index + i])
+                                self.implicit_add[i](inputs[self.attach_index + i])
                             )
                         ),
                         self.kpt_heads[i](inputs[self.attach_index + i]),
@@ -425,9 +424,9 @@ class IKeypointHead(BaseHead):
             self.anchor_grid[:] = self.anchor_grid.flip(0)
 
 
-class ImplicitFeatures(nn.Module):
+class ImplicitAdd(nn.Module):
     def __init__(self, channel: int):
-        """Implicit block used for features"""
+        """Implicit add block"""
         super().__init__()
         self.channel = channel
         self.implicit = nn.Parameter(torch.zeros(1, channel, 1, 1))
@@ -437,9 +436,9 @@ class ImplicitFeatures(nn.Module):
         return self.implicit.expand_as(x) + x
 
 
-class ImplicitDetections(nn.Module):
+class ImplicitMultiply(nn.Module):
     def __init__(self, channel: int):
-        """Implicit block used for detection output"""
+        """Implicit multiply block"""
         super().__init__()
         self.channel = channel
         self.implicit = nn.Parameter(torch.ones(1, channel, 1, 1))

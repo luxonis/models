@@ -39,7 +39,10 @@ class Exporter(pl.LightningModule):
         self.model = Model()
         self.model.build_model()
 
-        self.load_checkpoint(self.cfg.get("exporter.export_weights"))
+        pretrained_path = self.cfg.get("exporter.export_weights")
+        if pretrained_path:
+            self.load_checkpoint(pretrained_path)
+
         self.model.eval()
         self.to_deploy()
 

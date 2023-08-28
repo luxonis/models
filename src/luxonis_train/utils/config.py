@@ -84,7 +84,9 @@ class Config:
             raise ValueError("No 'exporter' section in config specified.")
 
         if not self._data["exporter"]["export_weights"]:
-            raise ValueError("No 'export_weights' speficied in config file.")
+            warnings.warn(
+                "No 'export_weights' speficied in config file, using random weights instead."
+            )
 
     def validate_config_tuner(self):
         """Validates 'tuner' block in config"""

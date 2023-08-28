@@ -122,7 +122,7 @@ class YoloV6Head(BaseObjectDetection):
     def forward_deploy(self, x):
         outputs = []
         for i, module in enumerate(self.heads):
-            _, out_cls, out_reg = module([x[self.attach_index + i]])
+            _, out_cls, out_reg = module(x[self.attach_index + i])
             out_cls = torch.sigmoid(out_cls)
             conf, _ = out_cls.max(1, keepdim=True)
             output = torch.cat([out_reg, conf, out_cls], axis=1)

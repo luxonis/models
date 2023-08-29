@@ -4,7 +4,7 @@ import io
 from torch import Tensor
 from typing import List, Optional
 from typing_extensions import Literal
-from torchmetrics import Metric
+from torchmetrics import Metric, detection
 from scipy.optimize import linear_sum_assignment
 from torchvision.ops import box_convert
 from pycocotools.coco import COCO
@@ -124,6 +124,22 @@ class ObjectKeypointSimilarity(Metric):
         numerator = torch.dot(exp_vector, gt[:, 2].bool().float())
         denominator = torch.sum(gt[:, 2].bool().int()) + 1e-9
         return numerator / denominator
+
+
+class MeanAveragePrecision(detection.MeanAveragePrecision):
+    def __init__(self, **kwargs):
+        """Wrapper for torchmetrics.detection.MeanAveragePrecision that omits some of the returned values
+        Check original documentation: https://torchmetrics.readthedocs.io/en/stable/detection/mean_average_precision.html
+        """
+        super().__init__(**kwargs)
+    def compute(self) -> dict:
+        metric_dict =  super().compute()
+        # per class metrics are omitted until we find a nice way to log them
+        del metric_dict["classes"]
+        del metric_dict["map_per_class"]
+        del metric_dict["mar_100_per_class"]
+
+        return metric_dict
 
 
 class MeanAveragePrecisionKeypoints(Metric):

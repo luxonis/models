@@ -1,26 +1,29 @@
 import torch
 import time
 import math
-from typing import List
+from typing import List, Literal
 from torchvision.ops import box_convert, nms
 
 
-def dist2bbox(distance, anchor_points, box_format="xyxy"):
-    """Transform distance(ltrb) to box(xywh or xyxy)."""
+def dist2bbox(
+    distance: torch.Tensor,
+    anchor_points: torch.Tensor,
+    out_format: Literal["xyxy", "xywh", "cxcywh"] = "xyxy",
+):
+    """Transform distance(ltrb) to box("xyxy", "xywh" or "cxcywh")."""
     lt, rb = torch.split(distance, 2, -1)
     x1y1 = anchor_points - lt
     x2y2 = anchor_points + rb
-    if box_format == "xyxy":
-        bbox = torch.cat([x1y1, x2y2], -1)
-    elif box_format == "xywh":
-        c_xy = (x1y1 + x2y2) / 2
-        wh = x2y2 - x1y1
-        bbox = torch.cat([c_xy, wh], -1)
+    bbox = torch.cat([x1y1, x2y2], -1)
+    if out_format in ["xyxy", "xywh", "cxcywh"]:
+        bbox = box_convert(bbox, in_fmt="xyxy", out_fmt=out_format)
+    else:
+        raise ValueError(f"Out format `{out_format}` for bbox not supported")
     return bbox
 
 
-def bbox2dist(anchor_points, bbox, reg_max):
-    """Transform bbox(xyxy) to dist(ltrb)."""
+def bbox2dist(anchor_points: torch.Tensor, bbox: torch.Tensor, reg_max: float):
+    """Transform bbox(xyxy) to distance(ltrb)."""
     x1y1, x2y2 = torch.split(bbox, 2, -1)
     lt = anchor_points - x1y1
     rb = x2y2 - anchor_points
@@ -406,7 +409,7 @@ def anchors_for_fpn_features(
     strides: torch.Tensor,
     grid_cell_size: float = 5.0,
     grid_cell_offset: float = 0.5,
-    is_eval: bool = False,
+    multiply_with_stride: bool = False,
 ):
     """Generated anchor boxes, anchor points, number of anchors and
     strides based on FPN feature shapes and strides.
@@ -416,7 +419,7 @@ def anchors_for_fpn_features(
         strides (torch.Tensor): Strides of FPN features
         grid_cell_size (float, optional): Cell size in respect to input image size. Defaults to 5.0.
         grid_cell_offset (float, optional): Percent grid cell center's offset. Defaults to 0.5.
-        is_eval (bool, optional): Weather return data is used for eval or not. Defaults to False.
+        multiply_with_stride (bool, optional): Weather to multiply per FPN values with its stride. Defaults to False.
 
     Returns:
         Tuple: Bbox anchors, center anchors, number of anchors, strides
@@ -430,7 +433,7 @@ def anchors_for_fpn_features(
         cell_half_size = grid_cell_size * stride * 0.5
         shift_x = torch.arange(end=w) + grid_cell_offset
         shift_y = torch.arange(end=h) + grid_cell_offset
-        if not is_eval:
+        if not multiply_with_stride:
             shift_x *= stride
             shift_y *= stride
         shift_y, shift_x = torch.meshgrid(shift_y, shift_x, indexing="ij")
@@ -457,8 +460,11 @@ def anchors_for_fpn_features(
         )
         anchor_points.append(anchor_point)
 
-        n_anchors_list.append(h * w)
-        stride_tensor.append(torch.full((h * w, 1), stride, dtype=feature.dtype))
+        curr_n_anchors = len(anchor)
+        n_anchors_list.append(curr_n_anchors)
+        stride_tensor.append(
+            torch.full((curr_n_anchors, 1), stride, dtype=feature.dtype)
+        )
 
     device = feature.device
     anchors = torch.cat(anchors).to(device)

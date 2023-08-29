@@ -168,10 +168,14 @@ class YoloV6Head(BaseObjectDetection):
         """Performs post-processing of the YoloV6 output and returns bboxs after NMS"""
         x, cls_score_list, reg_dist_list = output
         _, anchor_points, _, stride_tensor = anchors_for_fpn_features(
-            x, self.stride, self.grid_cell_size, self.grid_cell_offset, is_eval=True
+            x,
+            self.stride,
+            self.grid_cell_size,
+            self.grid_cell_offset,
+            multiply_with_stride=True,
         )
 
-        pred_bboxes = dist2bbox(reg_dist_list, anchor_points, box_format="xywh")
+        pred_bboxes = dist2bbox(reg_dist_list, anchor_points, box_format="cxcywh")
 
         pred_bboxes *= stride_tensor
         output_merged = torch.cat(

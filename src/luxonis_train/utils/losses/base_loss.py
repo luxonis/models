@@ -21,7 +21,7 @@ class BaseLoss(nn.Module, ABC):
             )
 
     @abstractmethod
-    def forward(self, outputs: any, targets: any, epoch: int, step: int):
+    def forward(self, preds: any, target: any, epoch: int, step: int):
         """torch.nn.Module forward method"""
         pass
 

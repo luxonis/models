@@ -34,7 +34,7 @@ class YoloV6Loss(BaseLoss):
         self.grid_cell_size = self.head_attributes.get("grid_cell_size")
         self.grid_cell_offset = self.head_attributes.get("grid_cell_offset")
         self.original_img_size = self.head_attributes.get("original_in_shape")[
-            :2
+            2:
         ]  # take only [H,W]
 
         self.n_warmup_epochs = n_warmup_epochs
@@ -48,8 +48,9 @@ class YoloV6Loss(BaseLoss):
         self.bbox_loss = BboxLoss(self.n_classes, self.iou_type)
         self.loss_weight = loss_weight
 
-    def forward(self, outputs, targets, epoch, step):
-        feats, pred_scores, pred_distri = outputs
+    def forward(self, preds, target, epoch, step):
+        feats, pred_scores, pred_distri = preds
+
         (
             anchors,
             anchor_points,
@@ -60,12 +61,10 @@ class YoloV6Loss(BaseLoss):
             self.stride,
             self.grid_cell_size,
             self.grid_cell_offset,
-            is_eval=False,
+            multiply_with_stride=False,
         )
-        assert pred_scores.type() == pred_distri.type()
 
-        # gt_bboxes_scale = torch.full((1,4), img_size).type_as(pred_scores)
-        # supports rectangular original images
+        # target preprocessing
         gt_bboxes_scale = torch.tensor(
             [
                 self.original_img_size[1],
@@ -73,19 +72,17 @@ class YoloV6Loss(BaseLoss):
                 self.original_img_size[1],
                 self.original_img_size[0],
             ],
-            device=targets.device,
+            device=target.device,
         )  # use if bboxes normalized
         batch_size = pred_scores.shape[0]
-
-        # targets
-        targets = self.preprocess(targets, batch_size, gt_bboxes_scale)
-        gt_labels = targets[:, :, :1]
-        gt_bboxes = targets[:, :, 1:]  # xyxy
+        target = self._preprocess_target(target, batch_size, gt_bboxes_scale)
+        gt_labels = target[:, :, :1]  # cls
+        gt_bboxes = target[:, :, 1:]  # xyxy
         mask_gt = (gt_bboxes.sum(-1, keepdim=True) > 0).float()
 
-        # pboxes
-        anchor_points_s = anchor_points / stride_tensor
-        pred_bboxes = dist2bbox(pred_distri, anchor_points_s)
+        # preds preprocessing
+        anchor_points_strided = anchor_points / stride_tensor
+        pred_bboxes = dist2bbox(pred_distri, anchor_points_strided)
 
         try:
             if epoch < self.n_warmup_epochs:
@@ -212,24 +209,19 @@ class YoloV6Loss(BaseLoss):
 
         return loss, sub_losses
 
-    def preprocess(self, targets, batch_size, scale_tensor):
-        targets_list = np.zeros((batch_size, 1, 5)).tolist()
-        for i, item in enumerate(targets.cpu().numpy().tolist()):
-            targets_list[int(item[0])].append(item[1:])
-        max_len = max((len(l) for l in targets_list))
-        targets = torch.from_numpy(
-            np.array(
-                list(
-                    map(
-                        lambda l: l + [[-1, 0, 0, 0, 0]] * (max_len - len(l)),
-                        targets_list,
-                    )
-                )
-            )[:, 1:, :]
-        ).to(targets.device)
-        batch_target = targets[:, :, 1:5].mul_(scale_tensor)
-        targets[..., 1:] = box_convert(batch_target, "xywh", "xyxy")
-        return targets
+    def _preprocess_target(
+        self, target: torch.Tensor, batch_size: int, scale_tensor: torch.Tensor
+    ):
+        """Preprocess target in shape [batch_size, N, 5] where N is maximum number of instances in one image"""
+        sample_ids, counts = torch.unique(target[:, 0].int(), return_counts=True)
+        out_target = torch.zeros(batch_size, counts.max(), 5, device=target.device)
+        out_target[:, :, 0] = -1
+        for id, count in zip(sample_ids, counts):
+            out_target[id, :count] = target[target[:, 0] == id][:, 1:]
+
+        scaled_target = out_target[:, :, 1:5] * scale_tensor
+        out_target[..., 1:] = box_convert(scaled_target, "xywh", "xyxy")
+        return out_target
 
 
 class VarifocalLoss(nn.Module):

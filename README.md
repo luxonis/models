@@ -95,7 +95,7 @@ You can specify `pretrained` paths under `model` and `backbone` in one of these 
 - `mlflow path` (e.g. `mlflow://<project_id>/<run_id>/path/to/ckpt` - path is relative to base artifacts path).
 
 #### Advanced configuration:
-Every head also supports the `attach_index` parameter which specifies on which backbone/neck layer should the head attach to. Layers are indexed from 0 to N where N is the last layer (closest to the head). By default `attach_index` is set to -1 for all heads which means that the head attaches to the last previous layer (Python list index convention is used here).
+Every head and neck also supports the `attach_index` parameter which specifies on which backbone/neck layer should the head/neck attach to. Layers are indexed from 0 to N where N is the last layer (closest to the head/neck). By default `attach_index` is set to -1 for most of the heads/necks (check [here](./src/luxonis_train/models/heads/README.md)/[here](./src/luxonis_train/models/necks/README.md) for any exceptions) which means that the head/neck attaches to the last previous layer (Python list index convention is used here).
 
 ### Trainer:
 This block configures everything connected to PytrochLightning Trainer object. 

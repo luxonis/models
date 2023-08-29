@@ -32,7 +32,7 @@ class Model(nn.Module):
             **modules_cfg["backbone"].get("params", {})
         )
         # load local backbone weights if avaliable
-        if modules_cfg["backbone"]["pretrained"]:
+        if modules_cfg["backbone"].get("pretrained", False):
             path = modules_cfg["backbone"]["pretrained"]
             print(f"Loading backbone weights from: {path}")
             fs = LuxonisFileSystem(path)
@@ -53,7 +53,7 @@ class Model(nn.Module):
 
         for head in modules_cfg["heads"]:
             curr_head = eval(head["name"])(
-                prev_out_shapes=self.neck_out_shapes
+                input_channels_shapes=self.neck_out_shapes
                 if self.neck
                 else self.backbone_out_shapes,
                 original_in_shape=dummy_input_shape,

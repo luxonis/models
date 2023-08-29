@@ -33,7 +33,7 @@ class ReXNetV1_lite(BaseBackbone):
             multiplier (float, optional): Channel dimension multiplier. Defaults to 1.0.
             kernel_conf (str, optional): Kernel sizes encoded as string. Defaults to '333333'.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.out_indices = [1, 4, 10, 16]
         self.channels = [16, 48, 112, 184]

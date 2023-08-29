@@ -1,8 +1,10 @@
+from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 import cv2
-from typing import List, Union
+from typing import List, Union, Optional
 from torchvision.utils import draw_segmentation_masks
+import warnings
 
 from luxonis_ml.loader import LabelType
 from luxonis_train.utils.visualization import (
@@ -13,55 +15,49 @@ from luxonis_train.utils.visualization import (
 from luxonis_train.utils.constants import HeadType
 
 
-class BaseHead(nn.Module):
+class BaseHead(nn.Module, ABC):
     head_types: List[HeadType] = []
     label_types: List[LabelType] = []
 
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
+        main_metric: Optional[str] = None,
+        **kwargs,
     ):
         """Base abstract head class from which all other heads are created
 
         Args:
             n_classes (int): Number of classes
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
+            main_metric (Optional[str], optional): Name of the main metric which is used for tracking training process. Defaults to None.
         """
         super().__init__()
 
-        self.n_classes: int = n_classes
-        self.attach_index: int = attach_index
-        self.prev_out_shapes: list = prev_out_shapes
-        self.original_in_shape: list = original_in_shape
+        self._validate_attach_index(attach_index, len(input_channels_shapes))
 
-    def get_name(self, idx: int):
-        """Generate a string head name based on class name and passed index"""
-        return f"{self.__class__.__name__}_{idx}"
+        self.n_classes = n_classes
+        self.attach_index = attach_index
+        self.input_channels_shapes = input_channels_shapes
+        self.original_in_shape = original_in_shape
+        self.main_metric = main_metric
 
-    def check_annotations(self, label_dict: dict):
-        """Checks if all required annotations are present in label dictionary
+        if len(kwargs):
+            warnings.warn(
+                f"Following head parameters for `{self.get_name()}` not used: {kwargs}"
+            )
 
-        Args:
-            label_dict (dict): Dictionary with labels
-
-        Raises:
-            KeyError: Required label type missing in annotations
-        """
-        for label_type in self.label_types:
-            if label_type not in label_dict:
-                raise KeyError(
-                    f"Required label type `{label_type}` missing in annotations."
-                )
-
+    @abstractmethod
     def forward(self, x):
         """torch.nn.Module forward method"""
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def postprocess_for_loss(
         self, output: Union[tuple, torch.Tensor], label_dict: dict
     ):
@@ -75,8 +71,9 @@ class BaseHead(nn.Module):
             output: Transformed output ready for loss prediction
             label: Transformed label ready for loss target
         """
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def postprocess_for_metric(
         self, output: Union[tuple, torch.Tensor], label_dict: dict
     ):
@@ -92,8 +89,9 @@ class BaseHead(nn.Module):
             metric_mapping (Union[Dict[str, int], None]): Mapping between metric name and index \
                 of returned Tuple. Used for multi-task heads. If not needed set to None.
         """
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
         """Draws model output to an img
 
@@ -105,8 +103,9 @@ class BaseHead(nn.Module):
         Returns:
             img (torch.Tensor): Output img with correct output drawn on
         """
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def get_output_names(self, idx: int):
         """Get output names used for export
 
@@ -116,42 +115,82 @@ class BaseHead(nn.Module):
         Returns:
             output_name (Union[str, List[str]]): Either output name (string) or list of strings if head has multiple outputs.
         """
-        raise NotImplementedError
-
-    def to_deploy(self):
-        """Makes changes needed to prepare head for deploy"""
         pass
 
+    def get_name(self, idx: Optional[int] = None):
+        """Generate a string head name based on class name and passed index (if present)"""
+        class_name = self.__class__.__name__
+        if idx is not None:
+            class_name += f"_{idx}"
+        return class_name
 
-class BaseClassificationHead(BaseHead):
+    def check_annotations(self, label_dict: dict):
+        """Checks if all required annotations are present in label dictionary
+
+        Args:
+            label_dict (dict): Dictionary with labels
+
+        Raises:
+            KeyError: Required label type missing in annotations
+        """
+        for label_type in self.label_types:
+            if label_type not in label_dict:
+                raise KeyError(
+                    f"Required label type `{label_type}` for {self.get_name()} missing in annotations."
+                )
+
+    def to_deploy(self):
+        """All changes required to prepare module for deployment"""
+        pass
+
+    def _validate_attach_index(self, index: int, inputs_len: int):
+        """Validates attach index based on length of inputs
+
+        Args:
+            index (int): Attach index
+            inputs_len (int): Length of inputs
+
+        Raises:
+            ValueError: Specified attach index out of range
+        """
+        if (index < 0 and abs(index) > inputs_len) or (
+            index >= 0 and index >= inputs_len
+        ):
+            raise ValueError(
+                f"Specified attach index for {self.get_name()} out of range."
+            )
+
+
+class BaseClassificationHead(BaseHead, ABC):
     head_types: List[HeadType] = [HeadType.CLASSIFICATION]
     label_types: List[LabelType] = [LabelType.CLASSIFICATION]
 
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "f1",
+        **kwargs,
     ):
         """Base head for classification tasks
 
         Args:
             n_classes (int): Number of classes
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "f1".
         """
         super().__init__(
             n_classes=n_classes,
-            prev_out_shapes=prev_out_shapes,
+            input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            main_metric=main_metric,
+            **kwargs,
         )
-
-        self.main_metric: str = main_metric
 
     def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
         label = label_dict[self.label_types[0]]
@@ -185,35 +224,36 @@ class BaseClassificationHead(BaseHead):
         return f"output{idx}"
 
 
-class BaseMultiLabelClassificationHead(BaseHead):
+class BaseMultiLabelClassificationHead(BaseHead, ABC):
     head_types: List[HeadType] = [HeadType.MULTI_LABEL_CLASSIFICATION]
     label_types: List[LabelType] = [LabelType.CLASSIFICATION]
 
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "f1",
+        **kwargs,
     ):
         """Base head for multi-label classification tasks
 
         Args:
             n_classes (int): Number of classes
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "f1".
         """
         super().__init__(
             n_classes=n_classes,
-            prev_out_shapes=prev_out_shapes,
+            input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            main_metric=main_metric,
+            **kwargs,
         )
-
-        self.main_metric: str = main_metric
 
     def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
         label = label_dict[self.label_types[0]]
@@ -245,35 +285,36 @@ class BaseMultiLabelClassificationHead(BaseHead):
         return f"output{idx}"
 
 
-class BaseSegmentationHead(BaseHead):
+class BaseSegmentationHead(BaseHead, ABC):
     head_types: List[HeadType] = [HeadType.SEMANTIC_SEGMENTATION]
     label_types: List[LabelType] = [LabelType.SEGMENTATION]
 
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "mIoU",
+        **kwargs,
     ):
         """Base head for segmentation tasks
 
         Args:
             n_classes (int): Number of classes
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "mIoU".
         """
         super().__init__(
             n_classes=n_classes,
-            prev_out_shapes=prev_out_shapes,
+            input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            main_metric=main_metric,
+            **kwargs,
         )
-
-        self.main_metric: str = main_metric
 
     def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
         label = label_dict[self.label_types[0]]
@@ -298,67 +339,65 @@ class BaseSegmentationHead(BaseHead):
         return f"segmentation"
 
 
-class BaseObjectDetection(BaseHead):
+class BaseObjectDetection(BaseHead, ABC):
     head_types: List[HeadType] = [HeadType.OBJECT_DETECTION]
     label_types: List[LabelType] = [LabelType.BOUNDINGBOX]
 
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "map",
+        **kwargs,
     ):
         """Base head for object detection tasks
 
         Args:
             n_classes (int): Number of classes
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
         """
         super().__init__(
             n_classes=n_classes,
-            prev_out_shapes=prev_out_shapes,
+            input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            main_metric=main_metric,
+            **kwargs,
         )
 
-        self.main_metric: str = main_metric
 
-    # NOTE: other methods not implemented as they are usually very head specific so we implement them per head
-
-
-class BaseKeypointDetection(BaseHead):
+class BaseKeypointDetection(BaseHead, ABC):
     head_types: List[HeadType] = [HeadType.KEYPOINT_DETECTION]
     label_types: List[LabelType] = [LabelType.KEYPOINT]
 
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
         main_metric: str = "oks",
+        **kwargs,
     ):
         """Base head for keypoint detection tasks
 
         Args:
             n_classes (int): Number of classes (usually refers to number of keypoints)
-            prev_out_shapes (list): List of shapes of previous outputs
+            input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "oks".
         """
         super().__init__(
             n_classes=n_classes,
-            prev_out_shapes=prev_out_shapes,
+            input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            main_metric=main_metric,
+            **kwargs,
         )
-
-        self.main_metric: str = main_metric
-
-    # NOTE: other methods not implemented as they are usually very head specific so we implement them per head

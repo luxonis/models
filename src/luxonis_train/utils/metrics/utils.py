@@ -1,8 +1,7 @@
 import torch.nn as nn
 import torchmetrics
-from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
-from .custom import ObjectKeypointSimilarity, MeanAveragePrecisionKeypoints
+from .custom import ObjectKeypointSimilarity, MeanAveragePrecision, MeanAveragePrecisionKeypoints
 from luxonis_train.utils.constants import HeadType
 
 """
@@ -59,7 +58,7 @@ def init_metrics(head: nn.Module):
                 task="binary" if is_binary else "multiclass", num_classes=head.n_classes
             )
         elif head_type == HeadType.OBJECT_DETECTION:
-            metrics["map"] = MeanAveragePrecision(box_format="xyxy")
+            metrics["map"] = MeanAveragePrecision(box_format="xyxy", class_metrics=False if is_binary else True)
         elif head_type == HeadType.KEYPOINT_DETECTION:
             metrics["oks"] = ObjectKeypointSimilarity(num_keypoints=head.n_keypoints)
         else:

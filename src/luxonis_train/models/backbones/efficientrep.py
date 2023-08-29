@@ -34,7 +34,7 @@ class EfficientRep(BaseBackbone):
             depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
             width_mul (float, optional): Width multiplier. Defaults to 0.25.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         channels_list = [make_divisible(i * width_mul, 8) for i in channels_list]
         num_repeats = [

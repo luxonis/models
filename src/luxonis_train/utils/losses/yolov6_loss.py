@@ -36,12 +36,8 @@ class YoloV6Loss(nn.Module):
     ):
         super(YoloV6Loss, self).__init__()
 
-        is_4head = kwargs.get("head_attributes").get("is_4head", False)
-        if fpn_strides is None:
-            self.fpn_strides = [4, 8, 16, 32] if is_4head else [8, 16, 32]
-        else:
-            self.fpn_strides = fpn_strides
-
+        head_attributes = kwargs.get("head_attributes")
+        self.fpn_strides = head_attributes.get("stride")
         self.grid_cell_size = grid_cell_size
         self.grid_cell_offset = grid_cell_offset
         self.num_classes = n_classes

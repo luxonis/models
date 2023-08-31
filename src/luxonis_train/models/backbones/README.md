@@ -1,21 +1,23 @@
-## List of supported backbones
-- ResNet18 ([source](https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html))
+## Backbones
+
+### List
+- **ResNet18** ([source](https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html))
   - Params:
     - download_weights: bool # If True download weights from imagenet. Defaults to False.
-- MicroNet ([source](https://github.com/liyunsheng13/micronet))
+- **MicroNet** ([source](https://github.com/liyunsheng13/micronet))
   - Params:
     - variant: Literal["M1", "M2", "M3"] # Defaults to 'M1'.
-- RepVGG ([source](https://github.com/DingXiaoH/RepVGG))
+- **RepVGG** ([source](https://github.com/DingXiaoH/RepVGG))
   - Params:
     - variant: Literal["A0", "A1", "A2"] # Defaults to "A0".
-- EfficientRep (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/efficientrep.py))
+- **EfficientRep** (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/efficientrep.py))
   - Params:
     - channels_list: List[int] # List of number of channels for each block. Defaults to [64, 128, 256, 512, 1024].
     - num_repeats: List[int] # List of number of repeats of RepVGGBlock. Defaults to [1, 6, 12, 18, 6].
     - in_channels: int # Number of input channels, should be 3 in most cases . Defaults to 3.
     - depth_mul: int # Depth multiplier. Defaults to 0.33.
     - width_mul: int # Width multiplier. Defaults to 0.25.
-- RexNetV1_lite ([source](https://github.com/clovaai/rexnet))
+- **RexNetV1_lite** ([source](https://github.com/clovaai/rexnet))
   - Params:
     - fix_head_stem: bool # Weather to multiply head stem. Defaults to False.
     - divisible_value: int # Divisor used. Defaults to 8. 
@@ -23,18 +25,19 @@
     - final_ch: int # Final channel dimension. Defaults to 164.
     - multiplier: float # Channel dimension multiplier. Defaults to 1.0.
     - kernel_conf: str # Kernel sizes encoded as string. Defaults to '333333'.
-- MobileOne ([source](https://github.com/apple/ml-mobileone))
+- **MobileOne** ([source](https://github.com/apple/ml-mobileone))
   - Params:
     - variant: Literal["s0", "s1", "s2", "s3", "s4"] # Defaults to "s0".
-- MobileNetV2 ([source](https://pytorch.org/vision/main/models/generated/torchvision.models.mobilenet_v2.html))
+- **MobileNetV2** ([source](https://pytorch.org/vision/main/models/generated/torchvision.models.mobilenet_v2.html))
   - Params:
     - download_weights: bool # If True download weights from imagenet. Defaults to False.
-- EfficientNet ([source](https://github.com/rwightman/gen-efficientnet-pytorch))
+- **EfficientNet** ([source](https://github.com/rwightman/gen-efficientnet-pytorch))
   - Params:
     - download_weights: bool # If True download weights from imagenet. Defualts to False.
-- ContextSpatial (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
+- **ContextSpatial** (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
   - Params:
     - context_backbone: str # Backbone used. Defaults to 'MobileNetV2'.
 
     
-- TODO: add DeepLabV3+ ([source](https://github.com/VainF/DeepLabV3Plus-Pytorch))
+#### Comming soon: 
+  - DeepLabV3+ ([source](https://github.com/VainF/DeepLabV3Plus-Pytorch))

@@ -17,9 +17,11 @@ class NeckTestCases(unittest.TestCase):
                 with self.subTest(input_shape=input_shape, num_heads=num_heads):
                     input = torch.zeros(input_shape)
                     input_channels_shapes = dummy_input_run(backbone, input_shape)
+                    backbone.eval()
                     neck = RepPANNeck(
                         input_channels_shapes=input_channels_shapes, num_heads=num_heads
                     )
+                    neck.eval()
 
                     outs = backbone(input)
                     outs = neck(outs)
@@ -43,22 +45,22 @@ class NeckTestCases(unittest.TestCase):
                         input_channels_shapes=input_channels_shapes, num_heads=num_heads
                     )
 
-    def test_reppan_incorrect_offset(self):
-        """Tests offset parameter of RepPAN neck"""
+    def test_reppan_incorrect_attach_index(self):
+        """Tests attach_index parameter of RepPAN neck"""
         input_channels_shapes = [
             [1, 32, 56, 56],
             [1, 64, 28, 28],
             [1, 128, 14, 14],
             [1, 256, 7, 7],
         ]
-        pairs = [(2, 3), (2, -1), (3, 2), (4, 1)]
-        for num_heads, offset in pairs:
-            with self.subTest(num_heads=num_heads, offset=offset):
+        pairs = [(2, 3), (2, -4), (3, -3), (4, 1)]
+        for num_heads, attach_index in pairs:
+            with self.subTest(num_heads=num_heads, attach_index=attach_index):
                 with self.assertRaises(ValueError):
                     neck = RepPANNeck(
                         input_channels_shapes=input_channels_shapes,
                         num_heads=num_heads,
-                        offset=offset,
+                        attach_index=attach_index,
                     )
 
 

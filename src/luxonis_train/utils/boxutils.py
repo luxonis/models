@@ -288,3 +288,113 @@ def non_max_suppression_kpts(
             break  # time limit exceeded
 
     return output
+
+
+def anchors_from_dataset(
+    loader: "torch.utils.data.DataLoader",
+    n_anchors: int = 9,
+    n_generations: int = 1000,
+    ratio_threshold: float = 4.0,
+):
+    """Generates anchors based on bounding box annotations present in provided data loader.
+    Adapted from: https://github.com/ultralytics/yolov5/blob/master/utils/autoanchor.py
+
+    Args:
+        loader (torch.utils.data.DataLoader): Data loader
+        n_anchors (int, optional): Number of anchors, this is normally num_heads * 3 which generates 3 anchors per layer. Defaults to 9.
+        n_generations (int, optional): Number of iterations for anchor improvement with genetic algorithm. Defaults to 1000.
+        ratio_threshold (float, optional): Minimum threshold for ratio. Defaults to 4.0.
+
+    Returns:
+        torch.Tensor: Proposed anchors
+    """
+    from scipy.cluster.vq import kmeans
+    from luxonis_ml.loader import LabelType
+
+    print("Generating anchors...")
+    wh = []
+    for batch in loader:
+        inputs = batch[0]
+        label_dict = batch[1]
+        boxes = label_dict[LabelType.BOUNDINGBOX]
+        curr_wh = boxes[:, 4:]
+        wh.append(curr_wh)
+    _, _, h, w = inputs.shape  # assuming all images are same size
+    img_size = torch.tensor([w, h])
+    wh = torch.vstack(wh) * img_size
+
+    # filter out small objects (w or h < 2 pixels)
+    wh = wh[(wh >= 2).any(1)]
+
+    # KMeans
+    try:
+        assert n_anchors <= len(
+            wh
+        ), "More requested anchors than number of bounding boxes."
+        std = wh.std(0)
+        proposed_anchors = kmeans(wh / std, n_anchors, iter=30)
+        proposed_anchors = torch.tensor(proposed_anchors[0]) * std
+        assert n_anchors == len(
+            proposed_anchors
+        ), "KMeans returned insufficient number of points"
+    except Exception:
+        print("Fallback to random anchor init")
+        proposed_anchors = (
+            torch.sort(torch.rand(n_anchors * 2))[0].reshape(n_anchors, 2) * img_size
+        )
+
+    proposed_anchors = proposed_anchors[
+        torch.argsort(proposed_anchors.prod(1))
+    ]  # sort small to large
+
+    def calc_best_anchor_ratio(anchors, wh):
+        """Calculate how well most suitable anchor box matches each target bbox"""
+        symetric_size_ratios = torch.min(
+            wh[:, None] / anchors[None], anchors[None] / wh[:, None]
+        )
+        worst_side_size_ratio = symetric_size_ratios.min(-1).values
+        best_anchor_ratio = worst_side_size_ratio.max(-1).values
+        return best_anchor_ratio
+
+    def calc_best_possible_recall(anchors, wh):
+        """Calculate best possible recall if every bbox is matched to an appropriate anchor"""
+        best_anchor_ratio = calc_best_anchor_ratio(anchors, wh)
+        best_possible_recall = (best_anchor_ratio > 1 / ratio_threshold).float().mean()
+        return best_possible_recall
+
+    def anchor_fitness(anchors, wh):
+        """Fitness function used for anchor evolve"""
+        best_anchor_ratio = calc_best_anchor_ratio(anchors, wh)
+        return (
+            best_anchor_ratio * (best_anchor_ratio > 1 / ratio_threshold).float()
+        ).mean()
+
+    # Genetic algorithm
+    best_fitness = anchor_fitness(proposed_anchors, wh)
+    anchor_shape = proposed_anchors.shape
+    mutation_probability = 0.9
+    mutation_noise_mean = 1
+    mutation_noise_std = 0.1
+    for _ in range(n_generations):
+        anchor_mutation = torch.ones(anchor_shape)
+        anchor_mutation = (
+            (torch.rand(anchor_shape) < mutation_probability)
+            * torch.randn(anchor_shape)
+            * mutation_noise_std
+            + mutation_noise_mean
+        ).clip(0.3, 3.0)
+
+        mutated_anchors = (proposed_anchors.clone() * anchor_mutation).clip(min=2.0)
+        mutated_fitness = anchor_fitness(mutated_anchors, wh)
+        if mutated_fitness > best_fitness:
+            best_fitness = mutated_fitness
+            proposed_anchors = mutated_anchors.clone()
+
+    proposed_anchors = proposed_anchors[
+        torch.argsort(proposed_anchors.prod(1))
+    ]  # sort small to large
+    print(
+        f"Anchor generation finished. Best possible recall: {calc_best_possible_recall(proposed_anchors, wh)}"
+    )
+
+    return proposed_anchors

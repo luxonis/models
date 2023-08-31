@@ -16,7 +16,7 @@ class ResNet18(BaseBackbone):
         Args:
             download_weights (bool, optional): If True download weights from imagenet. Defaults to False.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         resnet18 = torchvision.models.resnet18(
             weights="DEFAULT" if download_weights else None

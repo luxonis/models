@@ -22,7 +22,7 @@ class ContextSpatial(BaseBackbone):
         Args:
             context_backbone (str, optional): Backbone used. Defaults to 'MobileNetV2'.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.context_path = ContextPath(eval(context_backbone)())
         self.spatial_path = SpatialPath(3, 128)

@@ -10,15 +10,7 @@ from luxonis_train.utils.boxutils import bbox_iou
 from luxonis_train.utils.losses.common import FocalLoss, BCEWithLogitsLoss
 
 
-def smooth_BCE(
-    eps=0.1,
-):  # https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
-    # return positive, negative label smoothing BCE targets
-    return 1.0 - 0.5 * eps, 0.5 * eps
-
-
 class YoloV7PoseLoss(nn.Module):
-    # Compute losses
     def __init__(
         self,
         n_classes,
@@ -27,6 +19,7 @@ class YoloV7PoseLoss(nn.Module):
         gamma=2,
         alpha=0.25,
         label_smoothing=0.0,
+        iou_ratio=1,
         box_weight=0.05,
         kpt_weight=0.10,
         kptv_weight=0.6,
@@ -37,6 +30,17 @@ class YoloV7PoseLoss(nn.Module):
     ):
         super().__init__()
 
+        self.n_classes = n_classes
+        head_attributes = kwargs.get("head_attributes")
+        self.n_keypoints = head_attributes.get("n_keypoints")
+        self.n_anchors = head_attributes.get("n_anchors")
+        self.num_heads = head_attributes.get("num_heads")
+        self.anchors = head_attributes.get("anchors")
+        self.balance = {3: [4.0, 1.0, 0.4]}.get(
+            self.num_heads, [4.0, 1.0, 0.25, 0.06, 0.02]
+        )
+
+        self.iou_ratio = iou_ratio
         self.box_weight = box_weight
         self.kpt_weight = kpt_weight
         self.cls_weight = cls_weight
@@ -44,28 +48,14 @@ class YoloV7PoseLoss(nn.Module):
         self.kptv_weight = kptv_weight
         self.anchor_t = anchor_t
 
-        # Define criteria
         self.BCEcls = BCEWithLogitsLoss(pos_weight=torch.tensor([cls_pw]))
         self.BCEobj = BCEWithLogitsLoss(pos_weight=torch.tensor([obj_pw]))
         self.focal_loss = FocalLoss(alpha=alpha, gamma=gamma, use_sigmoid=False)
 
-        # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
-        # positive, negative BCE targets
-        self.cp, self.cn = smooth_BCE(eps=label_smoothing)
-
-        head_attributes = kwargs.get("head_attributes")
-
-        self.balance = {3: [4.0, 1.0, 0.4]}.get(
-            head_attributes.get("nl"), [4.0, 1.0, 0.25, 0.06, 0.02]
-        )  # P3-P7
-
-        self.ssi = 0  # stride 16 index
-        self.gr = head_attributes.get("gr")
-        self.nkpt = head_attributes.get("n_keypoints")
-        self.nc = n_classes
-        self.na = head_attributes.get("na")
-        self.nl = head_attributes.get("nl")
-        self.anchors = head_attributes.get("anchors")
+        # Class label smoothing targets (https://arxiv.org/pdf/1902.04103.pdf eqn 3)
+        self.positive_smooth_const, self.negative_smooth_const = self._smooth_BCE(
+            eps=label_smoothing
+        )
 
     def forward(self, kpt_pred, kpt, **kwargs):
         # model output is (kpt, features). The loss only needs features.
@@ -96,9 +86,9 @@ class YoloV7PoseLoss(nn.Module):
                 )
                 lbox += (1.0 - iou).mean()  # iou loss
                 # Direct kpt prediction
-                pkpt_x = ps[:, 5 + self.nc :: 3] * 2.0 - 0.5
-                pkpt_y = ps[:, 6 + self.nc :: 3] * 2.0 - 0.5
-                pkpt_score = ps[:, 7 + self.nc :: 3]
+                pkpt_x = ps[:, 5 + self.n_classes :: 3] * 2.0 - 0.5
+                pkpt_y = ps[:, 6 + self.n_classes :: 3] * 2.0 - 0.5
+                pkpt_score = ps[:, 7 + self.n_classes :: 3]
                 # mask
                 tkpt[i] = tkpt[i].to(device)
                 kpt_mask = tkpt[i][:, 0::2] != 0
@@ -109,15 +99,19 @@ class YoloV7PoseLoss(nn.Module):
                 ) / (torch.sum(kpt_mask != 0) + 1e-9)
                 lkpt += kpt_loss_factor * (torch.log(d + 1 + 1e-9) * kpt_mask).mean()
                 # Objectness
-                tobj[b, a, gj, gi] = (1.0 - self.gr) + self.gr * iou.detach().clamp(
-                    0
-                ).type(tobj.dtype)
+                tobj[b, a, gj, gi] = (
+                    1.0 - self.iou_ratio
+                ) + self.iou_ratio * iou.detach().clamp(0).type(tobj.dtype)
 
                 # Classification
-                if self.nc > 1:  # cls loss (only if multiple classes)
-                    t = torch.full_like(ps[:, 5 : 5 + self.nc], self.cn, device=device)
-                    t[range(n), tcls[i]] = self.cp
-                    lcls += self.BCEcls(ps[:, 5 : 5 + self.nc], t)  # BCE
+                if self.n_classes > 1:  # cls loss (only if multiple classes)
+                    t = torch.full_like(
+                        ps[:, 5 : 5 + self.n_classes],
+                        self.negative_smooth_const,
+                        device=device,
+                    )
+                    t[range(n), tcls[i]] = self.positive_smooth_const
+                    lcls += self.BCEcls(ps[:, 5 : 5 + self.n_classes], t)  # BCE
 
             obji = self.BCEobj(pi[..., 4], tobj)
             lobj += obji * self.balance[i]  # obj loss
@@ -140,12 +134,17 @@ class YoloV7PoseLoss(nn.Module):
         return loss, sub_losses
 
     def build_targets(self, p, targets):
-        na, nt = self.na, targets.shape[0]  # number of anchors, targets
+        n_anchors, nt = self.n_anchors, targets.shape[0]  # number of anchors, targets
         tcls, tbox, tkpt, indices, anch = [], [], [], [], []
-        gain_length = 7 + 2 * self.nkpt
+        gain_length = 7 + 2 * self.n_keypoints
         gain = torch.ones(gain_length, device=targets.device)
-        ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)
-        targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)
+        ai = (
+            torch.arange(n_anchors, device=targets.device)
+            .float()
+            .view(n_anchors, 1)
+            .repeat(1, nt)
+        )
+        targets = torch.cat((targets.repeat(n_anchors, 1, 1), ai[:, :, None]), 2)
 
         g = 0.5  # bias
         off = (
@@ -163,10 +162,10 @@ class YoloV7PoseLoss(nn.Module):
             * g
         )  # offsets
 
-        for i in range(self.nl):
+        for i in range(self.num_heads):
             anchors = self.anchors[i]
             gain[2 : gain_length - 1] = torch.tensor(p[i].shape)[
-                (2 + self.nkpt) * [3, 2]
+                (2 + self.n_keypoints) * [3, 2]
             ]
             # Match targets to anchors
             t = targets * gain
@@ -206,7 +205,7 @@ class YoloV7PoseLoss(nn.Module):
                 )
             )
             tbox.append(torch.cat((gxy - gij, gwh), 1))  # box
-            for kpt in range(self.nkpt):
+            for kpt in range(self.n_keypoints):
                 low = 6 + 2 * kpt
                 high = 6 + 2 * (kpt + 1)
                 t[:, low:high][t[:, low:high] != 0] -= gij[t[:, low:high] != 0]
@@ -215,3 +214,9 @@ class YoloV7PoseLoss(nn.Module):
             tcls.append(c)  # class
 
         return tcls, tbox, tkpt, indices, anch
+
+    def _smooth_BCE(self, eps=0.1):
+        """Returns positive and negative label smoothing BCE targets
+        Source: https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
+        """
+        return 1.0 - 0.5 * eps, 0.5 * eps

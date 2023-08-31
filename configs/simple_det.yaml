@@ -4,7 +4,7 @@ model:
   pretrained:
   params:
     n_classes: null
-    is_4head: False
+    num_heads: 3
 
 dataset:
   team_id: # TODO

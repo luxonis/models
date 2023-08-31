@@ -16,7 +16,7 @@ class SegmentationHead(BaseSegmentationHead):
     def __init__(
         self,
         n_classes: int,
-        prev_out_shapes: list,
+        input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
         **kwargs
@@ -25,19 +25,20 @@ class SegmentationHead(BaseSegmentationHead):
 
         Args:
             n_classes (int): NUmber of classes
-            prev_out_shapes (list): List of shapes of previous outputs
-            original_in_shape (list): Original inpuut shape to the model
+            input_channels_shapes (list): List of output shapes from previous module
+            original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
         """
 
         super().__init__(
             n_classes=n_classes,
-            prev_out_shapes=prev_out_shapes,
+            input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            **kwargs
         )
 
-        in_height = self.prev_out_shapes[self.attach_index][2]
+        in_height = self.input_channels_shapes[self.attach_index][2]
         original_height = self.original_in_shape[2]
         num_up = math.log2(original_height) - math.log2(in_height)
 
@@ -48,7 +49,7 @@ class SegmentationHead(BaseSegmentationHead):
             num_up = round(num_up)
 
         modules = []
-        in_channels = self.prev_out_shapes[self.attach_index][1]
+        in_channels = self.input_channels_shapes[self.attach_index][1]
         for _ in range(int(num_up)):
             modules.append(
                 UpBlock(in_channels=in_channels, out_channels=in_channels // 2)

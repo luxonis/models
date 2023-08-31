@@ -16,7 +16,7 @@ class EfficientNet(BaseBackbone):
         Args:
             download_weights (bool, optional): If True download weights from imagenet. Defaults to False.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         efficientnet_lite0_model = torch.hub.load(
             "rwightman/gen-efficientnet-pytorch",

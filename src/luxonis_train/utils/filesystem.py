@@ -127,13 +127,6 @@ class LuxonisFileSystem:
                 if self.artifact_path is None:
                     raise ValueError("No relative artifact path specified.")
                 client = mlflow.MlflowClient(tracking_uri=self.tracking_uri)
-                print("TRACKING URI:", self.tracking_uri)
-                print("RUN ID:", self.run_id)
-                print("ARTIFACT PATH:", self.artifact_path)
-                try:
-                    client.get_run(self.run_id)
-                except Exception as e:
-                    print("basic get_run also failed with reason:", e)
                 download_path = client.download_artifacts(
                     run_id=self.run_id, path=self.artifact_path, dst_path="."
                 )

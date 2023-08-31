@@ -9,7 +9,7 @@ on:
 jobs:
   push-store:
     name: Build and push image
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v2

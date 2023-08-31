@@ -1,5 +1,5 @@
 numpy>=1.22
-opencv-python>=4.7.0.68
+opencv-python==4.7.0.68
 python-dotenv>=0.21.1
 pytorch-lightning>=2.0.0
 PyYAML>=6.0
@@ -9,7 +9,7 @@ torchvision>=0.13.1
 tensorboard>=2.10.1
 rich
 s3fs
-luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@7abf713acc04bdd0c270a4e440e06572cb495e9e
+luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@91b85f43dfa38a04378c35782f5f0ae5518e4df1
 # tunning related packages
 optuna>=3.2.0
 psycopg2-binary

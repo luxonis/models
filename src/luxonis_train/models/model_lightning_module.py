@@ -495,12 +495,18 @@ class ModelLightningModule(pl.LightningModule):
             for curr_head_name in self.metrics:
                 curr_metrics = self.metrics[curr_head_name]["train_metrics"].compute()
                 metric_results[curr_head_name] = curr_metrics
+                delete_metrics = []
                 for metric_name in curr_metrics:
+                    if len(curr_metrics[metric_name].shape) != 0:
+                        delete_metrics.append(metric_name)
+                        continue
                     self.log(
                         f"train_metric/{curr_head_name}_{metric_name}",
                         curr_metrics[metric_name],
                         sync_dist=True,
                     )
+                for metric_name in delete_metrics:
+                    del curr_metrics[metric_name]
                 self.metrics[curr_head_name]["train_metrics"].reset()
             self._print_metric_warning("Metrics computed.")
 
@@ -532,12 +538,18 @@ class ModelLightningModule(pl.LightningModule):
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["val_metrics"].compute()
             metric_results[curr_head_name] = curr_metrics
+            delete_metrics = []
             for metric_name in curr_metrics:
+                if len(curr_metrics[metric_name].shape) != 0:
+                    delete_metrics.append(metric_name)
+                    continue
                 self.log(
                     f"val_metric/{curr_head_name}_{metric_name}",
                     curr_metrics[metric_name],
                     sync_dist=True,
                 )
+            for metric_name in delete_metrics:
+                del curr_metrics[metric_name]
             # log main metrics separately (used in callback)
             if i == 0:
                 self.log(
@@ -576,12 +588,18 @@ class ModelLightningModule(pl.LightningModule):
         for i, curr_head_name in enumerate(self.metrics):
             curr_metrics = self.metrics[curr_head_name]["test_metrics"].compute()
             metric_results[curr_head_name] = curr_metrics
+            delete_metrics = []
             for metric_name in curr_metrics:
+                if len(curr_metrics[metric_name].shape) != 0:
+                    delete_metrics.append(metric_name)
+                    continue
                 self.log(
                     f"test_metric/{curr_head_name}_{metric_name}",
                     curr_metrics[metric_name],
                     sync_dist=True,
                 )
+            for metric_name in delete_metrics:
+                del curr_metrics[metric_name]
             # log main metrics separately (used in callback)
             if i == 0:
                 self.log(

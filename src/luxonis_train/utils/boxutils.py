@@ -33,7 +33,7 @@ def bbox_iou(
     box_format: str = "xywh",
     iou_type: str = "none",
     eps: float = 1e-7,
-):
+) -> torch.Tensor:
     """Caclulate iou between boxs
 
     Args:

@@ -129,7 +129,7 @@ class KeypointBoxLoss(nn.Module):
             prediction (Tensor): The predicted tensor of shape
             (batch_size, n_anchors, grid_y, grid_x, 5 + n_classes + n_keypoints * 3)
             target (Tensor): The target tensor of shape
-                (batcj_size, n_anchors, grid_y, grid_x)
+                (batch_size, n_anchors, grid_y, grid_x)
 
         Returns:
             Tensor: The computed object loss.
@@ -141,10 +141,9 @@ class KeypointBoxLoss(nn.Module):
         Computes the classification loss for the predicted bounding boxes.
 
         Args:
-            prediction (torch.Tensor): A tensor of shape
-                (batch_size, n_classes),
+            prediction (torch.Tensor): A tensor of shape (n_detections, n_classes),
                 containing the predicted class scores and box coordinates for each box.
-            target (torch.Tensor): A tensor of shape (batch_size, ), containing the
+            target (torch.Tensor): A tensor of shape (n_detections, ), containing the
                 ground-truth class labels for each box.
 
         Returns:
@@ -167,8 +166,8 @@ class KeypointBoxLoss(nn.Module):
 
         Args:
             prediction (Tensor): The predicted tensor of shape
-                (batch_size, (5 + n_classes + n_keypoints * 3)).
-            target (Tensor): The target tensor of shape (batch_size, n_keypoints * 2).
+                (n_detections, (5 + n_classes + n_keypoints * 3)).
+            target (Tensor): The target tensor of shape (n_detections, n_keypoints * 2).
 
         Returns:
             Tuple[Tensor, Tensor]: A tuple containing the keypoint loss
@@ -194,17 +193,17 @@ class KeypointBoxLoss(nn.Module):
         Computes the box loss for a batch of predictions, anchors and targets.
 
         Args:
-            prediction (Tensor): A tensor of shape (batch_size, 4) containing
+            prediction (Tensor): A tensor of shape (n_detections, 4) containing
                 the predicted bounding box coordinates (x, y, w, h).
-            anchor (Tensor): A tensor of shape (batch_size, 2) containing the anchor box
-                coordinates (w, h).
-            target (Tensor): A tensor of shape (batch_size, 4) containing the
+            anchor (Tensor): A tensor of shape (n_detections, 2) containing the anchor
+                box coordinates (w, h).
+            target (Tensor): A tensor of shape (n_detections, 4) containing the
                 target bounding box coordinates (x, y, w, h).
 
         Returns:
             Tuple[Tensor, Tensor]: A tuple containing the box loss and the IoU
             between the predicted and target boxes. The box loss is a tensor of
-            shape (1,) and the IoU is a tensor of shape (batch_size,).
+            shape (1,) and the IoU is a tensor of shape (n_detections,).
         """
         device = prediction.device
         boxes_x_y = prediction[:, :2].sigmoid() * 2.0 - 0.5

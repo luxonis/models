@@ -5,7 +5,7 @@ import torch
 from torch import Tensor, nn
 
 from luxonis_train.utils.boxutils import bbox_iou
-from luxonis_train.utils.losses.common import BCEWithLogitsLoss, FocalLoss
+from luxonis_train.utils.losses.common import BCEWithLogitsLoss
 
 BOX_OFFSET: Final[int] = 5
 
@@ -17,8 +17,6 @@ class KeypointBoxLoss(nn.Module):
         head_attributes: Mapping[str, Any],
         cls_pw: float = 1.0,
         obj_pw: float = 1.0,
-        gamma: int = 2,
-        alpha: float = 0.25,
         label_smoothing: float = 0.0,
         iou_ratio: float = 1,
         box_weight: float = 0.05,
@@ -52,14 +50,12 @@ class KeypointBoxLoss(nn.Module):
 
         self.bias = 0.5
 
-        self.BCEcls = BCEWithLogitsLoss(pos_weight=torch.tensor([cls_pw]))
-        self.BCEobj = BCEWithLogitsLoss(pos_weight=torch.tensor([obj_pw]))
-        self.focal_loss = FocalLoss(alpha=alpha, gamma=gamma, use_sigmoid=False)
+        self.BCE_class = BCEWithLogitsLoss(pos_weight=torch.tensor([cls_pw]))
+        self.BCE_obj = BCEWithLogitsLoss(pos_weight=torch.tensor([obj_pw]))
 
-        # Class label smoothing targets (https://arxiv.org/pdf/1902.04103.pdf eqn 3)
-        self.positive_smooth_const, self.negative_smooth_const = self._smooth_BCE(
-            eps=label_smoothing
-        )
+        # https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
+        self.positive_smooth_const = 1 - 0.5 * label_smoothing
+        self.negative_smooth_const = 0.5 * label_smoothing
 
     def forward(
         self, model_output: Tuple[Tensor, List[Tensor]], targets: Tensor, **_
@@ -74,7 +70,7 @@ class KeypointBoxLoss(nn.Module):
                 a list of the unprocessed outputs from the head. Only the unprocessed
                 outputs are used to compute the loss.
                 The shapes are
-                (batch_size, n_anchors, N, M, 5 + n_classes + n_keypoints * 3)
+                (batch_size, n_anchors, H, W, 5 + n_classes + n_keypoints * 3)
             targets (Tensor): The ground truth targets, which is a tensor containing the
                 batch_index, class labels, bounding box coordinates,
                 and keypoint coordinates for each object in the image.
@@ -109,8 +105,8 @@ class KeypointBoxLoss(nn.Module):
             batch_index, anchor_index, grid_y, grid_x = indices[i]
             obj_targets = torch.zeros_like(pred[..., 0], device=device)
 
-            n_targets = batch_index.shape[0]
-            if n_targets:
+            n_targets = len(batch_index)
+            if n_targets != 0:
                 pred_subset = pred[batch_index, anchor_index, grid_y, grid_x]
 
                 box_loss, iou = self._compute_box_loss(
@@ -136,26 +132,26 @@ class KeypointBoxLoss(nn.Module):
                     )
 
             sub_losses["obj"] += (
-                self._compute_object_loss(pred, obj_targets) * self.balance[i]
+                self._compute_objectness_loss(pred, obj_targets) * self.balance[i]
             )
 
         loss = cast(Tensor, sum(sub_losses.values())).reshape([])
         return loss, {name: loss.detach() for name, loss in sub_losses.items()}
 
-    def _compute_object_loss(self, prediction: Tensor, target: Tensor) -> Tensor:
+    def _compute_objectness_loss(self, prediction: Tensor, target: Tensor) -> Tensor:
         """
-        Computes the object loss for the given prediction and target tensors.
+        Computes the objectness loss for the given prediction and target tensors.
 
         Args:
             prediction (Tensor): The predicted tensor of shape
-            (batch_size, n_anchors, N, M, 5 + n_classes + n_keypoints * 3)
+            (batch_size, n_anchors, H, W, 5 + n_classes + n_keypoints * 3)
             target (Tensor): The target tensor of shape
-                (batch_size, n_anchors, N, M)
+                (batch_size, n_anchors, H, W)
 
         Returns:
-            Tensor: The computed object loss.
+            Tensor: The computed objectness loss.
         """
-        return self.BCEobj(prediction[..., 4], target) * self.obj_weight
+        return self.BCE_obj(prediction[..., 4], target) * self.obj_weight
 
     def _compute_class_loss(self, prediction: Tensor, target: Tensor) -> Tensor:
         """
@@ -176,7 +172,7 @@ class KeypointBoxLoss(nn.Module):
             device=prediction.device,
         )
         class_target[torch.arange(len(target)), target] = self.positive_smooth_const
-        return self.BCEcls(prediction, class_target) * self.cls_weight
+        return self.BCE_class(prediction, class_target) * self.cls_weight
 
     def _compute_keypoint_loss(
         self, prediction: Tensor, target: Tensor
@@ -194,18 +190,19 @@ class KeypointBoxLoss(nn.Module):
             Tuple[Tensor, Tensor]: A tuple containing the keypoint loss
             tensor of shape (1,) and the visibility loss tensor of shape (1,).
         """
-        kpt_x = prediction[:, BOX_OFFSET + self.n_classes :: 3] * 2.0 - 0.5
-        kpt_y = prediction[:, BOX_OFFSET + self.n_classes + 1 :: 3] * 2.0 - 0.5
-        kpt_score = prediction[:, BOX_OFFSET + self.n_classes + 2 :: 3]
+        x = prediction[:, BOX_OFFSET + self.n_classes :: 3] * 2.0 - 0.5
+        y = prediction[:, BOX_OFFSET + self.n_classes + 1 :: 3] * 2.0 - 0.5
+        visibility_score = prediction[:, BOX_OFFSET + self.n_classes + 2 :: 3]
 
-        kpt_mask = target[:, 0::2] != 0
-        visibility_loss = self.BCEcls(kpt_score, kpt_mask.float())
-        d = (kpt_x - target[:, 0::2]) ** 2 + (kpt_y - target[:, 1::2]) ** 2
-        kpt_loss_factor = (torch.sum(kpt_mask != 0) + torch.sum(kpt_mask == 0)) / (
-            torch.sum(kpt_mask != 0) + 1e-9
+        mask = target[:, 0::2] != 0
+        visibility_loss = self.BCE_class(visibility_score, mask.float())
+        distance = (x - target[:, 0::2]) ** 2 + (y - target[:, 1::2]) ** 2
+
+        loss_factor = (torch.sum(mask != 0) + torch.sum(mask == 0)) / (
+            torch.sum(mask != 0) + 1e-9
         )
-        kpt_loss = kpt_loss_factor * (torch.log(d + 1 + 1e-9) * kpt_mask).mean()
-        return kpt_loss * self.kpt_weight, visibility_loss * self.kptv_weight
+        loss = loss_factor * (torch.log(distance + 1 + 1e-9) * mask).mean()
+        return loss * self.kpt_weight, visibility_loss * self.kptv_weight
 
     def _compute_box_loss(
         self, prediction: Tensor, anchor: Tensor, target: Tensor
@@ -227,12 +224,10 @@ class KeypointBoxLoss(nn.Module):
             shape (1,) and the IoU is a tensor of shape (n_detections,).
         """
         device = prediction.device
-        boxes_x_y = prediction[:, :2].sigmoid() * 2.0 - 0.5
-        boxes_w_h = (prediction[:, 2:].sigmoid() * 2) ** 2 * anchor.to(device)
-        pred_boxes = torch.cat((boxes_x_y, boxes_w_h), 1).T
-        iou = bbox_iou(
-            pred_boxes, target.to(device), box_format="xywh", iou_type="ciou"
-        )
+        x_y = prediction[:, :2].sigmoid() * 2.0 - 0.5
+        w_h = (prediction[:, 2:].sigmoid() * 2) ** 2 * anchor.to(device)
+        boxes = torch.cat((x_y, w_h), 1).T
+        iou = bbox_iou(boxes, target.to(device), box_format="xywh", iou_type="ciou")
         return (1.0 - iou).mean() * self.box_weight, iou
 
     def _construct_targets(
@@ -250,7 +245,7 @@ class KeypointBoxLoss(nn.Module):
         Args:
             predictions (List[Tensor]]): A list of the unprocessed outputs
                 from the head. The shapes are
-                (batch_size, n_anchors, N, M, 5 + n_classes + n_keypoints * 3)
+                (batch_size, n_anchors, H, W, 5 + n_classes + n_keypoints * 3)
             targets (Tensor): The ground truth targets, which is a tensor containing the
                 batch_index, class labels, bounding box coordinates,
                 and keypoint coordinates for each object in the image.
@@ -355,9 +350,3 @@ class KeypointBoxLoss(nn.Module):
         x, y = ((decimal_part(grid_xy) < bias) & (grid_xy > 1.0)).T
         j, k = ((decimal_part(grid_inverse) < bias) & (grid_inverse > 1.0)).T
         return torch.stack((torch.ones_like(x), x, y, j, k))
-
-    def _smooth_BCE(self, eps: float = 0.1):
-        """Returns positive and negative label smoothing BCE targets
-        Source: https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
-        """
-        return 1.0 - 0.5 * eps, 0.5 * eps

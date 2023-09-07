@@ -64,6 +64,27 @@ class KeypointBoxLoss(nn.Module):
     def forward(
         self, model_output: Tuple[Tensor, List[Tensor]], targets: Tensor, **_
     ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        """
+        Computes the keypoint box loss between the model output
+        and the ground truth targets.
+
+        Args:
+            model_output (Tuple[Tensor, List[Tensor]]): The model output, which is
+                a tuple containing predicted bounding boxes and keypoints and
+                a list of the unprocessed outputs from the head. Only the unprocessed
+                outputs are used to compute the loss.
+                The shapes are
+                (batch_size, n_anchors, N, M, 5 + n_classes + n_keypoints * 3)
+            targets (Tensor): The ground truth targets, which is a tensor containing the
+                batch_index, class labels, bounding box coordinates,
+                and keypoint coordinates for each object in the image.
+                The shape is (n_objects, 5 + n_classes + n_keypoints * 2)
+
+        Returns:
+            Tuple[Tensor, Dict[str, Tensor]]: A tuple containing the total loss and a
+                dictionary of sub-losses for each component of the loss
+                (box, objectness, class, keypoints, keypoints visibility).
+        """
         predictions = model_output[1]
         device = predictions[0].device
         sub_losses = {
@@ -127,9 +148,9 @@ class KeypointBoxLoss(nn.Module):
 
         Args:
             prediction (Tensor): The predicted tensor of shape
-            (batch_size, n_anchors, grid_y, grid_x, 5 + n_classes + n_keypoints * 3)
+            (batch_size, n_anchors, N, M, 5 + n_classes + n_keypoints * 3)
             target (Tensor): The target tensor of shape
-                (batch_size, n_anchors, grid_y, grid_x)
+                (batch_size, n_anchors, N, M)
 
         Returns:
             Tensor: The computed object loss.
@@ -223,6 +244,23 @@ class KeypointBoxLoss(nn.Module):
         List[Tuple[Tensor, Tensor, Tensor, Tensor]],
         List[Tensor],
     ]:
+        """
+        Constructs targets for computation of the individual sub-losses.
+
+        Args:
+            predictions (List[Tensor]]): A list of the unprocessed outputs
+                from the head. The shapes are
+                (batch_size, n_anchors, N, M, 5 + n_classes + n_keypoints * 3)
+            targets (Tensor): The ground truth targets, which is a tensor containing the
+                batch_index, class labels, bounding box coordinates,
+                and keypoint coordinates for each object in the image.
+                The shape is (n_objects, 5 + n_classes + n_keypoints * 2)
+        Returns:
+            Tuple[List[Tensor], List[Tensor], List[Tensor],
+            List[Tuple[Tensor, Tensor, Tensor, Tensor]], List[Tensor]]: A tuple
+                containing the class targets, box targets,
+                keypoint targets, indices, and anchors.
+        """
         n_targets = len(targets)
 
         class_targets: List[Tensor] = []

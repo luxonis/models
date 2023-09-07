@@ -93,7 +93,7 @@ class KeypointBoxLoss(nn.Module):
                 pred_subset = pred[batch_index, anchor_index, grid_y, grid_x]
 
                 box_loss, iou = self._compute_box_loss(
-                    pred_subset, anchors[i], box_targets[i]
+                    pred_subset[:, :4], anchors[i], box_targets[i]
                 )
                 sub_losses["box"] += box_loss
 
@@ -110,7 +110,8 @@ class KeypointBoxLoss(nn.Module):
 
                 if self.n_classes > 1:
                     sub_losses["cls"] += self._compute_class_loss(
-                        pred_subset, class_targets[i]
+                        pred_subset[:, BOX_OFFSET : BOX_OFFSET + self.n_classes],
+                        class_targets[i],
                     )
 
             sub_losses["obj"] += (
@@ -121,25 +122,58 @@ class KeypointBoxLoss(nn.Module):
         return loss, {name: loss.detach() for name, loss in sub_losses.items()}
 
     def _compute_object_loss(self, prediction: Tensor, target: Tensor) -> Tensor:
+        """
+        Computes the object loss for the given prediction and target tensors.
+
+        Args:
+            prediction (Tensor): The predicted tensor of shape
+            (batch_size, n_anchors, grid_y, grid_x, 5 + n_classes + n_keypoints * 3)
+            target (Tensor): The target tensor of shape
+                (batcj_size, n_anchors, grid_y, grid_x)
+
+        Returns:
+            Tensor: The computed object loss.
+        """
         return self.BCEobj(prediction[..., 4], target) * self.obj_weight
 
     def _compute_class_loss(self, prediction: Tensor, target: Tensor) -> Tensor:
+        """
+        Computes the classification loss for the predicted bounding boxes.
+
+        Args:
+            prediction (torch.Tensor): A tensor of shape
+                (batch_size, n_classes),
+                containing the predicted class scores and box coordinates for each box.
+            target (torch.Tensor): A tensor of shape (batch_size, ), containing the
+                ground-truth class labels for each box.
+
+        Returns:
+            torch.Tensor: A scalar tensor representing the classification loss.
+        """
         class_target = torch.full_like(
-            prediction[:, BOX_OFFSET : BOX_OFFSET + self.n_classes],
+            prediction,
             self.negative_smooth_const,
             device=prediction.device,
         )
         class_target[torch.arange(len(target)), target] = self.positive_smooth_const
-        return (
-            self.BCEcls(
-                prediction[:, BOX_OFFSET : BOX_OFFSET + self.n_classes], class_target
-            )
-            * self.cls_weight
-        )
+        return self.BCEcls(prediction, class_target) * self.cls_weight
 
     def _compute_keypoint_loss(
         self, prediction: Tensor, target: Tensor
     ) -> Tuple[Tensor, Tensor]:
+        """
+        Computes the keypoint loss and visibility loss
+        for a given prediction and target.
+
+        Args:
+            prediction (Tensor): The predicted tensor of shape
+                (batch_size, (5 + n_classes + n_keypoints * 3)).
+            target (Tensor): The target tensor of shape (batch_size, n_keypoints * 2).
+
+        Returns:
+            Tuple[Tensor, Tensor]: A tuple containing the keypoint loss
+            tensor of shape (1,) and the visibility loss tensor of shape (1,).
+        """
         kpt_x = prediction[:, BOX_OFFSET + self.n_classes :: 3] * 2.0 - 0.5
         kpt_y = prediction[:, BOX_OFFSET + self.n_classes + 1 :: 3] * 2.0 - 0.5
         kpt_score = prediction[:, BOX_OFFSET + self.n_classes + 2 :: 3]
@@ -156,9 +190,25 @@ class KeypointBoxLoss(nn.Module):
     def _compute_box_loss(
         self, prediction: Tensor, anchor: Tensor, target: Tensor
     ) -> Tuple[Tensor, Tensor]:
+        """
+        Computes the box loss for a batch of predictions, anchors and targets.
+
+        Args:
+            prediction (Tensor): A tensor of shape (batch_size, 4) containing
+                the predicted bounding box coordinates (x, y, w, h).
+            anchor (Tensor): A tensor of shape (batch_size, 2) containing the anchor box
+                coordinates (w, h).
+            target (Tensor): A tensor of shape (batch_size, 4) containing the
+                target bounding box coordinates (x, y, w, h).
+
+        Returns:
+            Tuple[Tensor, Tensor]: A tuple containing the box loss and the IoU
+            between the predicted and target boxes. The box loss is a tensor of
+            shape (1,) and the IoU is a tensor of shape (batch_size,).
+        """
         device = prediction.device
         boxes_x_y = prediction[:, :2].sigmoid() * 2.0 - 0.5
-        boxes_w_h = (prediction[:, 2:4].sigmoid() * 2) ** 2 * anchor.to(device)
+        boxes_w_h = (prediction[:, 2:].sigmoid() * 2) ** 2 * anchor.to(device)
         pred_boxes = torch.cat((boxes_x_y, boxes_w_h), 1).T
         iou = bbox_iou(
             pred_boxes, target.to(device), box_format="xywh", iou_type="ciou"

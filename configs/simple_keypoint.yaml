@@ -16,7 +16,7 @@ model:
         n_classes: 1
         n_keypoints: 17
       loss:
-        name: KeypoinBoxLoss
+        name: KeypointBoxLoss
         params:
 
 dataset:

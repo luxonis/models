@@ -3,6 +3,7 @@ import yaml
 import warnings
 import json
 import re
+import sys
 from typing import Union
 from copy import deepcopy
 
@@ -416,6 +417,10 @@ class Config:
             self._data["train"]["optimizers"]["optimizer"]["params"] = {}
         if not self._data["train"]["optimizers"]["scheduler"]["params"]:
             self._data["train"]["optimizers"]["scheduler"]["params"] = {}
+
+        # handle setting num_workers to 0 for Mac and Windows
+        if sys.platform == "win32" or sys.platform == "darwin": 
+            self._data["train"]["num_workers"] = 0
 
         # handle IKeypointHead with anchors=None by generating them from dataset
         ikeypoint_head_indices = [

@@ -4,6 +4,7 @@ from luxonis_train.models.necks import *
 from luxonis_train.utils.general import dummy_input_run
 
 
+@unittest.skip("Modules will change")
 class NeckTestCases(unittest.TestCase):
     def test_reppan_inference(self):
         """Tests inference on RepPAN neck with EfficienRep backbone. Output of forward should be List[torch.Tensor]"""

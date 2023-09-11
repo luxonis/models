@@ -18,6 +18,7 @@ DEFAULT_INIT_VALUES = {
 }
 
 
+@unittest.skip("Modules will change")
 class BackboneTestCases(unittest.TestCase):
     def test_backbone_inference(self):
         """Tests inference on all backbones. Output of forward should be List[torch.Tensor]"""

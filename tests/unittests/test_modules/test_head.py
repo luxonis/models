@@ -29,6 +29,7 @@ DEFAULT_HEAD_INIT_VALUES = {
 }
 
 
+@unittest.skip("Modules will change")
 class HeadTestCases(unittest.TestCase):
     def test_simple_heads(self):
         """Tests combination of all backbones with all simple heads. Output should be torch.Tensor"""

@@ -1,6 +1,6 @@
 import math
 import warnings
-from typing import Dict, Final, List, Optional, Tuple, cast
+from typing import Dict, List, Optional, Tuple, cast
 
 import torch
 from luxonis_ml.loader import LabelType
@@ -12,8 +12,6 @@ from luxonis_train.models.heads.base_heads import BaseHead
 from luxonis_train.models.modules import ConvModule, autopad
 from luxonis_train.utils.boxutils import match_to_anchor, non_max_suppression_kpts
 from luxonis_train.utils.constants import HeadType
-
-BOX_OFFSET: Final[int] = 5
 
 
 class KeypointBoxHead(BaseHead):
@@ -286,7 +284,7 @@ class KeypointBoxHead(BaseHead):
         return output, (class_targets, box_targets, keypoint_targets, indices, anchors)
 
     def _create_keypoint_target(self, scaled_targets: Tensor, box_xy_deltas: Tensor):
-        keypoint_target = scaled_targets[:, BOX_OFFSET + 1 : -1]
+        keypoint_target = scaled_targets[:, self.box_offset + 1 : -1]
         for j in range(self.n_keypoints):
             low = 2 * j
             high = 2 * (j + 1)

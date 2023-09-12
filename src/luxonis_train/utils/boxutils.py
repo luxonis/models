@@ -1,7 +1,66 @@
-import torch
-import time
 import math
+import time
+from typing import Tuple
+
+import torch
+from torch import Tensor
 from torchvision.ops import box_convert, nms
+
+
+def match_to_anchor(
+    targets: Tensor,
+    anchor: Tensor,
+    xy_shifts: Tensor,
+    scale_width: int,
+    scale_height: int,
+    n_keypoints: int,
+    anchor_threshold: float,
+    bias: float,
+    box_offset: int = 5,
+) -> Tuple[Tensor, Tensor]:
+    """
+    This method:
+    1. Scales the targets to the size of the feature map
+    2. Matches the targets to the anchor, filtering out targets whose aspect
+        ratio is too far from the anchor's aspect ratio
+
+    Returns the scaled targets, repeated for the number of shifts, and the shifts.
+
+    """
+
+    # The boxes and keypoints need to be scaled to the size of the features
+    # First two indices are batch index and class label,
+    # last index is anchor index. Those are not scaled.
+    scale_length = 2 * n_keypoints + box_offset + 2
+    scales = torch.ones(scale_length, device=targets.device)
+    scales[2 : scale_length - 1] = torch.tensor(
+        [scale_width, scale_height] * (n_keypoints + 2)
+    )
+    scaled_targets = targets * scales
+    if targets.size(1) == 0:
+        return targets[0], torch.zeros(1, device=targets.device)
+
+    wh_to_anchor_ratio = scaled_targets[:, :, 4:6] / anchor.unsqueeze(1)
+    ratio_mask = (
+        torch.max(wh_to_anchor_ratio, 1.0 / wh_to_anchor_ratio).max(2)[0]
+        < anchor_threshold
+    )
+
+    filtered_targets = scaled_targets[ratio_mask]
+
+    box_xy = filtered_targets[:, 2:4]
+    box_wh = torch.tensor([scale_width, scale_height]) - box_xy
+
+    def decimal_part(x: Tensor) -> Tensor:
+        return x % 1.0
+
+    x, y = ((decimal_part(box_xy) < bias) & (box_xy > 1.0)).T
+    w, h = ((decimal_part(box_wh) < bias) & (box_wh > 1.0)).T
+    mask = torch.stack((torch.ones_like(x), x, y, w, h))
+    final_targets = filtered_targets.repeat((len(xy_shifts), 1, 1))[mask]
+
+    shifts = xy_shifts.unsqueeze(1).repeat((1, len(box_xy), 1))[mask]
+    return final_targets, shifts
 
 
 def dist2bbox(distance, anchor_points, box_format="xyxy"):
@@ -308,8 +367,8 @@ def anchors_from_dataset(
     Returns:
         torch.Tensor: Proposed anchors
     """
-    from scipy.cluster.vq import kmeans
     from luxonis_ml.loader import LabelType
+    from scipy.cluster.vq import kmeans
 
     print("Generating anchors...")
     wh = []

@@ -11,7 +11,7 @@ model:
     name: RepPANNeck
 
   heads:
-    - name: IKeypointHead
+    - name: KeypointBoxHead
       params:
         n_classes: 1
         n_keypoints: 17

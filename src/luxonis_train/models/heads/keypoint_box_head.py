@@ -143,7 +143,7 @@ class KeypointBoxHead(BaseHead):
             batch_size, _, feature_height, feature_width = feat.shape
             if i >= len(self.grid):
                 self.grid.append(
-                    self._make_grid(feature_width, feature_height).to(feat.device)
+                    self._construct_grid(feature_width, feature_height).to(feat.device)
                 )
 
             feat = feat.reshape(
@@ -417,7 +417,7 @@ class KeypointBoxHead(BaseHead):
 
             # from this point down only needed for inference
             if self.grid[i].shape[2:4] != x[i].shape[2:4]:
-                self.grid[i] = self._make_grid(nx, ny).to(x[i].device)
+                self.grid[i] = self._construct_grid(nx, ny).to(x[i].device)
             kpt_grid_x = self.grid[i][..., 0:1]
             kpt_grid_y = self.grid[i][..., 1:2]
 
@@ -509,12 +509,12 @@ class KeypointBoxHead(BaseHead):
             )  # cls
             mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
-    def _make_grid(self, feature_width: int, feature_height: int):
-        yv, xv = torch.meshgrid(
+    def _construct_grid(self, feature_width: int, feature_height: int):
+        grid_y, grid_x = torch.meshgrid(
             [torch.arange(feature_height), torch.arange(feature_width)], indexing="ij"
         )
         return (
-            torch.stack((xv, yv), 2)
+            torch.stack((grid_x, grid_y), 2)
             .view((1, 1, feature_height, feature_width, 2))
             .float()
         )

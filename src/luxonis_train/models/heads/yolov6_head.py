@@ -175,7 +175,7 @@ class YoloV6Head(BaseObjectDetection):
             multiply_with_stride=True,
         )
 
-        pred_bboxes = dist2bbox(reg_dist_list, anchor_points, box_format="cxcywh")
+        pred_bboxes = dist2bbox(reg_dist_list, anchor_points, out_format="cxcywh")
 
         pred_bboxes *= stride_tensor
         output_merged = torch.cat(

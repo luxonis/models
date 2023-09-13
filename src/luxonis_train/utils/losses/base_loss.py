@@ -5,11 +5,11 @@ from typing import Optional
 
 
 class BaseLoss(nn.Module, ABC):
-    def __init__(self, head_attributes: dict, **kwargs):
+    def __init__(self, head_attributes: dict = {}, **kwargs):
         """Base abstract loss class from which all other losses are created
 
         Args:
-            head_attributes (dict): Dictionary of all head attributes to which the loss is connected to
+            head_attributes (dict, optional): Dictionary of all head attributes to which the loss is connected to
         """
         super().__init__()
 

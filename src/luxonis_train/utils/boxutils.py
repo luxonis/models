@@ -2,7 +2,14 @@ import torch
 import time
 import math
 from typing import List, Literal
-from torchvision.ops import box_convert, nms
+from torchvision.ops import (
+    box_convert,
+    nms,
+    box_iou,
+    generalized_box_iou,
+    distance_box_iou,
+    complete_box_iou,
+)
 
 
 def dist2bbox(
@@ -22,7 +29,7 @@ def dist2bbox(
     return bbox
 
 
-def bbox2dist(anchor_points: torch.Tensor, bbox: torch.Tensor, reg_max: float):
+def bbox2dist(bbox: torch.Tensor, anchor_points: torch.Tensor, reg_max: float):
     """Transform bbox(xyxy) to distance(ltrb)."""
     x1y1, x2y2 = torch.split(bbox, 2, -1)
     lt = anchor_points - x1y1
@@ -34,94 +41,88 @@ def bbox2dist(anchor_points: torch.Tensor, bbox: torch.Tensor, reg_max: float):
 def bbox_iou(
     bbox1: torch.Tensor,
     bbox2: torch.Tensor,
-    box_format: str = "xywh",
-    iou_type: str = "none",
-    eps: float = 1e-7,
+    box_format: Literal["xyxy", "xywh", "cxcywh"] = "xyxy",
+    iou_type: Literal["none", "giou", "ciou", "siou"] = "none",
+    element_wise: bool = False,
 ):
-    """Caclulate iou between boxs
+    """IoU between two sets of bounding boxes
 
     Args:
-        bbox1 (torch.Tensor): first bbox
-        bbox2 (torch.Tensor): second bbox
-        box_format (str, optional): Input box format, must be one of "xywh" or "xywh". Defaults to "xywh".
-        iou_type (str, optional): Can be one of "none", "ciou", "diou, "giou" or "siou". Defaults to "none".
-        eps (float, optional): Value to avoid divide by zero error. Defaults to 1e-7.
+        bbox1 (torch.Tensor): First set of bboxes [N, 4]
+        bbox2 (torch.Tensor): Second set of bboxes [M, 4]
+        box_format (Literal["xyxy", "xywh", "cxcywh"], optional): Input bbox format. Defaults to "xyxy".
+        iou_type (Literal["none", "giou", "ciou", "siou"], optional): IoU type used. Defaults to "none".
+        element_wise (bool, optional): If True returns element wise IoUs. Defaults to False.
+
+    Returns:
+        torch.Tensor: [N,M] or [N] tensor
     """
-    if bbox1.shape[0] != bbox2.shape[0]:
-        bbox2 = bbox2.T
-        if box_format == "xyxy":
-            b1_x1, b1_y1, b1_x2, b1_y2 = bbox1[0], bbox1[1], bbox1[2], bbox1[3]
-            b2_x1, b2_y1, b2_x2, b2_y2 = bbox2[0], bbox2[1], bbox2[2], bbox2[3]
-        elif box_format == "xywh":
-            b1_x1, b1_x2 = bbox1[0] - bbox1[2] / 2, bbox1[0] + bbox1[2] / 2
-            b1_y1, b1_y2 = bbox1[1] - bbox1[3] / 2, bbox1[1] + bbox1[3] / 2
-            b2_x1, b2_x2 = bbox2[0] - bbox2[2] / 2, bbox2[0] + bbox2[2] / 2
-            b2_y1, b2_y2 = bbox2[1] - bbox2[3] / 2, bbox2[1] + bbox2[3] / 2
-    else:
-        if box_format == "xyxy":
-            b1_x1, b1_y1, b1_x2, b1_y2 = torch.split(bbox1, 1, dim=-1)
-            b2_x1, b2_y1, b2_x2, b2_y2 = torch.split(bbox2, 1, dim=-1)
+    if box_format != "xyxy":
+        bbox1 = box_convert(bbox1, in_fmt=box_format, out_fmt="xyxy")
+        bbox2 = box_convert(bbox2, in_fmt=box_format, out_fmt="xyxy")
 
-        elif box_format == "xywh":
-            b1_x1, b1_y1, b1_w, b1_h = torch.split(bbox1, 1, dim=-1)
-            b2_x1, b2_y1, b2_w, b2_h = torch.split(bbox2, 1, dim=-1)
-            b1_x1, b1_x2 = b1_x1 - b1_w / 2, b1_x1 + b1_w / 2
-            b1_y1, b1_y2 = b1_y1 - b1_h / 2, b1_y1 + b1_h / 2
-            b2_x1, b2_x2 = b2_x1 - b2_w / 2, b2_x1 + b2_w / 2
-            b2_y1, b2_y2 = b2_y1 - b2_h / 2, b2_y1 + b2_h / 2
-
-    # Intersection area
-    inter = (torch.min(b1_x2, b2_x2) - torch.max(b1_x1, b2_x1)).clamp(0) * (
-        torch.min(b1_y2, b2_y2) - torch.max(b1_y1, b2_y1)
-    ).clamp(0)
-
-    # Union Area
-    w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1 + eps
-    w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1 + eps
-    union = w1 * h1 + w2 * h2 - inter + eps
-    iou = inter / union
-
-    cw = torch.max(b1_x2, b2_x2) - torch.min(b1_x1, b2_x1)  # convex width
-    ch = torch.max(b1_y2, b2_y2) - torch.min(b1_y1, b2_y1)  # convex height
-    if iou_type == "giou":
-        c_area = cw * ch + eps  # convex area
-        iou = iou - (c_area - union) / c_area
-    elif iou_type in ["diou", "ciou"]:
-        c2 = cw**2 + ch**2 + eps  # convex diagonal squared
-        rho2 = (
-            (b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2 + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2
-        ) / 4  # center distance squared
-        if iou_type == "diou":
-            iou = iou - rho2 / c2
-        elif iou_type == "ciou":
-            v = (4 / math.pi**2) * torch.pow(
-                torch.atan(w2 / h2) - torch.atan(w1 / h1), 2
-            )
-            with torch.no_grad():
-                alpha = v / (v - iou + (1 + eps))
-            iou = iou - (rho2 / c2 + v * alpha)
+    if iou_type == "none":
+        iou = box_iou(bbox1, bbox2)
+    elif iou_type == "giou":
+        iou = generalized_box_iou(bbox1, bbox2)
+    elif iou_type == "diou":
+        iou = distance_box_iou(bbox1, bbox2)
+    elif iou_type == "ciou":
+        iou = complete_box_iou(bbox1, bbox2)
     elif iou_type == "siou":
-        # SIoU Loss https://arxiv.org/pdf/2205.12740.pdf
-        s_cw = (b2_x1 + b2_x2 - b1_x1 - b1_x2) * 0.5 + eps
-        s_ch = (b2_y1 + b2_y2 - b1_y1 - b1_y2) * 0.5 + eps
+        # SIoU Loss from `SIoU Loss: More Powerful Learning for Bounding Box Regression`,
+        # https://arxiv.org/pdf/2205.12740.pdf
+
+        eps = 1e-7
+        bbox1_xywh = box_convert(bbox1, in_fmt="xyxy", out_fmt="xywh")
+        w1, h1 = bbox1_xywh[:, 2], bbox1_xywh[:, 3]
+        bbox2_xywh = box_convert(bbox2, in_fmt="xyxy", out_fmt="xywh")
+        w2, h2 = bbox2_xywh[:, 2], bbox2_xywh[:, 3]
+
+        # enclose area
+        enclose_x1y1 = torch.min(bbox1[:, None, :2], bbox2[:, :2])
+        enclose_x2y2 = torch.max(bbox1[:, None, 2:], bbox2[:, 2:])
+        enclose_wh = (enclose_x2y2 - enclose_x1y1).clamp(min=eps)
+        cw = enclose_wh[..., 0]
+        ch = enclose_wh[..., 1]
+
+        # angle cost
+        s_cw = (
+            bbox2[:, None, 0] + bbox2[:, None, 2] - bbox1[:, 0] - bbox1[:, 2]
+        ) * 0.5 + eps
+        s_ch = (
+            bbox2[:, None, 1] + bbox2[:, None, 3] - bbox1[:, 1] - bbox1[:, 3]
+        ) * 0.5 + eps
+
         sigma = torch.pow(s_cw**2 + s_ch**2, 0.5)
+
         sin_alpha_1 = torch.abs(s_cw) / sigma
         sin_alpha_2 = torch.abs(s_ch) / sigma
         threshold = pow(2, 0.5) / 2
         sin_alpha = torch.where(sin_alpha_1 > threshold, sin_alpha_2, sin_alpha_1)
         angle_cost = torch.cos(torch.arcsin(sin_alpha) * 2 - math.pi / 2)
+
+        # distance cost
         rho_x = (s_cw / cw) ** 2
         rho_y = (s_ch / ch) ** 2
         gamma = angle_cost - 2
         distance_cost = 2 - torch.exp(gamma * rho_x) - torch.exp(gamma * rho_y)
-        omiga_w = torch.abs(w1 - w2) / torch.max(w1, w2)
-        omiga_h = torch.abs(h1 - h2) / torch.max(h1, h2)
-        shape_cost = torch.pow(1 - torch.exp(-1 * omiga_w), 4) + torch.pow(
-            1 - torch.exp(-1 * omiga_h), 4
-        )
-        iou = iou - 0.5 * (distance_cost + shape_cost)
 
-    return iou
+        # shape cost
+        omega_w = torch.abs(w1 - w2) / torch.max(w1, w2)
+        omega_h = torch.abs(h1 - h2) / torch.max(h1, h2)
+        shape_cost = torch.pow(1 - torch.exp(-1 * omega_w), 4) + torch.pow(
+            1 - torch.exp(-1 * omega_h), 4
+        )
+
+        iou = box_iou(bbox1, bbox2) - 0.5 * (distance_cost + shape_cost)
+    else:
+        raise ValueError(f"IoU type `{iou_type}` not supported.")
+
+    if element_wise:
+        return iou.diag()
+    else:
+        return iou
 
 
 def non_max_suppression_bbox(

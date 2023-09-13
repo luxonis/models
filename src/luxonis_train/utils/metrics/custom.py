@@ -3,7 +3,7 @@ import contextlib
 import io
 from torch import Tensor
 from typing import List, Optional
-from typing_extensions import Literal
+from typing import Literal
 from torchmetrics import Metric
 from scipy.optimize import linear_sum_assignment
 from torchvision.ops import box_convert
@@ -119,7 +119,7 @@ class ObjectKeypointSimilarity(Metric):
         distances = torch.norm(pred[:, :2] - gt[:, :2], dim=-1)
         # Compute the exponential part of the equation
         exp_vector = torch.exp(
-            -(distances**2) / (2 * (scale**2) * (self.kpt_sigmas**2))
+            -(distances ** 2) / (2 * (scale ** 2) * (self.kpt_sigmas ** 2))
         )
         numerator = torch.dot(exp_vector, gt[:, 2].bool().float())
         denominator = torch.sum(gt[:, 2].bool().int()) + 1e-9

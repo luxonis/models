@@ -47,8 +47,12 @@ class YoloV7PoseLoss(BaseLoss):
         self.kptv_weight = kptv_weight
         self.anchor_t = anchor_t
 
-        self.BCEcls = BCEWithLogitsLoss(pos_weight=torch.tensor([cls_pw]))
-        self.BCEobj = BCEWithLogitsLoss(pos_weight=torch.tensor([obj_pw]))
+        self.BCEcls = BCEWithLogitsLoss(
+            pos_weight=torch.tensor([cls_pw]), head_attributes={"n_classes": 1}
+        )  # n_classes set to 1 because inputs are one-hot encoded
+        self.BCEobj = BCEWithLogitsLoss(
+            pos_weight=torch.tensor([obj_pw]), head_attributes={"n_classes": 1}
+        )  # n_classes set to 1 because inputs are one-hot encoded
 
         # Class label smoothing targets (https://arxiv.org/pdf/1902.04103.pdf eqn 3)
         self.positive_smooth_const, self.negative_smooth_const = self._smooth_BCE(
@@ -79,9 +83,15 @@ class YoloV7PoseLoss(BaseLoss):
                 pxy = ps[:, :2].sigmoid() * 2.0 - 0.5
                 pwh = (ps[:, 2:4].sigmoid() * 2) ** 2 * anchors[i].to(device)
                 pbox = torch.cat((pxy, pwh), 1)
+
                 iou = bbox_iou(
-                    pbox.T, tbox[i].to(device), box_format="xywh", iou_type="ciou"
+                    pbox,
+                    tbox[i].to(device),
+                    box_format="xywh",
+                    iou_type="ciou",
+                    element_wise=True,
                 )
+
                 lbox += (1.0 - iou).mean()  # iou loss
                 # Direct kpt prediction
                 pkpt_x = ps[:, 5 + self.n_classes :: 3] * 2.0 - 0.5

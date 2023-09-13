@@ -6,7 +6,6 @@
 
 import torch
 import torch.nn as nn
-import numpy as np
 import torch.nn.functional as F
 from typing import Literal
 from torchvision.ops import box_convert
@@ -38,14 +37,13 @@ class YoloV6Loss(BaseLoss):
         ]  # take only [H,W]
 
         self.n_warmup_epochs = n_warmup_epochs
-        self.warmup_assigner = ATSSAssigner(9, num_classes=self.n_classes)
+        self.warmup_assigner = ATSSAssigner(topk=9, n_classes=self.n_classes)
         self.formal_assigner = TaskAlignedAssigner(
-            topk=13, num_classes=self.n_classes, alpha=1.0, beta=6.0
+            topk=13, n_classes=self.n_classes, alpha=1.0, beta=6.0
         )
 
-        self.iou_type = iou_type
         self.varifocal_loss = VarifocalLoss()
-        self.bbox_loss = BboxLoss(self.n_classes, self.iou_type)
+        self.bbox_iou_loss = BboxIoULoss(iou_type)
         self.loss_weight = loss_weight
 
     def forward(self, preds, target, epoch, step):
@@ -84,101 +82,35 @@ class YoloV6Loss(BaseLoss):
         anchor_points_strided = anchor_points / stride_tensor
         pred_bboxes = dist2bbox(pred_distri, anchor_points_strided)
 
-        try:
-            if epoch < self.n_warmup_epochs:
-                (
-                    target_labels,
-                    target_bboxes,
-                    target_scores,
-                    fg_mask,
-                ) = self.warmup_assigner(
-                    anchors,
-                    n_anchors_list,
-                    gt_labels,
-                    gt_bboxes,
-                    mask_gt,
-                    pred_bboxes.detach() * stride_tensor,
-                )
-            else:
-                (
-                    target_labels,
-                    target_bboxes,
-                    target_scores,
-                    fg_mask,
-                ) = self.formal_assigner(
-                    pred_scores.detach(),
-                    pred_bboxes.detach() * stride_tensor,
-                    anchor_points,
-                    gt_labels,
-                    gt_bboxes,
-                    mask_gt,
-                )
-
-        except RuntimeError:
-            print(
-                "OOM RuntimeError is raised due to the huge memory cost during label assignment. \
-                    CPU mode is applied in this batch. If you want to avoid this issue, \
-                    try to reduce the batch size or image size."
+        if epoch < self.n_warmup_epochs:
+            (
+                target_labels,
+                target_bboxes,
+                target_scores,
+                fg_mask,
+            ) = self.warmup_assigner(
+                anchors,
+                n_anchors_list,
+                gt_labels,
+                gt_bboxes,
+                mask_gt,
+                pred_bboxes.detach() * stride_tensor,
             )
-            torch.cuda.empty_cache()
-            print("------------CPU Mode for This Batch-------------")
-            if epoch < self.n_warmup_epochs:
-                _anchors = anchors.cpu().float()
-                _n_anchors_list = n_anchors_list
-                _gt_labels = gt_labels.cpu().float()
-                _gt_bboxes = gt_bboxes.cpu().float()
-                _mask_gt = mask_gt.cpu().float()
-                _pred_bboxes = pred_bboxes.detach().cpu().float()
-                _stride_tensor = stride_tensor.cpu().float()
+        else:
+            (
+                target_labels,
+                target_bboxes,
+                target_scores,
+                fg_mask,
+            ) = self.formal_assigner(
+                pred_scores.detach(),
+                pred_bboxes.detach() * stride_tensor,
+                anchor_points,
+                gt_labels,
+                gt_bboxes,
+                mask_gt,
+            )
 
-                (
-                    target_labels,
-                    target_bboxes,
-                    target_scores,
-                    fg_mask,
-                ) = self.warmup_assigner(
-                    _anchors,
-                    _n_anchors_list,
-                    _gt_labels,
-                    _gt_bboxes,
-                    _mask_gt,
-                    _pred_bboxes * _stride_tensor,
-                )
-
-            else:
-                _pred_scores = pred_scores.detach().cpu().float()
-                _pred_bboxes = pred_bboxes.detach().cpu().float()
-                _anchor_points = anchor_points.cpu().float()
-                _gt_labels = gt_labels.cpu().float()
-                _gt_bboxes = gt_bboxes.cpu().float()
-                _mask_gt = mask_gt.cpu().float()
-                _stride_tensor = stride_tensor.cpu().float()
-
-                (
-                    target_labels,
-                    target_bboxes,
-                    target_scores,
-                    fg_mask,
-                ) = self.formal_assigner(
-                    _pred_scores,
-                    _pred_bboxes * _stride_tensor,
-                    _anchor_points,
-                    _gt_labels,
-                    _gt_bboxes,
-                    _mask_gt,
-                )
-
-            target_labels = target_labels.cuda()
-            target_bboxes = target_bboxes.cuda()
-            target_scores = target_scores.cuda()
-            fg_mask = fg_mask.cuda()
-
-        # Dynamic release GPU memory
-        if step % 10 == 0:
-            torch.cuda.empty_cache()
-
-        # rescale bbox
-        target_bboxes /= stride_tensor
 
         # cls loss
         target_labels = torch.where(
@@ -189,15 +121,14 @@ class YoloV6Loss(BaseLoss):
 
         target_scores_sum = target_scores.sum()
         # avoid devide zero error, devide by zero will cause loss to be inf or nan.
-        # if target_scores_sum is 0, loss_cls equals to 0 alson
         if target_scores_sum > 0:
             loss_cls /= target_scores_sum
 
-        # bbox loss
-        loss_iou = self.bbox_loss(
+        # bbox iou loss
+        loss_iou = self.bbox_iou_loss(
             pred_distri,
             pred_bboxes,
-            target_bboxes,
+            target_bboxes / stride_tensor,
             target_scores,
             target_scores_sum,
             fg_mask,
@@ -225,40 +156,54 @@ class YoloV6Loss(BaseLoss):
 
 
 class VarifocalLoss(nn.Module):
-    def __init__(self):
-        super(VarifocalLoss, self).__init__()
+    def __init__(self, alpha: float = 0.75, gamma: float = 2.0):
+        """Varifocal Loss is a loss function for training a dense object detector to predict
+        the IoU-aware classification score, inspired by focal loss.
 
-    def forward(self, pred_score, gt_score, label, alpha=0.75, gamma=2.0):
-        weight = alpha * pred_score.pow(gamma) * (1 - label) + gt_score * label
-        with torch.amp.autocast(enabled=False, device_type=pred_score.device.type):
-            loss = (
-                F.binary_cross_entropy(
-                    pred_score.float(), gt_score.float(), reduction="none"
-                )
-                * weight
-            ).sum()
+        Args:
+            alpha (float, optional): Defaults to 0.75.
+            gamma (float, optional): Defaults to 2.0.
+        """
+        super().__init__()
+
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(
+        self, pred_score: torch.Tensor, gt_score: torch.Tensor, label: torch.Tensor
+    ):
+        weight = (
+            self.alpha * pred_score.pow(self.gamma) * (1 - label) + gt_score * label
+        )
+        ce_loss = F.binary_cross_entropy(
+            pred_score.float(), gt_score.float(), reduction="none"
+        )
+        loss = (ce_loss * weight).sum()
         return loss
 
 
-class BboxLoss(nn.Module):
-    def __init__(self, num_classes, iou_type="giou"):
-        super(BboxLoss, self).__init__()
-        self.n_classes = num_classes
-        self.iou_loss = IOUloss(box_format="xyxy", iou_type=iou_type, eps=1e-10)
+class BboxIoULoss(nn.Module):
+    def __init__(self, iou_type: Literal["none", "giou", "ciou", "siou"] = "giou"):
+        """IoU loss on bounding boxes
+
+        Args:
+            iou_type (Literal["none", "giou", "ciou", "siou"], optional): Defaults to "giou".
+        """
+        super().__init__()
+
+        self.iou_type = iou_type
 
     def forward(
         self,
-        pred_dist,
-        pred_bboxes,
-        target_bboxes,
-        target_scores,
-        target_scores_sum,
-        fg_mask,
+        pred_dist: torch.Tensor,
+        pred_bboxes: torch.Tensor,
+        target_bboxes: torch.Tensor,
+        target_scores: torch.Tensor,
+        target_scores_sum: torch.Tensor,
+        fg_mask: torch.Tensor,
     ):
-        # select positive samples mask
         num_pos = fg_mask.sum()
         if num_pos > 0:
-            # iou loss
             bbox_mask = fg_mask.unsqueeze(-1).repeat([1, 1, 4])
             pred_bboxes_pos = torch.masked_select(pred_bboxes, bbox_mask).reshape(
                 [-1, 4]
@@ -269,7 +214,11 @@ class BboxLoss(nn.Module):
             bbox_weight = torch.masked_select(target_scores.sum(-1), fg_mask).unsqueeze(
                 -1
             )
-            loss_iou = self.iou_loss(pred_bboxes_pos, target_bboxes_pos) * bbox_weight
+
+            iou = bbox_iou(pred_bboxes_pos, target_bboxes_pos, iou_type=self.iou_type, element_wise=True)
+            iou = iou[..., None]
+            loss_iou = (1 - iou) * bbox_weight
+
             if target_scores_sum == 0:
                 loss_iou = loss_iou.sum()
             else:
@@ -278,33 +227,3 @@ class BboxLoss(nn.Module):
             loss_iou = torch.tensor(0.0).to(pred_dist.device)
 
         return loss_iou
-
-
-class IOUloss(nn.Module):
-    """Calculate IoU loss."""
-
-    def __init__(self, box_format="xywh", iou_type="ciou", reduction="none", eps=1e-7):
-        """Setting of the class.
-        Args:
-            box_format: (string), must be one of 'xywh' or 'xyxy'.
-            iou_type: (string), can be one of 'ciou', 'diou', 'giou' or 'siou'
-            reduction: (string), specifies the reduction to apply to the output, must be one of 'none', 'mean','sum'.
-            eps: (float), a value to avoid divide by zero error.
-        """
-        super(IOUloss, self).__init__()
-        self.box_format = box_format
-        self.iou_type = iou_type.lower()
-        self.reduction = reduction
-        self.eps = eps
-
-    def forward(self, box1, box2, **kwargs):
-        """calculate iou. box1 and box2 are torch tensor with shape [M, 4] and [Nm 4]."""
-        iou = bbox_iou(box1, box2, box_format=self.box_format, iou_type=self.iou_type)
-        loss = 1.0 - iou
-
-        if self.reduction == "sum":
-            loss = loss.sum()
-        elif self.reduction == "mean":
-            loss = loss.mean()
-
-        return loss

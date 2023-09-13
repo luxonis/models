@@ -21,10 +21,7 @@ class Model(nn.Module):
         """Builds the model from defined config"""
         cfg = Config()
         modules_cfg = cfg.get("model")
-        dummy_input_shape = [
-            1,
-            3,
-        ] + cfg.get(
+        dummy_input_shape = [1, 3,] + cfg.get(
             "train.preprocessing.train_image_size"
         )  # NOTE: we assume 3 dimensional input shape
 

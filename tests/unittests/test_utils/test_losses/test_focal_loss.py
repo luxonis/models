@@ -21,7 +21,7 @@ def test_focal_loss_max():
     targets = torch.tensor([1, 1, 0, 0, 1], dtype=torch.float32)
     loss = loss_fn(inputs, targets)
 
-    # torch clips negative infinity that log(0.0) would produce to -100; aslo exp{-100} is almost zero.
+    # torch clips negative infinity that log(0.0) would produce to -100; also exp{-100} is almost zero.
     assert torch.allclose(loss, torch.tensor(100.0))
 
 def test_focal_loss_shapes():
@@ -62,7 +62,7 @@ def test_focal_loss_sigmoid():
 
     result_sig = loss_fn_sig(inputs, targets)
     result_no_sig = loss_fn_no_sig(torch.nn.functional.sigmoid(inputs), targets)
-    assert torch.isclose(result_sig, result_no_sig)
+    assert torch.allclose(result_sig, result_no_sig)
 
 
 def test_focal_loss_forgotten_sigmoid():

@@ -12,8 +12,10 @@ import torch.nn as nn
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import SqueezeExciteBlock, ConvModule
+from luxonis_train.utils.registry import BACKBONES
 
 
+@BACKBONES.register_module()
 class MobileOne(BaseBackbone):
     def __init__(self, variant: Literal["s0", "s1", "s2", "s3", "s4"] = "s0", **kwargs):
         """MobileOne backbone

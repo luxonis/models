@@ -13,8 +13,10 @@ from luxonis_train.models.modules import (
     SpatialPyramidPoolingBlock,
 )
 from luxonis_train.utils.general import make_divisible
+from luxonis_train.utils.registry import BACKBONES
 
 
+@BACKBONES.register_module()
 class EfficientRep(BaseBackbone):
     def __init__(
         self,

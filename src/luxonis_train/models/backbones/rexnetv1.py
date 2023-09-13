@@ -8,10 +8,12 @@ import torch
 import torch.nn as nn
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
-from luxonis_train.utils.general import make_divisible
 from luxonis_train.models.modules import ConvModule
+from luxonis_train.utils.general import make_divisible
+from luxonis_train.utils.registry import BACKBONES
 
 
+@BACKBONES.register_module()
 class ReXNetV1_lite(BaseBackbone):
     def __init__(
         self,

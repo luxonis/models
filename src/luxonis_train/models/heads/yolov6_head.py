@@ -14,8 +14,10 @@ from luxonis_train.models.heads.base_heads import BaseObjectDetection
 from luxonis_train.models.modules import ConvModule
 from luxonis_train.utils.assigners.anchor_generator import generate_anchors
 from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression_bbox
+from luxonis_train.utils.registry import HEADS
 
 
+@HEADS.register_module()
 class YoloV6Head(BaseObjectDetection):
     def __init__(
         self,

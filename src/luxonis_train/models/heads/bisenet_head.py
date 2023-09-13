@@ -2,13 +2,14 @@
 # Source: https://github.com/taveraantonio/BiseNetv1
 #
 
-import torch
 import torch.nn as nn
 
 from luxonis_train.models.modules import ConvModule
 from luxonis_train.models.heads.base_heads import BaseSegmentationHead
+from luxonis_train.utils.registry import HEADS
 
 
+@HEADS.register_module()
 class BiSeNetHead(BaseSegmentationHead):
     def __init__(
         self,

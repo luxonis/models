@@ -1,8 +1,7 @@
 import unittest
 import torch
-import luxonis_train.models.backbones as backbones
-from luxonis_train.models.backbones import *
 
+from luxonis_train.utils.registry import BACKBONES
 
 # update when new backbone is added
 DEFAULT_INIT_VALUES = {
@@ -21,14 +20,13 @@ DEFAULT_INIT_VALUES = {
 class BackboneTestCases(unittest.TestCase):
     def test_backbone_inference(self):
         """Tests inference on all backbones. Output of forward should be List[torch.Tensor]"""
-        all_backbones = backbones.__all__
         input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
-        for backbone_name in all_backbones:
+        for backbone_name in BACKBONES.module_dict:
             for input_shape in input_shapes:
                 with self.subTest(backbone_name=backbone_name, input_shape=input_shape):
-                    self.assertIn(backbone_name, DEFAULT_INIT_VALUES)
+                    init_params = DEFAULT_INIT_VALUES.get(backbone_name, {})
 
-                    model = eval(backbone_name)(**DEFAULT_INIT_VALUES[backbone_name])
+                    model = BACKBONES.get(backbone_name)(**init_params)
                     model.eval()
                     input = torch.zeros(input_shape)
                     outs = model(input)

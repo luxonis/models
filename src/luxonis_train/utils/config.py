@@ -9,6 +9,7 @@ from copy import deepcopy
 
 from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_train.utils.filesystem import LuxonisFileSystem
+from luxonis_train.utils.registry import HEADS
 
 
 class Config:
@@ -288,7 +289,6 @@ class Config:
 
     def _validate_dataset_classes(self):
         """Validates config to used datasets, overrides n_classes if needed"""
-        from luxonis_train.utils.config_helpers import get_head_label_types
 
         with LuxonisDataset(
             team_id=self._data["dataset"]["team_id"],
@@ -419,7 +419,7 @@ class Config:
             self._data["train"]["optimizers"]["scheduler"]["params"] = {}
 
         # handle setting num_workers to 0 for Mac and Windows
-        if sys.platform == "win32" or sys.platform == "darwin": 
+        if sys.platform == "win32" or sys.platform == "darwin":
             self._data["train"]["num_workers"] = 0
 
         # handle IKeypointHead with anchors=None by generating them from dataset
@@ -471,6 +471,11 @@ class Config:
                         head["params"]["anchors"] = proposed_anchors.reshape(
                             -1, 6
                         ).tolist()
+
+
+def get_head_label_types(head_str: str):
+    """Returns all label types defined as head class attributes"""
+    return HEADS.get(head_str).label_types
 
 
 def remove_chars_inside_brackets(string):

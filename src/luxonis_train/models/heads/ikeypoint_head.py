@@ -16,8 +16,10 @@ from luxonis_train.models.heads.base_heads import BaseHead
 from luxonis_train.models.modules import ConvModule, autopad
 from luxonis_train.utils.constants import HeadType
 from luxonis_train.utils.boxutils import non_max_suppression_kpts
+from luxonis_train.utils.registry import HEADS
 
 
+@HEADS.register_module()
 class IKeypointHead(BaseHead):
     head_types: List[HeadType] = [
         HeadType.OBJECT_DETECTION,

@@ -1,10 +1,9 @@
 import unittest
 import torch
 import itertools
-import luxonis_train.models.backbones as backbones
-from luxonis_train.models.backbones import *
-from luxonis_train.models.heads import *
+
 from luxonis_train.utils.general import dummy_input_run
+from luxonis_train.utils.registry import BACKBONES, NECKS, HEADS
 
 # update when new backbone or head is added
 DEFAULT_BACKBONE_INIT_VALUES = {
@@ -32,7 +31,7 @@ DEFAULT_HEAD_INIT_VALUES = {
 class HeadTestCases(unittest.TestCase):
     def test_simple_heads(self):
         """Tests combination of all backbones with all simple heads. Output should be torch.Tensor"""
-        all_backbones = backbones.__all__
+        all_backbones = list(BACKBONES.module_dict.keys())
 
         # NOTE: if new head created add it to the list
         simple_heads = [
@@ -51,10 +50,12 @@ class HeadTestCases(unittest.TestCase):
                     head_name=head_name,
                     input_shape=input_shape,
                 ):
-                    self.assertIn(backbone_name, DEFAULT_BACKBONE_INIT_VALUES)
-                    self.assertIn(head_name, DEFAULT_HEAD_INIT_VALUES)
+                    backbone_init_params = DEFAULT_BACKBONE_INIT_VALUES.get(
+                        backbone_name, {}
+                    )
+                    head_init_params = DEFAULT_HEAD_INIT_VALUES.get(head_name, {})
 
-                    backbone = eval(backbone_name)(
+                    backbone = BACKBONES.get(backbone_name)(
                         **DEFAULT_BACKBONE_INIT_VALUES[backbone_name]
                     )
                     input = torch.zeros(input_shape)
@@ -65,9 +66,9 @@ class HeadTestCases(unittest.TestCase):
                         "n_classes": 1,
                         "input_channels_shapes": input_channels_shapes,
                         "original_in_shape": input_shape,
-                        **DEFAULT_HEAD_INIT_VALUES[head_name]
+                        **DEFAULT_HEAD_INIT_VALUES[head_name],
                     }
-                    head = eval(head_name)(**head_params)
+                    head = HEADS.get(head_name)(**head_params)
                     head.eval()
 
                     outs = backbone(input)
@@ -79,6 +80,7 @@ class HeadTestCases(unittest.TestCase):
         """Tests YoloV6 head together with EfficienRep backbone and RepPANNeck"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
+        from luxonis_train.models.heads import YoloV6Head
 
         input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
         backbone = EfficientRep()
@@ -131,6 +133,7 @@ class HeadTestCases(unittest.TestCase):
         """Tests attach_index parameter of YoloV6 head"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
+        from luxonis_train.models.heads import YoloV6Head
 
         input_shape = [1, 3, 256, 256]
         backbone = EfficientRep()
@@ -227,6 +230,7 @@ class HeadTestCases(unittest.TestCase):
         """Tests IKeypoint head together with EfficienRep backbone and RepPANNeck"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
+        from luxonis_train.models.heads import IKeypointHead
 
         dummy_anchors = [
             [1, 1, 1, 1, 1, 1],
@@ -287,6 +291,7 @@ class HeadTestCases(unittest.TestCase):
         """Tests parameters of IKeypoint head"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
+        from luxonis_train.models.heads import IKeypointHead
 
         dummy_anchors = [
             [1, 1, 1, 1, 1, 1],
@@ -400,6 +405,7 @@ class HeadTestCases(unittest.TestCase):
         """Tests stride of heads based on neck output for IKeypoint and YoloV6 head"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
+        from luxonis_train.models.heads import YoloV6Head, IKeypointHead
 
         dummy_anchors = [
             [1, 1, 1, 1, 1, 1],

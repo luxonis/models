@@ -11,7 +11,7 @@ from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_train.models import Model
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.losses import init_loss
+from luxonis_train.utils.registry import LOSSES, CALLBACKS
 from luxonis_train.utils.optimizers import init_optimizer
 from luxonis_train.utils.schedulers import init_scheduler
 from luxonis_train.utils.metrics import init_metrics
@@ -28,7 +28,6 @@ class ModelLightningModule(pl.LightningModule):
         self.cfg = Config()
         self.save_dir = save_dir
         self.model_name = self.cfg.get("model.name")
-        self.early_stopping = None  # early stopping callback
 
         self.model = Model()
         self.model.build_model()
@@ -41,7 +40,7 @@ class ModelLightningModule(pl.LightningModule):
                 **head["loss"]["params"],
                 "head_attributes": self.model.heads[i].__dict__,
             }
-            self.losses.append(init_loss(name=head["loss"]["name"], **params))
+            self.losses.append(LOSSES.get(head["loss"]["name"])(**params))
 
         # for each head initialize its metrics
         self.metrics = nn.ModuleDict()
@@ -171,6 +170,15 @@ class ModelLightningModule(pl.LightningModule):
                     )
                 )
             )
+
+        custom_callbacks = self.cfg.get("train.callbacks.custom_callbacks")
+        if custom_callbacks:
+            for custom_callback in custom_callbacks:
+                callbacks.append(
+                    CALLBACKS.get(custom_callback["name"])(
+                        **custom_callback.get("params", {})
+                    )
+                )
 
         return callbacks
 

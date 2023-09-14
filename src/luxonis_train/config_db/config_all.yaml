@@ -69,6 +69,10 @@ train:
       mode: min
       patience: 5
       verbose: True
+    custom_callbacks: # list of custom pl.Callback modules registered through CALLBACKS Registry 
+      # - name: CustomCallback
+      #   params:
+      #     param1: 1
 
   optimizers: # optimizers specific parameters (check Pytorch docs)
     optimizer:

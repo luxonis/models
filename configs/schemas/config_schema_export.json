@@ -463,6 +463,13 @@
                                     "default": true
                                 }
                             }
+                        },
+                        "custom_callbacks": {
+                            "type": [
+                                "null",
+                                "array"
+                            ],
+                            "default": null
                         }
                     }
                 },

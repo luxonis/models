@@ -101,4 +101,7 @@ class Registry:
 BACKBONES = Registry(name="backbones")
 NECKS = Registry(name="necks")
 HEADS = Registry(name="heads")
+
 LOSSES = Registry(name="losses")
+
+CALLBACKS = Registry(name="callbacks")

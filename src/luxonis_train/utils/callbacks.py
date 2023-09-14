@@ -101,6 +101,7 @@ class TestOnTrainEnd(pl.Callback):
 
         cfg = Config()
         with LuxonisDataset(
+            dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
             bucket_type=eval(self.cfg.get("dataset.bucket_type")),

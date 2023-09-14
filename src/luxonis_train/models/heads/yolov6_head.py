@@ -172,7 +172,7 @@ class YoloV6Head(BaseObjectDetection):
             self.stride,
             self.grid_cell_size,
             self.grid_cell_offset,
-            multiply_with_stride=True,
+            multiply_with_stride=False,
         )
 
         pred_bboxes = dist2bbox(reg_dist_list, anchor_points, out_format="cxcywh")

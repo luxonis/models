@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Literal, Union
+from torch import Tensor
+from typing import Optional, Literal, Union, List
 from torchvision.ops import sigmoid_focal_loss
 
 from luxonis_train.utils.losses.base_loss import BaseLoss
@@ -10,7 +11,7 @@ from luxonis_train.utils.losses.base_loss import BaseLoss
 class CrossEntropyLoss(BaseLoss):
     def __init__(
         self,
-        weight: Optional[torch.Tensor] = None,
+        weight: Optional[Tensor] = None,
         size_average: Optional[bool] = None,
         ignore_index: int = -100,
         reduce: Optional[bool] = None,
@@ -37,7 +38,7 @@ class CrossEntropyLoss(BaseLoss):
             label_smoothing=label_smoothing,
         )
 
-    def forward(self, preds, target, **kwargs):
+    def forward(self, preds: Tensor, target: Tensor, epoch: int, step: int) -> Tensor:
         if target.ndim == 4:
             # target should be of size (N,...)
             target = target.argmax(dim=1)
@@ -47,11 +48,11 @@ class CrossEntropyLoss(BaseLoss):
 class BCEWithLogitsLoss(BaseLoss):
     def __init__(
         self,
-        weight: Optional[torch.Tensor] = None,
+        weight: Optional[Tensor] = None,
         size_average: Optional[bool] = None,
         reduce: Optional[bool] = None,
         reduction: Literal["none", "mean", "sum"] = "mean",
-        pos_weight: Optional[torch.Tensor] = None,
+        pos_weight: Optional[Tensor] = None,
         **kwargs,
     ):
         """Pytorch BCEWithLogitsLoss wrapper. For attribute definitions check
@@ -72,7 +73,7 @@ class BCEWithLogitsLoss(BaseLoss):
             pos_weight=pos_weight,
         )
 
-    def forward(self, preds, target, **kwargs):
+    def forward(self, preds: Tensor, target: Tensor, epoch: int, step: int) -> Tensor:
         return self.criterion(preds, target)
 
 
@@ -103,7 +104,7 @@ class BinaryFocalLoss(BaseLoss):
         self.gamma = gamma
         self.reduction = reduction
 
-    def forward(self, preds, target, **kwargs):
+    def forward(self, preds: Tensor, target: Tensor, epoch: int, step: int) -> Tensor:
         loss = sigmoid_focal_loss(
             preds, target, alpha=self.alpha, gamma=self.gamma, reduction=self.reduction
         )
@@ -114,7 +115,7 @@ class BinaryFocalLoss(BaseLoss):
 class MultiClassFocalLoss(BaseLoss):
     def __init__(
         self,
-        alpha: Union[float, list] = 0.25,
+        alpha: Union[float, List[float]] = 0.25,
         gamma: float = 2.0,
         reduction: Literal["none", "mean", "sum"] = "mean",
         **kwargs,
@@ -138,7 +139,7 @@ class MultiClassFocalLoss(BaseLoss):
         self.gamma = gamma
         self.reduction = reduction
 
-    def forward(self, preds, target, **kwargs):
+    def forward(self, preds: Tensor, target: Tensor, epoch: int, step: int) -> Tensor:
         if target.ndim == 4:
             # target should be of size (N,...)
             target = target.argmax(dim=1)

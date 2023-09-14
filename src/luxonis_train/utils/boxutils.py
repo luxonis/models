@@ -1,7 +1,8 @@
 import torch
 import time
 import math
-from typing import List, Literal
+from torch import Tensor
+from typing import List, Literal, Tuple
 from torchvision.ops import (
     box_convert,
     nms,
@@ -13,11 +14,20 @@ from torchvision.ops import (
 
 
 def dist2bbox(
-    distance: torch.Tensor,
-    anchor_points: torch.Tensor,
+    distance: Tensor,
+    anchor_points: Tensor,
     out_format: Literal["xyxy", "xywh", "cxcywh"] = "xyxy",
-):
-    """Transform distance(ltrb) to box("xyxy", "xywh" or "cxcywh")."""
+) -> Tensor:
+    """Transform distance(ltrb) to box("xyxy", "xywh" or "cxcywh").
+
+    Args:
+        distance (Tensor): Distance predictions
+        anchor_points (Tensor): Head's anchor points
+        out_format (Literal["xyxy", "xywh", "cxcywh"], optional): Bbox output format. Defaults to "xyxy".
+
+    Returns:
+        Tensor: Bboxes in correct format
+    """
     lt, rb = torch.split(distance, 2, -1)
     x1y1 = anchor_points - lt
     x2y2 = anchor_points + rb
@@ -29,8 +39,17 @@ def dist2bbox(
     return bbox
 
 
-def bbox2dist(bbox: torch.Tensor, anchor_points: torch.Tensor, reg_max: float):
-    """Transform bbox(xyxy) to distance(ltrb)."""
+def bbox2dist(bbox: Tensor, anchor_points: Tensor, reg_max: float) -> Tensor:
+    """Transform bbox(xyxy) to distance(ltrb).
+
+    Args:
+        bbox (Tensor): Bboxes in "xyxy" format
+        anchor_points (Tensor): Head's anchor points
+        reg_max (float): Maximum regression distances
+
+    Returns:
+        Tensor: Bboxes in distance(ltrb) format
+    """
     x1y1, x2y2 = torch.split(bbox, 2, -1)
     lt = anchor_points - x1y1
     rb = x2y2 - anchor_points
@@ -39,23 +58,23 @@ def bbox2dist(bbox: torch.Tensor, anchor_points: torch.Tensor, reg_max: float):
 
 
 def bbox_iou(
-    bbox1: torch.Tensor,
-    bbox2: torch.Tensor,
+    bbox1: Tensor,
+    bbox2: Tensor,
     box_format: Literal["xyxy", "xywh", "cxcywh"] = "xyxy",
-    iou_type: Literal["none", "giou", "ciou", "siou"] = "none",
+    iou_type: Literal["none", "giou", "diou", "ciou", "siou"] = "none",
     element_wise: bool = False,
-):
+) -> Tensor:
     """IoU between two sets of bounding boxes
 
     Args:
-        bbox1 (torch.Tensor): First set of bboxes [N, 4]
-        bbox2 (torch.Tensor): Second set of bboxes [M, 4]
+        bbox1 (Tensor): First set of bboxes [N, 4]
+        bbox2 (Tensor): Second set of bboxes [M, 4]
         box_format (Literal["xyxy", "xywh", "cxcywh"], optional): Input bbox format. Defaults to "xyxy".
-        iou_type (Literal["none", "giou", "ciou", "siou"], optional): IoU type used. Defaults to "none".
+        iou_type (Literal["none", "giou", "diou", "ciou", "siou"], optional): IoU type used. Defaults to "none".
         element_wise (bool, optional): If True returns element wise IoUs. Defaults to False.
 
     Returns:
-        torch.Tensor: [N,M] or [N] tensor
+        Tensor: [N,M] or [N] tensor
     """
     if box_format != "xyxy":
         bbox1 = box_convert(bbox1, in_fmt=box_format, out_fmt="xyxy")
@@ -296,11 +315,11 @@ def non_max_suppression_kpts(
 
 
 def anchors_from_dataset(
-    loader: "torch.utils.data.DataLoader",
+    loader: "torch.utils.data.DataLoader",  # type: ignore
     n_anchors: int = 9,
     n_generations: int = 1000,
     ratio_threshold: float = 4.0,
-):
+) -> Tensor:
     """Generates anchors based on bounding box annotations present in provided data loader.
     Adapted from: https://github.com/ultralytics/yolov5/blob/master/utils/autoanchor.py
 
@@ -311,7 +330,7 @@ def anchors_from_dataset(
         ratio_threshold (float, optional): Minimum threshold for ratio. Defaults to 4.0.
 
     Returns:
-        torch.Tensor: Proposed anchors
+        Tensor: Proposed anchors
     """
     from scipy.cluster.vq import kmeans
     from luxonis_ml.loader import LabelType
@@ -352,7 +371,7 @@ def anchors_from_dataset(
         torch.argsort(proposed_anchors.prod(1))
     ]  # sort small to large
 
-    def calc_best_anchor_ratio(anchors, wh):
+    def calc_best_anchor_ratio(anchors: Tensor, wh: Tensor) -> Tensor:
         """Calculate how well most suitable anchor box matches each target bbox"""
         symetric_size_ratios = torch.min(
             wh[:, None] / anchors[None], anchors[None] / wh[:, None]
@@ -361,13 +380,13 @@ def anchors_from_dataset(
         best_anchor_ratio = worst_side_size_ratio.max(-1).values
         return best_anchor_ratio
 
-    def calc_best_possible_recall(anchors, wh):
+    def calc_best_possible_recall(anchors: Tensor, wh: Tensor) -> Tensor:
         """Calculate best possible recall if every bbox is matched to an appropriate anchor"""
         best_anchor_ratio = calc_best_anchor_ratio(anchors, wh)
         best_possible_recall = (best_anchor_ratio > 1 / ratio_threshold).float().mean()
         return best_possible_recall
 
-    def anchor_fitness(anchors, wh):
+    def anchor_fitness(anchors: Tensor, wh: Tensor) -> Tensor:
         """Fitness function used for anchor evolve"""
         best_anchor_ratio = calc_best_anchor_ratio(anchors, wh)
         return (
@@ -406,24 +425,24 @@ def anchors_from_dataset(
 
 
 def anchors_for_fpn_features(
-    features: List[torch.Tensor],
-    strides: torch.Tensor,
+    features: List[Tensor],
+    strides: Tensor,
     grid_cell_size: float = 5.0,
     grid_cell_offset: float = 0.5,
     multiply_with_stride: bool = False,
-):
+) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     """Generated anchor boxes, anchor points, number of anchors and
     strides based on FPN feature shapes and strides.
 
     Args:
-        features (List[torch.Tensor]): List of FPN features
-        strides (torch.Tensor): Strides of FPN features
+        features (List[Tensor]): List of FPN features
+        strides (Tensor): Strides of FPN features
         grid_cell_size (float, optional): Cell size in respect to input image size. Defaults to 5.0.
         grid_cell_offset (float, optional): Percent grid cell center's offset. Defaults to 0.5.
         multiply_with_stride (bool, optional): Weather to multiply per FPN values with its stride. Defaults to False.
 
     Returns:
-        Tuple: Bbox anchors, center anchors, number of anchors, strides
+        Tuple[Tensor, Tensor, Tensor, Tensor]: Bbox anchors, center anchors, number of anchors, strides
     """
     anchors = []
     anchor_points = []
@@ -434,7 +453,7 @@ def anchors_for_fpn_features(
         cell_half_size = grid_cell_size * stride * 0.5
         shift_x = torch.arange(end=w) + grid_cell_offset
         shift_y = torch.arange(end=h) + grid_cell_offset
-        if not multiply_with_stride:
+        if multiply_with_stride:
             shift_x *= stride
             shift_y *= stride
         shift_y, shift_x = torch.meshgrid(shift_y, shift_x, indexing="ij")

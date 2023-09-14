@@ -1,15 +1,17 @@
 from abc import ABC, abstractmethod
 import torch.nn as nn
 import warnings
-from typing import Optional
+from torch import Tensor
+from typing import Optional, Union, Tuple, Dict, Any
 
 
 class BaseLoss(nn.Module, ABC):
-    def __init__(self, head_attributes: dict = {}, **kwargs):
+    def __init__(self, head_attributes: Dict[str, Any] = {}, **kwargs):
         """Base abstract loss class from which all other losses are created
 
         Args:
-            head_attributes (dict, optional): Dictionary of all head attributes to which the loss is connected to
+            head_attributes (Dict[str, Any], optional): Dictionary of all head
+                attributes to which the loss is connected to. Defaults to {}.
         """
         super().__init__()
 
@@ -21,7 +23,9 @@ class BaseLoss(nn.Module, ABC):
             )
 
     @abstractmethod
-    def forward(self, preds: any, target: any, epoch: int, step: int):
+    def forward(
+        self, preds: Any, target: Any, epoch: int, step: int
+    ) -> Union[Tensor, Tuple[Tensor, Dict[str, Tensor]]]:
         """torch.nn.Module forward method"""
         pass
 

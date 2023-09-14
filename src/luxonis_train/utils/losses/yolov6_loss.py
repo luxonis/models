@@ -7,7 +7,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Literal
+from torch import Tensor
+from typing import Literal, List, Dict, Tuple
 from torchvision.ops import box_convert
 
 from luxonis_train.utils.losses.base_loss import BaseLoss
@@ -23,22 +24,24 @@ class YoloV6Loss(BaseLoss):
         self,
         n_warmup_epochs: int = 4,
         iou_type: Literal["none", "ciou", "diou", "giou", "siou"] = "giou",
-        loss_weight: dict = {"class": 1.0, "iou": 2.5},
+        loss_weight: Dict[str, float] = {"class": 1.0, "iou": 2.5},
         **kwargs,
     ):
         super().__init__(**kwargs)
 
-        self.n_classes = self.head_attributes.get("n_classes")
-        self.stride = self.head_attributes.get("stride")
-        self.grid_cell_size = self.head_attributes.get("grid_cell_size")
-        self.grid_cell_offset = self.head_attributes.get("grid_cell_offset")
-        self.original_img_size = self.head_attributes.get("original_in_shape")[
+        self.n_classes: int = self.head_attributes.get("n_classes")
+        self.stride: Tensor = self.head_attributes.get("stride")
+        self.grid_cell_size: float = self.head_attributes.get("grid_cell_size")
+        self.grid_cell_offset: float = self.head_attributes.get("grid_cell_offset")
+        self.original_img_size: List[int] = self.head_attributes.get(
+            "original_in_shape"
+        )[
             2:
         ]  # take only [H,W]
 
         self.n_warmup_epochs = n_warmup_epochs
-        self.warmup_assigner = ATSSAssigner(topk=9, n_classes=self.n_classes)
-        self.formal_assigner = TaskAlignedAssigner(
+        self.atts_assigner = ATSSAssigner(topk=9, n_classes=self.n_classes)
+        self.tal_assigner = TaskAlignedAssigner(
             topk=13, n_classes=self.n_classes, alpha=1.0, beta=6.0
         )
 
@@ -46,7 +49,13 @@ class YoloV6Loss(BaseLoss):
         self.bbox_iou_loss = BboxIoULoss(iou_type)
         self.loss_weight = loss_weight
 
-    def forward(self, preds, target, epoch, step):
+    def forward(
+        self,
+        preds: Tuple[List[Tensor], Tensor, Tensor],
+        target: Tensor,
+        epoch: int,
+        step: int,
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
         feats, pred_scores, pred_distri = preds
 
         (
@@ -59,7 +68,7 @@ class YoloV6Loss(BaseLoss):
             self.stride,
             self.grid_cell_size,
             self.grid_cell_offset,
-            multiply_with_stride=False,
+            multiply_with_stride=True,
         )
 
         # target preprocessing
@@ -88,7 +97,7 @@ class YoloV6Loss(BaseLoss):
                 target_bboxes,
                 target_scores,
                 fg_mask,
-            ) = self.warmup_assigner(
+            ) = self.atts_assigner(
                 anchors,
                 n_anchors_list,
                 gt_labels,
@@ -102,7 +111,7 @@ class YoloV6Loss(BaseLoss):
                 target_bboxes,
                 target_scores,
                 fg_mask,
-            ) = self.formal_assigner(
+            ) = self.tal_assigner(
                 pred_scores.detach(),
                 pred_bboxes.detach() * stride_tensor,
                 anchor_points,
@@ -110,7 +119,6 @@ class YoloV6Loss(BaseLoss):
                 gt_bboxes,
                 mask_gt,
             )
-
 
         # cls loss
         target_labels = torch.where(
@@ -140,9 +148,7 @@ class YoloV6Loss(BaseLoss):
 
         return loss, sub_losses
 
-    def _preprocess_target(
-        self, target: torch.Tensor, batch_size: int, scale_tensor: torch.Tensor
-    ):
+    def _preprocess_target(self, target: Tensor, batch_size: int, scale_tensor: Tensor):
         """Preprocess target in shape [batch_size, N, 5] where N is maximum number of instances in one image"""
         sample_ids, counts = torch.unique(target[:, 0].int(), return_counts=True)
         out_target = torch.zeros(batch_size, counts.max(), 5, device=target.device)
@@ -169,14 +175,12 @@ class VarifocalLoss(nn.Module):
         self.alpha = alpha
         self.gamma = gamma
 
-    def forward(
-        self, pred_score: torch.Tensor, gt_score: torch.Tensor, label: torch.Tensor
-    ):
+    def forward(self, pred_score: Tensor, target_score: Tensor, label: Tensor):
         weight = (
-            self.alpha * pred_score.pow(self.gamma) * (1 - label) + gt_score * label
+            self.alpha * pred_score.pow(self.gamma) * (1 - label) + target_score * label
         )
         ce_loss = F.binary_cross_entropy(
-            pred_score.float(), gt_score.float(), reduction="none"
+            pred_score.float(), target_score.float(), reduction="none"
         )
         loss = (ce_loss * weight).sum()
         return loss
@@ -195,12 +199,12 @@ class BboxIoULoss(nn.Module):
 
     def forward(
         self,
-        pred_dist: torch.Tensor,
-        pred_bboxes: torch.Tensor,
-        target_bboxes: torch.Tensor,
-        target_scores: torch.Tensor,
-        target_scores_sum: torch.Tensor,
-        fg_mask: torch.Tensor,
+        pred_dist: Tensor,
+        pred_bboxes: Tensor,
+        target_bboxes: Tensor,
+        target_scores: Tensor,
+        target_scores_sum: Tensor,
+        fg_mask: Tensor,
     ):
         num_pos = fg_mask.sum()
         if num_pos > 0:
@@ -215,7 +219,12 @@ class BboxIoULoss(nn.Module):
                 -1
             )
 
-            iou = bbox_iou(pred_bboxes_pos, target_bboxes_pos, iou_type=self.iou_type, element_wise=True)
+            iou = bbox_iou(
+                pred_bboxes_pos,
+                target_bboxes_pos,
+                iou_type=self.iou_type,
+                element_wise=True,
+            )
             iou = iou[..., None]
             loss_iou = (1 - iou) * bbox_weight
 

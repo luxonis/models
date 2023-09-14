@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
+from torch import Tensor
+from typing import Optional, List, Tuple
 from torchvision.ops import box_iou
 
 
@@ -9,8 +10,8 @@ class ATSSAssigner(nn.Module):
     def __init__(self, topk: int = 9, n_classes: int = 80):
         """Adaptive Training Sample Selection Assigner from `Bridging the Gap Between Anchor-based and Anchor-free Detection via
         Adaptive Training Sample Selection`, https://arxiv.org/pdf/1912.02424.pdf.
-        Code is adapted from: https://github.com/fcjian/TOOD/blob/master/mmdet/core/bbox/assigners/atss_assigner.py and
-        https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/assigner/atss_assigner.py
+        Code is adapted from: https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/assigner/atss_assigner.py and
+        https://github.com/fcjian/TOOD/blob/master/mmdet/core/bbox/assigners/atss_assigner.py
 
         Args:
             topk (int, optional): Number of anchors considere in selection. Defaults to 9.
@@ -21,31 +22,29 @@ class ATSSAssigner(nn.Module):
         self.topk = topk
         self.n_classes = n_classes
 
-    @torch.no_grad()
     def forward(
         self,
-        anchor_bboxes: torch.Tensor,
-        n_level_bboxes: list,
-        gt_labels: torch.Tensor,
-        gt_bboxes: torch.Tensor,
-        mask_gt: torch.Tensor,
-        pred_bboxes: torch.Tensor,
-    ):
+        anchor_bboxes: Tensor,
+        n_level_bboxes: List[int],
+        gt_labels: Tensor,
+        gt_bboxes: Tensor,
+        mask_gt: Tensor,
+        pred_bboxes: Tensor,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """Assigner's forward method which generates final targets
 
         Args:
-            anchor_bboxes (torch.Tensor): Anchor bboxes of shape [n_anchors, 4]
-            n_level_bboxes (list): Number of bboxes per level
-            gt_labels (torch.Tensor): Initial GT labels [bs, n_max_boxes, 1]
-            gt_bboxes (torch.Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
-            mask_gt (torch.Tensor): Mask for valid GTs [bs, n_max_boxes, 1]
-            pred_bboxes (torch.Tensor): Predicted bboxes of shape [bs, n_anchors, 4]
+            anchor_bboxes (Tensor): Anchor bboxes of shape [n_anchors, 4]
+            n_level_bboxes (List[int]): Number of bboxes per level
+            gt_labels (Tensor): Initial GT labels [bs, n_max_boxes, 1]
+            gt_bboxes (Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
+            mask_gt (Tensor): Mask for valid GTs [bs, n_max_boxes, 1]
+            pred_bboxes (Tensor): Predicted bboxes of shape [bs, n_anchors, 4]
 
         Returns:
-            target_labels (torch.Tensor): Output labels of shape [bs, n_anchors]
-            target_bboxes (Tensor): Output bboxes of shape [bs, n_anchors, 4]
-            target_scores (Tensor): Output scores of shape [bs, n_anchors, 1]
-            fg_mask (Tensor): Output mask of shape [bs, n_anchors]
+            Tuple[Tensor, Tensor, Tensor, Tensor]: Output labels of shape [bs, n_anchors],
+                output bboxes of shape [bs, n_anchors, 4], output scores of shape [bs, n_anchors, 1]
+                and output mask of shape [bs, n_anchors]
         """
 
         self.n_anchors = anchor_bboxes.size(0)
@@ -76,12 +75,12 @@ class ATSSAssigner(nn.Module):
         distances = distances.reshape([self.bs, -1, self.n_anchors])
 
         # Select candidates based on the center distance
-        is_in_candidate, candidate_idxs = self._select_topk_candidates(
+        is_in_topk, topk_idxs = self._select_topk_candidates(
             distances, n_level_bboxes, mask_gt
         )
 
         # Compute threshold and selected positive candidates based on it
-        is_pos = self._get_positive_samples(is_in_candidate, candidate_idxs, overlaps)
+        is_pos = self._get_positive_samples(is_in_topk, topk_idxs, overlaps)
 
         # Select candidates inside GT
         is_in_gts = candidates_in_gt(anchor_centers, gt_bboxes_flat)
@@ -91,13 +90,13 @@ class ATSSAssigner(nn.Module):
         mask_pos = is_pos * is_in_gts * mask_gt
 
         # If an anchor box is assigned to multiple gts, the one with the highest IoU is selected
-        target_gt_idx, fg_mask, mask_pos = fix_collisions(
+        target_gt_idx, mask_pos_sum, mask_pos = fix_collisions(
             mask_pos, overlaps, self.n_max_boxes
         )
 
         # Generate final targets based on masks
         target_labels, target_bboxes, target_scores = self._get_final_targets(
-            gt_labels, gt_bboxes, target_gt_idx, fg_mask
+            gt_labels, gt_bboxes, target_gt_idx, mask_pos_sum
         )
 
         # Soft label with IoU
@@ -106,28 +105,28 @@ class ATSSAssigner(nn.Module):
             ious = ious.max(axis=-2)[0].unsqueeze(-1)
             target_scores *= ious
 
-        return target_labels.long(), target_bboxes, target_scores, fg_mask.bool()
+        return target_labels.long(), target_bboxes, target_scores, mask_pos_sum.bool()
 
-    def _get_bbox_center(self, bbox: torch.Tensor):
+    def _get_bbox_center(self, bbox: Tensor) -> Tensor:
         """Computes centers of bbox with shape [N,4]"""
         cx = (bbox[:, 0] + bbox[:, 2]) / 2.0
         cy = (bbox[:, 1] + bbox[:, 3]) / 2.0
         return torch.stack((cx, cy), dim=1).to(bbox.device)
 
     def _select_topk_candidates(
-        self, distances: torch.Tensor, n_level_bboxes: list, mask_gt: torch.Tensor
-    ):
+        self, distances: Tensor, n_level_bboxes: List[int], mask_gt: Tensor
+    ) -> Tuple[Tensor, Tensor]:
         """Select k anchors whose centers are closest to GT
 
         Args:
-            distances (torch.Tensor): Distances between GT and anchor centers
-            n_level_bboxes (list): List of number of bboxes per level
-            mask_gt (torch.Tensor): Mask for valid GT per image
+            distances (Tensor): Distances between GT and anchor centers
+            n_level_bboxes (List[int]): List of number of bboxes per level
+            mask_gt (Tensor): Mask for valid GT per image
         """
         mask_gt = mask_gt.repeat(1, 1, self.topk).bool()
         level_distances = torch.split(distances, n_level_bboxes, dim=-1)
-        is_in_candidate_list = []
-        candidate_idxs = []
+        is_in_topk_list = []
+        topk_idxs = []
         start_idx = 0
         for per_level_distances, per_level_boxes in zip(
             level_distances, n_level_bboxes
@@ -137,46 +136,44 @@ class ATSSAssigner(nn.Module):
             _, per_level_topk_idxs = per_level_distances.topk(
                 selected_k, dim=-1, largest=False
             )
-            candidate_idxs.append(per_level_topk_idxs + start_idx)
+            topk_idxs.append(per_level_topk_idxs + start_idx)
             per_level_topk_idxs = torch.where(
                 mask_gt, per_level_topk_idxs, torch.zeros_like(per_level_topk_idxs)
             )
-            is_in_candidate = F.one_hot(per_level_topk_idxs, per_level_boxes).sum(
-                dim=-2
+            is_in_topk = F.one_hot(per_level_topk_idxs, per_level_boxes).sum(dim=-2)
+            is_in_topk = torch.where(
+                is_in_topk > 1, torch.zeros_like(is_in_topk), is_in_topk
             )
-            is_in_candidate = torch.where(
-                is_in_candidate > 1, torch.zeros_like(is_in_candidate), is_in_candidate
-            )
-            is_in_candidate_list.append(is_in_candidate.to(distances.dtype))
+            is_in_topk_list.append(is_in_topk.to(distances.dtype))
             start_idx = end_idx
 
-        is_in_candidate_list = torch.cat(is_in_candidate_list, dim=-1)
-        candidate_idxs = torch.cat(candidate_idxs, dim=-1)
-        return is_in_candidate_list, candidate_idxs
+        is_in_topk_list = torch.cat(is_in_topk_list, dim=-1)
+        topk_idxs = torch.cat(topk_idxs, dim=-1)
+        return is_in_topk_list, topk_idxs
 
     def _get_positive_samples(
         self,
-        is_in_candidate: torch.Tensor,
-        candidate_idxs: torch.Tensor,
-        overlaps: torch.Tensor,
-    ):
+        is_in_topk: Tensor,
+        topk_idxs: Tensor,
+        overlaps: Tensor,
+    ) -> Tensor:
         """Computes threshold and returns mask for samples over threshold
 
         Args:
-            is_in_candidate (torch.Tensor): Mask of candidate samples [bx, n_max_boxes, n_anchors]
-            candidate_idxs (torch.Tensor): Indices of candidates [bx, n_max_boxes, topK*n_levels]
-            overlaps (torch.Tensor): IoUs between GTs and anchors [bx, n_max_boxes, n_anchors]
+            is_in_topk (Tensor): Mask of candidate samples [bx, n_max_boxes, n_anchors]
+            topk_idxs (Tensor): Indices of candidates [bx, n_max_boxes, topK*n_levels]
+            overlaps (Tensor): IoUs between GTs and anchors [bx, n_max_boxes, n_anchors]
         """
         n_bs_max_boxes = self.bs * self.n_max_boxes
         _candidate_overlaps = torch.where(
-            is_in_candidate > 0, overlaps, torch.zeros_like(overlaps)
+            is_in_topk > 0, overlaps, torch.zeros_like(overlaps)
         )
-        candidate_idxs = candidate_idxs.reshape([n_bs_max_boxes, -1])
+        topk_idxs = topk_idxs.reshape([n_bs_max_boxes, -1])
         assist_idxs = self.n_anchors * torch.arange(
-            n_bs_max_boxes, device=candidate_idxs.device
+            n_bs_max_boxes, device=topk_idxs.device
         )
         assist_idxs = assist_idxs[:, None]
-        faltten_idxs = candidate_idxs + assist_idxs
+        faltten_idxs = topk_idxs + assist_idxs
         candidate_overlaps = _candidate_overlaps.reshape(-1)[faltten_idxs]
         candidate_overlaps = candidate_overlaps.reshape([self.bs, self.n_max_boxes, -1])
 
@@ -186,25 +183,25 @@ class ATSSAssigner(nn.Module):
 
         is_pos = torch.where(
             _candidate_overlaps > overlaps_thr_per_gt.repeat([1, 1, self.n_anchors]),
-            is_in_candidate,
-            torch.zeros_like(is_in_candidate),
+            is_in_topk,
+            torch.zeros_like(is_in_topk),
         )
         return is_pos
 
     def _get_final_targets(
         self,
-        gt_labels: torch.Tensor,
-        gt_bboxes: torch.Tensor,
-        target_gt_idx: torch.Tensor,
-        fg_mask: torch.Tensor,
-    ):
+        gt_labels: Tensor,
+        gt_bboxes: Tensor,
+        target_gt_idx: Tensor,
+        mask_pos_sum: Tensor,
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         """Generate final targets based on the mask
 
         Args:
-            gt_labels (torch.Tensor): Initial GT labels [bs, n_max_boxes, 1]
-            gt_bboxes (torch.Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
-            target_gt_idx (torch.Tensor): Indices of matched GTs [bs, n_anchors]
-            fg_mask (torch.Tensor): Mask of matched GTs [bs, n_anchors]
+            gt_labels (Tensor): Initial GT labels [bs, n_max_boxes, 1]
+            gt_bboxes (Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
+            target_gt_idx (Tensor): Indices of matched GTs [bs, n_anchors]
+            mask_pos_sum (Tensor): Mask of matched GTs [bs, n_anchors]
         """
         # assigned target labels
         batch_idx = torch.arange(
@@ -215,7 +212,9 @@ class ATSSAssigner(nn.Module):
         target_labels = gt_labels.flatten()[target_gt_idx.flatten()]
         target_labels = target_labels.reshape([self.bs, self.n_anchors])
         target_labels = torch.where(
-            fg_mask > 0, target_labels, torch.full_like(target_labels, self.n_classes)
+            mask_pos_sum > 0,
+            target_labels,
+            torch.full_like(target_labels, self.n_classes),
         )
 
         # assigned target boxes
@@ -259,30 +258,28 @@ class TaskAlignedAssigner(nn.Module):
     @torch.no_grad()
     def forward(
         self,
-        pred_scores: torch.Tensor,
-        pred_bboxes: torch.Tensor,
-        anchor_points: torch.Tensor,
-        gt_labels: torch.Tensor,
-        gt_bboxes: torch.Tensor,
-        mask_gt: torch.Tensor,
-    ):
+        pred_scores: Tensor,
+        pred_bboxes: Tensor,
+        anchor_points: Tensor,
+        gt_labels: Tensor,
+        gt_bboxes: Tensor,
+        mask_gt: Tensor,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """Assigner's forward method which generates final targets
 
         Args:
-            pred_scores (torch.Tensor): Predicted scores [bs, n_achors, 1]
-            pred_bboxes (torch.Tensor): Predicted bboxes [bs, n_acnhors, 4]
-            anchor_points (torch.Tensor): Anchor points [n_acnhors, 2]
-            gt_labels (torch.Tensor): Initial GT labels [bs, n_max_boxes, 1]
-            gt_bboxes (torch.Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
-            mask_gt (torch.Tensor): Mask for valid GTs [bs, n_max_boxes, 1]
+            pred_scores (Tensor): Predicted scores [bs, n_achors, 1]
+            pred_bboxes (Tensor): Predicted bboxes [bs, n_acnhors, 4]
+            anchor_points (Tensor): Anchor points [n_acnhors, 2]
+            gt_labels (Tensor): Initial GT labels [bs, n_max_boxes, 1]
+            gt_bboxes (Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
+            mask_gt (Tensor): Mask for valid GTs [bs, n_max_boxes, 1]
 
         Returns:
-            target_labels (torch.Tensor): Output labels of shape [bs, n_anchors]
-            target_bboxes (Tensor): Output bboxes of shape [bs, n_anchors, 4]
-            target_scores (Tensor): Output scores of shape [bs, n_anchors, 1]
-            fg_mask (Tensor): Output mask of shape [bs, n_anchors]
+            Tuple[Tensor, Tensor, Tensor, Tensor]: Output labels of shape [bs, n_anchors],
+                output bboxes of shape [bs, n_anchors, 4], output scores of shape [bs, n_anchors, 1]
+                and output mask of shape [bs, n_anchors]
         """
-
         self.bs = pred_scores.size(0)
         self.n_max_boxes = gt_bboxes.size(1)
 
@@ -300,7 +297,7 @@ class TaskAlignedAssigner(nn.Module):
             pred_scores, pred_bboxes, gt_labels, gt_bboxes
         )
 
-        # Select top-k bboxrd as candidates for each GT
+        # Select top-k bboxes as candidates for each GT
         is_in_gts = candidates_in_gt(anchor_points, gt_bboxes.reshape([-1, 4]))
         is_in_gts = torch.reshape(is_in_gts, (self.bs, self.n_max_boxes, -1))
         is_in_topk = self._select_topk_candidates(
@@ -312,13 +309,13 @@ class TaskAlignedAssigner(nn.Module):
         mask_pos = is_in_topk * is_in_gts * mask_gt
 
         # If an anchor box is assigned to multiple gts, the one with the highest IoU is selected
-        target_gt_idx, fg_mask, mask_pos = fix_collisions(
+        target_gt_idx, mask_pos_sum, mask_pos = fix_collisions(
             mask_pos, overlaps, self.n_max_boxes
         )
 
         # Generate final targets based on masks
         target_labels, target_bboxes, target_scores = self._get_final_targets(
-            gt_labels, gt_bboxes, target_gt_idx, fg_mask
+            gt_labels, gt_bboxes, target_gt_idx, mask_pos_sum
         )
 
         # normalize
@@ -332,22 +329,22 @@ class TaskAlignedAssigner(nn.Module):
         )
         target_scores = target_scores * norm_align_metric
 
-        return target_labels, target_bboxes, target_scores, fg_mask.bool()
+        return target_labels, target_bboxes, target_scores, mask_pos_sum.bool()
 
     def _get_alignment_metric(
         self,
-        pred_scores: torch.Tensor,
-        pred_bboxes: torch.Tensor,
-        gt_labels: torch.Tensor,
-        gt_bboxes: torch.Tensor,
+        pred_scores: Tensor,
+        pred_bboxes: Tensor,
+        gt_labels: Tensor,
+        gt_bboxes: Tensor,
     ):
         """Calculates anchor alignment metric and IoU between GTs and predicted bboxes
 
         Args:
-            pred_scores (torch.Tensor): Tensor of shape [bs, n_anchors, 1]
-            pred_bboxes (torch.Tensor): Tensor of shape [bs, n_anchors, 4]
-            gt_labels (torch.Tensor): Tensor of shape [bs, n_max_boxes, 1]
-            gt_bboxes (torch.Tensor): Tensor of shape [bs, n_max_boxes, 4]
+            pred_scores (Tensor): Tensor of shape [bs, n_anchors, 1]
+            pred_bboxes (Tensor): Tensor of shape [bs, n_anchors, 4]
+            gt_labels (Tensor): Tensor of shape [bs, n_max_boxes, 1]
+            gt_bboxes (Tensor): Tensor of shape [bs, n_max_boxes, 4]
         """
         pred_scores = pred_scores.permute(0, 2, 1)
         gt_labels = gt_labels.to(torch.long)
@@ -363,16 +360,16 @@ class TaskAlignedAssigner(nn.Module):
 
     def _select_topk_candidates(
         self,
-        metrics: torch.Tensor,
+        metrics: Tensor,
         largest: bool = True,
-        topk_mask: Optional[torch.Tensor] = None,
+        topk_mask: Optional[Tensor] = None,
     ):
         """Selects k anchors based on provided metrics tensor
 
         Args:
-            metrics (torch.Tensor): Metrics tensor of shape [bs, n_max_boxes, n_anchors]
+            metrics (Tensor): Metrics tensor of shape [bs, n_max_boxes, n_anchors]
             largest (bool, optional): Flag if should keep largest topK. Defaults to True.
-            topk_mask (Optional[torch.Tensor], optional): Mask for valid GTs of shape [bs, n_max_boxes, topk]. Defaults to None.
+            topk_mask (Optional[Tensor], optional): Mask for valid GTs of shape [bs, n_max_boxes, topk]. Defaults to None.
 
         """
         num_anchors = metrics.shape[-1]
@@ -392,18 +389,18 @@ class TaskAlignedAssigner(nn.Module):
 
     def _get_final_targets(
         self,
-        gt_labels: torch.Tensor,
-        gt_bboxes: torch.Tensor,
-        target_gt_idx: torch.Tensor,
-        fg_mask: torch.Tensor,
+        gt_labels: Tensor,
+        gt_bboxes: Tensor,
+        target_gt_idx: Tensor,
+        mask_pos_sum: Tensor,
     ):
         """Generate final targets based on the mask
 
         Args:
-            gt_labels (torch.Tensor): Initial GT labels [bs, n_max_boxes, 1]
-            gt_bboxes (torch.Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
-            target_gt_idx (torch.Tensor): Indices of matched GTs [bs, n_anchors]
-            fg_mask (torch.Tensor): Mask of matched GTs [bs, n_anchors]
+            gt_labels (Tensor): Initial GT labels [bs, n_max_boxes, 1]
+            gt_bboxes (Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
+            target_gt_idx (Tensor): Indices of matched GTs [bs, n_anchors]
+            mask_pos_sum (Tensor): Mask of matched GTs [bs, n_anchors]
         """
         # assigned target labels
         batch_ind = torch.arange(
@@ -418,7 +415,7 @@ class TaskAlignedAssigner(nn.Module):
         # assigned target scores
         target_labels[target_labels < 0] = 0
         target_scores = F.one_hot(target_labels, self.n_classes)
-        fg_scores_mask = fg_mask[:, :, None].repeat(1, 1, self.n_classes)
+        fg_scores_mask = mask_pos_sum[:, :, None].repeat(1, 1, self.n_classes)
         target_scores = torch.where(
             fg_scores_mask > 0, target_scores, torch.full_like(target_scores, 0)
         )
@@ -427,14 +424,17 @@ class TaskAlignedAssigner(nn.Module):
 
 
 def candidates_in_gt(
-    anchor_centers: torch.Tensor, gt_bboxes: torch.Tensor, eps: float = 1e-9
-):
+    anchor_centers: Tensor, gt_bboxes: Tensor, eps: float = 1e-9
+) -> Tensor:
     """Check if anchor box's center is in any GT bbox
 
     Args:
-        anchor_centers (torch.Tensor): Centers of anchor bboxes [n_anchors, 2]
-        gt_bboxes (torch.Tensor): Ground truth bboxes [bs * n_max_boxes, 4]
+        anchor_centers (Tensor): Centers of anchor bboxes [n_anchors, 2]
+        gt_bboxes (Tensor): Ground truth bboxes [bs * n_max_boxes, 4]
         eps (float, optional): Threshold for minimum delta. Defaults to 1e-9.
+
+    Returns:
+        Tensor: Mask for anchors inside any GT bbox
     """
     n_anchors = anchor_centers.size(0)
     anchor_centers = anchor_centers.unsqueeze(0).repeat(gt_bboxes.size(0), 1, 1)
@@ -447,32 +447,40 @@ def candidates_in_gt(
     return candidates
 
 
-def fix_collisions(mask_pos: torch.Tensor, overlaps: torch.Tensor, n_max_boxes: int):
+def fix_collisions(
+    mask_pos: Tensor, overlaps: Tensor, n_max_boxes: int
+) -> Tuple[Tensor, Tensor, Tensor]:
     """If an anchor is assigned to multiple GTs, the one with highest IoU is selected
 
     Args:
-        mask_pos (torch.Tensor): Mask of assigned anchors [bs, n_max_boxes, n_anchors]
-        overlaps (torch.Tensor): IoUs between GTs and anchors [bx, n_max_boxes, n_anchors]
+        mask_pos (Tensor): Mask of assigned anchors [bs, n_max_boxes, n_anchors]
+        overlaps (Tensor): IoUs between GTs and anchors [bx, n_max_boxes, n_anchors]
         n_max_boxes (int): Number of maximum boxes per image
+
+    Returns:
+        Tuple[Tensor, Tensor, Tensor]: Target indices, sum of positive mask, positive mask
     """
-    fg_mask = mask_pos.sum(axis=-2)
-    if fg_mask.max() > 1:
-        mask_multi_gts = (fg_mask.unsqueeze(1) > 1).repeat([1, n_max_boxes, 1])
+    mask_pos_sum = mask_pos.sum(axis=-2)
+    if mask_pos_sum.max() > 1:
+        mask_multi_gts = (mask_pos_sum.unsqueeze(1) > 1).repeat([1, n_max_boxes, 1])
         max_overlaps_idx = overlaps.argmax(axis=1)
         is_max_overlaps = F.one_hot(max_overlaps_idx, n_max_boxes)
         is_max_overlaps = is_max_overlaps.permute(0, 2, 1).to(overlaps.dtype)
         mask_pos = torch.where(mask_multi_gts, is_max_overlaps, mask_pos)
-        fg_mask = mask_pos.sum(axis=-2)
+        mask_pos_sum = mask_pos.sum(axis=-2)
     target_gt_idx = mask_pos.argmax(axis=-2)
-    return target_gt_idx, fg_mask, mask_pos
+    return target_gt_idx, mask_pos_sum, mask_pos
 
 
-def batch_iou(batch1: torch.Tensor, batch2: torch.Tensor):
+def batch_iou(batch1: Tensor, batch2: Tensor) -> Tensor:
     """Calculates IoU for each pair of bboxes in the batch
 
     Args:
-        batch1 (torch.Tensor): Tensor of shape [bs, N, 4]
-        batch2 (torch.Tensor): Tensor of shape [bs, M, 4]
+        batch1 (Tensor): Tensor of shape [bs, N, 4]
+        batch2 (Tensor): Tensor of shape [bs, M, 4]
+
+    Returns:
+        Tensor: Per image box IoU of shape [bs, N, M]
     """
     ious = torch.stack(
         [box_iou(batch1[i], batch2[i]) for i in range(batch1.size(0))], dim=0

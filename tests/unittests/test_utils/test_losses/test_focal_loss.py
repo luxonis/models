@@ -15,6 +15,7 @@ def test_focal_loss_min():
 
     assert torch.allclose(loss, torch.tensor(0.0))
 
+
 def test_focal_loss_max():
     loss_fn = FocalLoss(alpha=1.0, gamma=1, use_sigmoid=False)
     inputs = torch.tensor([0.0, 0.0, 1.0, 1.0, 0.0], requires_grad=True)
@@ -24,10 +25,10 @@ def test_focal_loss_max():
     # torch clips negative infinity that log(0.0) would produce to -100; also exp{-100} is almost zero.
     assert torch.allclose(loss, torch.tensor(100.0))
 
-def test_focal_loss_shapes():
 
-    shapes = [(1, ), (1000, ), (1, 2, 2), (20, 256, 256), (64, 256, 256, 3)]
-    
+def test_focal_loss_shapes():
+    shapes = [(1,), (1000,), (1, 2, 2), (20, 256, 256), (64, 256, 256, 3)]
+
     loss_fn = FocalLoss(use_sigmoid=False)
 
     for shape in shapes:
@@ -37,10 +38,10 @@ def test_focal_loss_shapes():
         assert isinstance(loss, torch.Tensor)
         assert loss.shape == torch.Size([])  # Loss should be a scalar
 
-def test_focal_loss_shapes_with_sigmoid():
 
-    shapes = [(1, ), (1000, ), (1, 2, 2), (20, 256, 256), (64, 256, 256, 3)]
-    
+def test_focal_loss_shapes_with_sigmoid():
+    shapes = [(1,), (1000,), (1, 2, 2), (20, 256, 256), (64, 256, 256, 3)]
+
     loss_fn = FocalLoss(use_sigmoid=True)
 
     for shape in shapes:
@@ -49,6 +50,7 @@ def test_focal_loss_shapes_with_sigmoid():
         loss = loss_fn(inputs, targets)
         assert isinstance(loss, torch.Tensor)
         assert loss.shape == torch.Size([])  # Loss should be a scalar
+
 
 def test_focal_loss_sigmoid():
     shape = (8, 64, 64, 1)
@@ -66,7 +68,6 @@ def test_focal_loss_sigmoid():
 
 
 def test_focal_loss_forgotten_sigmoid():
-
     loss_fn = FocalLoss(use_sigmoid=False)
 
     shape = (8, 64, 64, 1)
@@ -79,5 +80,5 @@ def test_focal_loss_forgotten_sigmoid():
         loss_fn(inputs, targets)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pytest.main()

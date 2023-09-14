@@ -17,8 +17,10 @@ from luxonis_train.utils.assigners import (
     generate_anchors,
 )
 from luxonis_train.utils.boxutils import dist2bbox, bbox_iou
+from luxonis_train.utils.registry import LOSSES
 
 
+@LOSSES.register_module()
 class YoloV6Loss(nn.Module):
     """Loss computation func."""
 

@@ -2,7 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from luxonis_train.utils.registry import LOSSES
 
+
+@LOSSES.register_module()
 class CrossEntropyLoss(nn.Module):
     def __init__(self, **kwargs):
         super(CrossEntropyLoss, self).__init__()
@@ -19,6 +22,7 @@ class CrossEntropyLoss(nn.Module):
         return self.criterion(preds, labels)
 
 
+@LOSSES.register_module()
 class BCEWithLogitsLoss(nn.Module):
     def __init__(self, **kwargs):
         super(BCEWithLogitsLoss, self).__init__()
@@ -32,6 +36,7 @@ class BCEWithLogitsLoss(nn.Module):
         return self.criterion(preds, labels)
 
 
+@LOSSES.register_module()
 class FocalLoss(nn.Module):
     # Source: https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch/notebook
     def __init__(self, alpha=0.8, gamma=2, **kwargs):
@@ -56,6 +61,7 @@ class FocalLoss(nn.Module):
         return focal_loss
 
 
+@LOSSES.register_module()
 class SegmentationLoss(nn.Module):
     def __init__(self, n_classes, alpha=4.0, gamma=2.0, **kwargs):
         super(SegmentationLoss, self).__init__()

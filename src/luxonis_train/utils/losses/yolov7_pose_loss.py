@@ -8,8 +8,10 @@ import torch.nn as nn
 
 from luxonis_train.utils.boxutils import bbox_iou
 from luxonis_train.utils.losses.common import FocalLoss, BCEWithLogitsLoss
+from luxonis_train.utils.registry import LOSSES
 
 
+@LOSSES.register_module()
 class YoloV7PoseLoss(nn.Module):
     def __init__(
         self,

@@ -24,7 +24,7 @@ class SegmentationHead(BaseSegmentationHead):
         """Basic segmentation FCN head. Note that it doesn't ensure that ouptut is same size as input.
 
         Args:
-            n_classes (int): NUmber of classes
+            n_classes (int): Number of classes
             input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.

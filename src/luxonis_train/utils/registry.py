@@ -105,3 +105,7 @@ HEADS = Registry(name="heads")
 LOSSES = Registry(name="losses")
 
 CALLBACKS = Registry(name="callbacks")
+
+OPTIMIZERS = Registry(name="optimizers")
+
+SCHEDULERS = Registry(name="schedulers")

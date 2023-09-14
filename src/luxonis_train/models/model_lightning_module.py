@@ -11,9 +11,7 @@ from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_train.models import Model
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.registry import LOSSES, CALLBACKS
-from luxonis_train.utils.optimizers import init_optimizer
-from luxonis_train.utils.schedulers import init_scheduler
+from luxonis_train.utils.registry import LOSSES, CALLBACKS, OPTIMIZERS, SCHEDULERS
 from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
 from luxonis_train.utils.filesystem import LuxonisFileSystem
@@ -185,19 +183,23 @@ class ModelLightningModule(pl.LightningModule):
     def configure_optimizers(self):
         """Configures model optimizers and schedulers"""
         cfg_optimizer = self.cfg.get("train.optimizers")
-        optimizer_name = cfg_optimizer["optimizer"]["name"]
-        optimizer = init_optimizer(
-            model_params=self.model.parameters(),
-            name=optimizer_name,
-            **cfg_optimizer["optimizer"]["params"],
+
+        # config params + model parameters
+        optim_params = {
+            **cfg_optimizer["optimizer"].get("params", {}),
+            "params": self.model.parameters(),
+        }
+        optimizer = OPTIMIZERS.get(cfg_optimizer["optimizer"]["name"])(**optim_params)
+
+        # config params + optimizer
+        scheduler_params = {
+            **cfg_optimizer["scheduler"]["params"],
+            "optimizer": optimizer,
+        }
+        scheduler = SCHEDULERS.get(cfg_optimizer["scheduler"]["name"])(
+            **scheduler_params
         )
 
-        scheduler_name = cfg_optimizer["scheduler"]["name"]
-        scheduler = init_scheduler(
-            optimizer=optimizer,
-            name=scheduler_name,
-            **cfg_optimizer["scheduler"]["params"],
-        )
         return [optimizer], [scheduler]
 
     def load_checkpoint(self, path: str):

@@ -9,7 +9,10 @@ from torchvision.ops import box_convert
 from torchvision.utils import draw_bounding_boxes, draw_keypoints
 
 from luxonis_train.models.heads.base_heads import BaseHead
-from luxonis_train.models.modules import ConvModule, autopad
+from luxonis_train.models.modules import (
+    KeypointBlock,
+    LearnableMulAddConv,
+)
 from luxonis_train.utils.boxutils import (
     match_to_anchor,
     non_max_suppression_kpts,
@@ -96,16 +99,14 @@ class KeypointBoxHead(BaseHead):
             [c[1] for c in self.input_channels_shapes]
         )
 
-        self.det_conv = nn.ModuleList(
-            nn.Conv2d(in_channels, self.n_det_out * self.n_anchors, 1)
+        self.learnable_mul_add_conv = nn.ModuleList(
+            LearnableMulAddConv(
+                add_channel=in_channels,
+                mul_channel=self.n_det_out * self.n_anchors,
+                conv_in_channel=in_channels,
+                conv_out_channel=self.n_det_out * self.n_anchors,
+            )
             for in_channels in self.channel_list
-        )
-
-        self.implicit_add = nn.ModuleList(
-            ImplicitAdd(in_channels) for in_channels in self.channel_list
-        )
-        self.implicit_mul = nn.ModuleList(
-            ImplicitMultiply(self.n_det_out * self.n_anchors) for _ in self.channel_list
         )
 
         self.kpt_heads = nn.ModuleList(
@@ -134,11 +135,7 @@ class KeypointBoxHead(BaseHead):
                 Tensor,
                 torch.cat(
                     (
-                        self.implicit_mul[i](
-                            self.det_conv[i](
-                                self.implicit_add[i](inputs[self.attach_index + i])
-                            )
-                        ),
+                        self.learnable_mul_add_conv[i](inputs[self.attach_index + i]),
                         self.kpt_heads[i](inputs[self.attach_index + i]),
                     ),
                     axis=1,
@@ -156,30 +153,37 @@ class KeypointBoxHead(BaseHead):
             ).permute(0, 1, 3, 4, 2)
 
             features.append(feat)
-
-            x_bbox = feat[..., : self.box_offset + self.n_classes]
-            x_keypoints = feat[..., self.box_offset + self.n_classes :]
-
-            box_xy, box_wh, box_tail = process_bbox_predictions(
-                x_bbox, self.anchor_grid[i]
+            predictions.append(
+                self._build_predictions(
+                    feat, self.anchor_grid[i], self.grid[i], self.stride[i]
+                )
             )
-            box_xy = (box_xy + self.grid[i]) * self.stride[i]
-            out_bbox = torch.cat((box_xy, box_wh, box_tail), dim=-1)
-
-            grid_x = self.grid[i][..., 0:1]
-            grid_y = self.grid[i][..., 1:2]
-            kpt_x, kpt_y, kpt_vis = process_keypoints_predictions(x_keypoints)
-            kpt_x = (kpt_x + grid_x) * self.stride[i]
-            kpt_y = (kpt_y + grid_y) * self.stride[i]
-            out_kpt = torch.stack([kpt_x, kpt_y, kpt_vis.sigmoid()], dim=-1).reshape(
-                *kpt_x.shape[:-1], -1
-            )
-
-            out = torch.cat((out_bbox, out_kpt), dim=-1)
-
-            predictions.append(out.reshape(batch_size, -1, self.n_out))
 
         return torch.cat(predictions, 1), features
+
+    def _build_predictions(
+        self, feat: Tensor, anchor_grid: Tensor, grid: Tensor, stride: Tensor
+    ) -> Tensor:
+        batch_size = feat.shape[0]
+        x_bbox = feat[..., : self.box_offset + self.n_classes]
+        x_keypoints = feat[..., self.box_offset + self.n_classes :]
+
+        box_xy, box_wh, box_tail = process_bbox_predictions(x_bbox, anchor_grid)
+        box_xy = (box_xy + grid) * stride
+        out_bbox = torch.cat((box_xy, box_wh, box_tail), dim=-1)
+
+        grid_x = grid[..., 0:1]
+        grid_y = grid[..., 1:2]
+        kpt_x, kpt_y, kpt_vis = process_keypoints_predictions(x_keypoints)
+        kpt_x = (kpt_x + grid_x) * stride
+        kpt_y = (kpt_y + grid_y) * stride
+        out_kpt = torch.stack([kpt_x, kpt_y, kpt_vis.sigmoid()], dim=-1).reshape(
+            *kpt_x.shape[:-1], -1
+        )
+
+        out = torch.cat((out_bbox, out_kpt), dim=-1)
+
+        return out.reshape(batch_size, -1, self.n_out)
 
     def _infer_bbox(
         self, bbox: Tensor, stride: Tensor, grid: Tensor, anchor_grid: Tensor
@@ -233,11 +237,13 @@ class KeypointBoxHead(BaseHead):
         kpts = label_dict[LabelType.KEYPOINT]
         boxes = label_dict[LabelType.BOUNDINGBOX]
         nkpts = (kpts.shape[1] - 2) // 3
-        targets = torch.zeros((len(boxes), nkpts * 2 + 6))
+        targets = torch.zeros((len(boxes), nkpts * 2 + self.box_offset + 1))
         targets[:, :2] = boxes[:, :2]
-        targets[:, 2:6] = box_convert(boxes[:, 2:], "xywh", "cxcywh")
-        targets[:, 6::2] = kpts[:, 2::3]  # insert kp x coordinates
-        targets[:, 7::2] = kpts[:, 3::3]  # insert kp y coordinates
+        targets[:, 2 : self.box_offset + 1] = box_convert(
+            boxes[:, 2:], "xywh", "cxcywh"
+        )
+        targets[:, self.box_offset + 1 :: 2] = kpts[:, 2::3]  # insert kp x coordinates
+        targets[:, self.box_offset + 2 :: 2] = kpts[:, 3::3]  # insert kp y coordinates
 
         n_targets = len(targets)
 
@@ -415,15 +421,11 @@ class KeypointBoxHead(BaseHead):
             x.append(
                 torch.cat(
                     (
-                        self.implicit_mul[i](
-                            self.det_conv[i](
-                                self.implicit_add[i](inputs[self.attach_index + i])
-                            )
-                        ),
+                        self.learnable_mul_add_conv[i](inputs[self.attach_index + i]),
                         self.kpt_heads[i](inputs[self.attach_index + i]),
                     ),
                     axis=1,
-                )
+                )  # type: ignore
             )
 
             bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
@@ -433,44 +435,17 @@ class KeypointBoxHead(BaseHead):
                 .permute(0, 1, 3, 4, 2)
                 .contiguous()
             )
-            x_det = x[i][..., : 5 + self.n_classes]
-            x_kpt = x[i][..., 5 + self.n_classes :]
-
-            # from this point down only needed for inference
-            if self.grid[i].shape[2:4] != x[i].shape[2:4]:
-                self.grid[i] = self._construct_grid(nx, ny).to(x[i].device)
-            kpt_grid_x = self.grid[i][..., 0:1]
-            kpt_grid_y = self.grid[i][..., 1:2]
-
-            # det inference
-            out_det = x_det.sigmoid()
-            out_det_xy = (out_det[..., 0:2] * 2.0 - 0.5 + self.grid[i]) * self.stride[i]
-            out_det_wh = (out_det[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(
-                1, self.n_anchors, 1, 1, 2
+            if i >= len(self.grid):
+                self.grid.append(self._construct_grid(nx, ny).to(x[i].device))
+            outs.append(
+                self._build_predictions(
+                    x[i], self.anchor_grid[i], self.grid[i], self.stride[i]
+                )
             )
-
-            # kpt inference
-            out_kpt_x = (
-                x_kpt[..., ::3] * 2.0
-                - 0.5
-                + kpt_grid_x.repeat(1, 1, 1, 1, self.n_keypoints)
-            ) * self.stride[i]
-            out_kpt_y = (
-                x_kpt[..., 1::3] * 2.0
-                - 0.5
-                + kpt_grid_y.repeat(1, 1, 1, 1, self.n_keypoints)
-            ) * self.stride[i]
-            out_kpt_cls = x_kpt[..., 2::3].sigmoid()
-            out_kpt = torch.stack([out_kpt_x, out_kpt_y, out_kpt_cls], dim=-1).view(
-                *out_kpt_x.shape[:-1], -1
-            )
-
-            out = torch.cat((out_det_xy, out_det_wh, out_det[..., 4:], out_kpt), dim=-1)
-            outs.append(out.view(bs, -1, self.n_out))
-
         return torch.cat(outs, 1)
 
     def to_deploy(self):
+        self.grid = []
         self.forward = self.forward_deploy
 
     def _validate_params(self, num_heads: int, anchors: List[List[int]]):
@@ -518,17 +493,15 @@ class KeypointBoxHead(BaseHead):
                 m.inplace = True
 
         # biases
-        for mi, s in zip(self.det_conv, self.stride):  # from
-            b = mi.bias.view(self.n_anchors, -1)  # conv.bias(255) to (3,85)
-            b.data[:, 4] += math.log(
-                8 / (640 / s) ** 2
-            )  # obj (8 objects per 640 image)
+        for mi, s in zip(self.learnable_mul_add_conv, self.stride):
+            b = mi.conv.bias.view(self.n_anchors, -1)
+            b.data[:, 4] += math.log(8 / (640 / s) ** 2)
             b.data[:, 5:] += (
                 math.log(0.6 / (self.n_classes - 0.99))
                 if class_freq is None
                 else torch.log(class_freq / class_freq.sum())
-            )  # cls
-            mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
+            )
+            mi.conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
     def _construct_grid(self, feature_width: int, feature_height: int):
         grid_y, grid_x = torch.meshgrid(
@@ -548,63 +521,3 @@ class KeypointBoxHead(BaseHead):
             warnings.warn("Reversing anchor order")
             self.anchors[:] = self.anchors.flip(0)
             self.anchor_grid[:] = self.anchor_grid.flip(0)
-
-
-class ImplicitAdd(nn.Module):
-    def __init__(self, channel: int):
-        """Implicit add block"""
-        super().__init__()
-        self.channel = channel
-        self.implicit = nn.Parameter(torch.zeros(1, channel, 1, 1))
-        nn.init.normal_(self.implicit, std=0.02)
-
-    def forward(self, x: Tensor):
-        return self.implicit.expand_as(x) + x
-
-
-class ImplicitMultiply(nn.Module):
-    def __init__(self, channel: int):
-        """Implicit multiply block"""
-        super().__init__()
-        self.channel = channel
-        self.implicit = nn.Parameter(torch.ones(1, channel, 1, 1))
-        nn.init.normal_(self.implicit, mean=1.0, std=0.02)
-
-    def forward(self, x: Tensor):
-        return self.implicit.expand_as(x) * x
-
-
-class KeypointBlock(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int):
-        """Keypoint head block for keypoint predictions"""
-        super().__init__()
-        layers: List[nn.Module] = []
-        for i in range(6):
-            depth_wise_conv = ConvModule(
-                in_channels,
-                in_channels,
-                kernel_size=3,
-                padding=autopad(3),
-                groups=math.gcd(in_channels, in_channels),
-                activation=nn.SiLU(),
-            )
-            conv = (
-                ConvModule(
-                    in_channels,
-                    in_channels,
-                    kernel_size=1,
-                    padding=autopad(1),
-                    activation=nn.SiLU(),
-                )
-                if i < 5
-                else nn.Conv2d(in_channels, out_channels, 1)
-            )
-
-            layers.append(depth_wise_conv)
-            layers.append(conv)
-
-        self.block = nn.Sequential(*layers)
-
-    def forward(self, x: Tensor):
-        out = self.block(x)
-        return out

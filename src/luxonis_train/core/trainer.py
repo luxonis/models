@@ -54,7 +54,7 @@ class Trainer:
         self.val_augmentations = None
         self.test_augmentations = None
 
-        self.lightning_module = ModelLightningModule(self.run_save_dir)
+        self.lightning_module = ModelLightningModule(self.run_save_dir, skip_metrics_for_n_epochs=self.cfg.get("train.skip_metrics_for_n_epochs"))
         self.pl_trainer = pl.Trainer(
             accelerator=self.cfg.get("trainer.accelerator"),
             devices=self.cfg.get("trainer.devices"),

@@ -318,6 +318,7 @@ class BaseSegmentationHead(BaseHead, ABC):
 
     def postprocess_for_loss(self, output: torch.Tensor, label_dict: dict):
         label = label_dict[self.label_types[0]]
+
         return output, label
 
     def postprocess_for_metric(self, output: torch.Tensor, label_dict: dict):

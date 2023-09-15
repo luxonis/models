@@ -1,7 +1,8 @@
 import torch.nn as nn
 import torchmetrics
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
-from .custom import ObjectKeypointSimilarity, MeanAveragePrecision, MeanAveragePrecisionKeypoints
+from .custom import ObjectKeypointSimilarity, MeanAveragePrecisionKeypoints
 from luxonis_train.utils.constants import HeadType
 
 """
@@ -49,8 +50,9 @@ def init_metrics(head: nn.Module):
             )
         elif head_type == HeadType.SEMANTIC_SEGMENTATION:
             metrics["mIoU"] = torchmetrics.JaccardIndex(
-                task="binary" if is_binary else "multiclass", num_classes=head.n_classes
-            )
+                task="multiclass", num_classes=head.n_classes
+            ) if not is_binary else torchmetrics.JaccardIndex(task="binary")
+
             metrics["accuracy"] = torchmetrics.Accuracy(
                 task="binary" if is_binary else "multiclass", num_classes=head.n_classes
             )
@@ -58,7 +60,7 @@ def init_metrics(head: nn.Module):
                 task="binary" if is_binary else "multiclass", num_classes=head.n_classes
             )
         elif head_type == HeadType.OBJECT_DETECTION:
-            metrics["map"] = MeanAveragePrecision(box_format="xyxy", class_metrics=False if is_binary else True)
+            metrics["map"] = MeanAveragePrecision(box_format="xyxy")
         elif head_type == HeadType.KEYPOINT_DETECTION:
             metrics["oks"] = ObjectKeypointSimilarity(num_keypoints=head.n_keypoints)
         else:

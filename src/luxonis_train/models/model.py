@@ -6,7 +6,7 @@ from .heads import *
 
 from luxonis_train.utils.config import Config
 from luxonis_train.utils.general import dummy_input_run
-from luxonis_train.utils.filesystem import LuxonisFileSystem
+from luxonis_train.utils.filesystem import LuxonisFileSystem 
 
 
 class Model(nn.Module):
@@ -16,11 +16,16 @@ class Model(nn.Module):
         self.backbone = None
         self.neck = None
         self.heads = nn.ModuleList()
+        self.modules_cfg = None
 
     def build_model(self):
         """Builds the model from defined config"""
         cfg = Config()
         modules_cfg = cfg.get("model")
+
+        if self.modules_cfg is None:
+            self.modules_cfg = modules_cfg
+
         dummy_input_shape = [
             1,
             3,
@@ -52,13 +57,23 @@ class Model(nn.Module):
             )
 
         for head in modules_cfg["heads"]:
-            curr_head = eval(head["name"])(
-                input_channels_shapes=self.neck_out_shapes
-                if self.neck
-                else self.backbone_out_shapes,
-                original_in_shape=dummy_input_shape,
-                **head["params"],
-            )
+            if head["name"] == "BiSeNetv1":
+                curr_head = BiSeNetv1(
+                    num_classes=head["params"]["n_classes"],
+                    input_channels_shapes=self.neck_out_shapes
+                    if self.neck
+                    else self.backbone_out_shapes,
+                    original_in_shape=dummy_input_shape,
+                    **head["params"],
+                )
+            else:
+                curr_head = eval(head["name"])(
+                    input_channels_shapes=self.neck_out_shapes
+                    if self.neck
+                    else self.backbone_out_shapes,
+                    original_in_shape=dummy_input_shape,
+                    **head["params"],
+                )
             self.heads.append(curr_head)
 
     def check_annotations(self, label_dict: dict):
@@ -76,11 +91,19 @@ class Model(nn.Module):
             outs (list): List of outputs for each models head
         """
         out = self.backbone(x)
+        feat_out = out
+
         if self.neck != None:
             out = self.neck(out)
+        
         outs = []
-        for head in self.heads:
-            curr_out = head(out)
+        for head, head_metadata in zip(self.heads, self.modules_cfg["heads"]):
+            
+            if head_metadata["name"] == "BiSeNetv1":
+                curr_out = head(x, feat_out[-2], feat_out[-1])
+            else:
+                curr_out = head(out)
+            
             outs.append(curr_out)
 
         return outs

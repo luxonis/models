@@ -21,7 +21,7 @@ from luxonis_train.utils.callbacks import AnnotationChecker
 
 
 class ModelLightningModule(pl.LightningModule):
-    def __init__(self, save_dir: str):
+    def __init__(self, save_dir: str, skip_metrics_for_n_epochs: int):
         """Main class used to build and train the model using Pytorch Lightning"""
         super().__init__()
 
@@ -29,7 +29,8 @@ class ModelLightningModule(pl.LightningModule):
         self.save_dir = save_dir
         self.model_name = self.cfg.get("model.name")
         self.early_stopping = None  # early stopping callback
-
+        self.skip_metrics_for_n_epochs = skip_metrics_for_n_epochs
+        print(f"\n\n[Info] Skipping metric evals for {skip_metrics_for_n_epochs} epochs.\n\n")
         self.model = Model()
         self.model.build_model()
 
@@ -198,7 +199,13 @@ class ModelLightningModule(pl.LightningModule):
         fs = LuxonisFileSystem(path)
         checkpoint = torch.load(fs.read_to_byte_buffer())
         state_dict = checkpoint["state_dict"]
-        self.load_state_dict(state_dict)
+        curr_state_dict = self.state_dict()
+        matching_weight_shape_state_dict = {}
+        for name, weight in state_dict.items():
+            if name in curr_state_dict and torch.equal(torch.tensor(curr_state_dict[name].shape), torch.tensor(weight.shape)):
+                matching_weight_shape_state_dict[name] = weight
+        print(f"\nLoaded {len(matching_weight_shape_state_dict)} weights with matched shapes")
+        self.load_state_dict(matching_weight_shape_state_dict, strict=False)
 
     def forward(self, inputs: torch.Tensor):
         """Calls forward method of the model and returns its output"""
@@ -218,6 +225,7 @@ class ModelLightningModule(pl.LightningModule):
             curr_head = self.model.heads[i]
             curr_head_name = curr_head.get_name(i)
             output_loss, label_loss = curr_head.postprocess_for_loss(output, label_dict)
+
             curr_loss = self.losses[i](
                 output_loss,
                 label_loss,
@@ -236,7 +244,7 @@ class ModelLightningModule(pl.LightningModule):
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
             with torch.no_grad():
-                if self._is_train_eval_epoch():
+                if self._is_train_eval_epoch() and self.skip_metrics_for_n_epochs < self.current_epoch:
                     curr_metrics = self.metrics[curr_head_name]["train_metrics"]
                     (
                         output_metrics,
@@ -328,55 +336,57 @@ class ModelLightningModule(pl.LightningModule):
 
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
-            curr_metrics = self.metrics[curr_head_name]["val_metrics"]
-            (
-                output_metrics,
-                label_metrics,
-                metric_mapping,
-            ) = curr_head.postprocess_for_metric(output, label_dict)
-            if metric_mapping is None:
-                curr_metrics.update(output_metrics, label_metrics)
-            else:
-                for k, v in metric_mapping.items():
-                    curr_metrics[k].update(output_metrics[v], label_metrics[v])
+            if self.skip_metrics_for_n_epochs < self.current_epoch:
 
-            # images for visualization and logging
-            if batch_idx == 0:
-                unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
-                normalize_params = self.cfg.get("train.preprocessing.normalize.params")
-                cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
-                label_imgs = draw_labels(
-                    imgs=inputs,
-                    label_dict=label_dict,
-                    label_keys=curr_head.label_types,
-                    unnormalize_img=unnormalize_img,
-                    cvt_color=cvt_color,
-                    overlay=True,
-                    normalize_params=normalize_params,
-                )
-                output_imgs = draw_outputs(
-                    imgs=inputs,
-                    output=output,
-                    head=curr_head,
-                    unnormalize_img=unnormalize_img,
-                    cvt_color=cvt_color,
-                    normalize_params=normalize_params,
-                )
+                curr_metrics = self.metrics[curr_head_name]["val_metrics"]
+                (
+                    output_metrics,
+                    label_metrics,
+                    metric_mapping,
+                ) = curr_head.postprocess_for_metric(output, label_dict)
+                if metric_mapping is None:
+                    curr_metrics.update(output_metrics, label_metrics)
+                else:
+                    for k, v in metric_mapping.items():
+                        curr_metrics[k].update(output_metrics[v], label_metrics[v])
 
-                merged_imgs = [
-                    cv2.hconcat([l_img, o_img])
-                    for l_img, o_img in zip(label_imgs, output_imgs)
-                ]
-
-                num_log_images = self.cfg.get("train.num_log_images")
-                log_imgs = merged_imgs[:num_log_images]
-
-                for i, img in enumerate(log_imgs):
-                    self.logger.log_image(
-                        f"val_image/{curr_head_name}_img{i}",
-                        img,
-                        step=self.current_epoch,
+                # images for visualization and logging
+                if batch_idx == 0:
+                    unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+                    normalize_params = self.cfg.get("train.preprocessing.normalize.params")
+                    cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
+                    label_imgs = draw_labels(
+                        imgs=inputs,
+                        label_dict=label_dict,
+                        label_keys=curr_head.label_types,
+                        unnormalize_img=unnormalize_img,
+                        cvt_color=cvt_color,
+                        overlay=True,
+                        normalize_params=normalize_params,
                     )
+                    output_imgs = draw_outputs(
+                        imgs=inputs,
+                        output=output,
+                        head=curr_head,
+                        unnormalize_img=unnormalize_img,
+                        cvt_color=cvt_color,
+                        normalize_params=normalize_params,
+                    )
+
+                    merged_imgs = [
+                        cv2.hconcat([l_img, o_img])
+                        for l_img, o_img in zip(label_imgs, output_imgs)
+                    ]
+
+                    num_log_images = self.cfg.get("train.num_log_images")
+                    log_imgs = merged_imgs[:num_log_images]
+
+                    for i, img in enumerate(log_imgs):
+                        self.logger.log_image(
+                            f"val_image/{curr_head_name}_img{i}",
+                            img,
+                            step=self.current_epoch,
+                        )
 
         step_output = {
             "loss": loss.detach().cpu(),
@@ -498,9 +508,11 @@ class ModelLightningModule(pl.LightningModule):
                 for metric_name in curr_metrics:
                     self.log(
                         f"train_metric/{curr_head_name}_{metric_name}",
-                        curr_metrics[metric_name],
+                        curr_metrics[metric_name]  if curr_metrics[metric_name].numel() else -1,
                         sync_dist=True,
                     )
+                    metric_results[curr_head_name][metric_name] = curr_metrics[metric_name] if curr_metrics[metric_name].numel() else torch.tensor([-1]).cuda()
+
                 self.metrics[curr_head_name]["train_metrics"].reset()
             self._print_metric_warning("Metrics computed.")
 
@@ -535,14 +547,15 @@ class ModelLightningModule(pl.LightningModule):
             for metric_name in curr_metrics:
                 self.log(
                     f"val_metric/{curr_head_name}_{metric_name}",
-                    curr_metrics[metric_name],
+                    curr_metrics[metric_name] if curr_metrics[metric_name].numel() else -1,
                     sync_dist=True,
                 )
+                metric_results[curr_head_name][metric_name] = curr_metrics[metric_name] if curr_metrics[metric_name].numel() else torch.tensor([-1]).cuda()
             # log main metrics separately (used in callback)
             if i == 0:
                 self.log(
                     f"val_metric/{self.main_metric}",
-                    curr_metrics[self.main_metric],
+                    curr_metrics[self.main_metric] if curr_metrics[self.main_metric].numel() else -1,
                     sync_dist=True,
                 )
             self.metrics[curr_head_name]["val_metrics"].reset()

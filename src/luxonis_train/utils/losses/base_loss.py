@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import torch.nn as nn
 import warnings
 from torch import Tensor
-from typing import Optional, Union, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any
 
 
 class BaseLoss(nn.Module, ABC):
@@ -25,8 +25,19 @@ class BaseLoss(nn.Module, ABC):
     @abstractmethod
     def forward(
         self, preds: Any, target: Any, epoch: int, step: int
-    ) -> Union[Tensor, Tuple[Tensor, Dict[str, Tensor]]]:
-        """torch.nn.Module forward method"""
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        """torch.nn.Module forward method
+
+        Args:
+            preds (Any): Processed model predictions
+            target (Any): Target data
+            epoch (int): Current training epoch
+            step (int): Current training step
+
+        Returns:
+            Tuple[Tensor, Dict[str, Tensor]]: Output loss tensor, dict of other sub losses
+                (empty dict if there aren't any)
+        """
         pass
 
     def get_name(self, idx: Optional[int] = None):

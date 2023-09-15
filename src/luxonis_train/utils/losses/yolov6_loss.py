@@ -1,9 +1,3 @@
-#
-# Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/loss.py
-# License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
-#
-
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,6 +21,20 @@ class YoloV6Loss(BaseLoss):
         loss_weight: Dict[str, float] = {"class": 1.0, "iou": 2.5},
         **kwargs,
     ):
+        """Bbox loss from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
+        https://arxiv.org/pdf/2209.02976.pdf. It combines IoU based bbox regression loss and varifocal loss
+        for classification.
+        Code is adapted from https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/models and
+        https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/loss.py
+
+        Args:
+            n_warmup_epochs (int, optional): Number of epochs where ATSS assigner is used, after
+            that we switch to TAL assigner. Defaults to 4.
+            iou_type (Literal["none", "giou", "diou", "ciou", "siou"], optional): IoU type used for
+            bbox regression loss. Defaults to "giou".
+            loss_weight (Dict[str, float], optional): Mapping for sub losses weights. Defautls to
+            {"class": 1.0, "iou": 2.5}.
+        """
         super().__init__(**kwargs)
 
         self.n_classes: int = self.head_attributes.get("n_classes")
@@ -93,10 +101,10 @@ class YoloV6Loss(BaseLoss):
 
         if epoch < self.n_warmup_epochs:
             (
-                target_labels,
-                target_bboxes,
-                target_scores,
-                fg_mask,
+                assigned_labels,
+                assigned_bboxes,
+                assigned_scores,
+                mask_positive,
             ) = self.atts_assigner(
                 anchors,
                 n_anchors_list,
@@ -107,10 +115,10 @@ class YoloV6Loss(BaseLoss):
             )
         else:
             (
-                target_labels,
-                target_bboxes,
-                target_scores,
-                fg_mask,
+                assigned_labels,
+                assigned_bboxes,
+                assigned_scores,
+                mask_positive,
             ) = self.tal_assigner(
                 pred_scores.detach(),
                 pred_bboxes.detach() * stride_tensor,
@@ -121,25 +129,18 @@ class YoloV6Loss(BaseLoss):
             )
 
         # cls loss
-        target_labels = torch.where(
-            fg_mask > 0, target_labels, torch.full_like(target_labels, self.n_classes)
-        )
-        one_hot_label = F.one_hot(target_labels.long(), self.n_classes + 1)[..., :-1]
-        loss_cls = self.varifocal_loss(pred_scores, target_scores, one_hot_label)
-
-        target_scores_sum = target_scores.sum()
-        # avoid devide zero error, devide by zero will cause loss to be inf or nan.
-        if target_scores_sum > 0:
-            loss_cls /= target_scores_sum
+        one_hot_label = F.one_hot(assigned_labels.long(), self.n_classes + 1)[..., :-1]
+        loss_cls = self.varifocal_loss(pred_scores, assigned_scores, one_hot_label)
+        # normalize if possible
+        if assigned_scores.sum() > 1:
+            loss_cls /= assigned_scores.sum()
 
         # bbox iou loss
         loss_iou = self.bbox_iou_loss(
-            pred_distri,
             pred_bboxes,
-            target_bboxes / stride_tensor,
-            target_scores,
-            target_scores_sum,
-            fg_mask,
+            assigned_bboxes / stride_tensor,
+            assigned_scores,
+            mask_positive,
         )
 
         loss = self.loss_weight["class"] * loss_cls + self.loss_weight["iou"] * loss_iou
@@ -175,7 +176,9 @@ class VarifocalLoss(nn.Module):
         self.alpha = alpha
         self.gamma = gamma
 
-    def forward(self, pred_score: Tensor, target_score: Tensor, label: Tensor):
+    def forward(
+        self, pred_score: Tensor, target_score: Tensor, label: Tensor
+    ) -> Tensor:
         weight = (
             self.alpha * pred_score.pow(self.gamma) * (1 - label) + target_score * label
         )
@@ -199,25 +202,23 @@ class BboxIoULoss(nn.Module):
 
     def forward(
         self,
-        pred_dist: Tensor,
         pred_bboxes: Tensor,
         target_bboxes: Tensor,
         target_scores: Tensor,
-        target_scores_sum: Tensor,
-        fg_mask: Tensor,
-    ):
-        num_pos = fg_mask.sum()
+        mask_positive: Tensor,
+    ) -> Tensor:
+        num_pos = mask_positive.sum()
         if num_pos > 0:
-            bbox_mask = fg_mask.unsqueeze(-1).repeat([1, 1, 4])
+            bbox_mask = mask_positive.unsqueeze(-1).repeat([1, 1, 4])
             pred_bboxes_pos = torch.masked_select(pred_bboxes, bbox_mask).reshape(
                 [-1, 4]
             )
             target_bboxes_pos = torch.masked_select(target_bboxes, bbox_mask).reshape(
                 [-1, 4]
             )
-            bbox_weight = torch.masked_select(target_scores.sum(-1), fg_mask).unsqueeze(
-                -1
-            )
+            bbox_weight = torch.masked_select(
+                target_scores.sum(-1), mask_positive
+            ).unsqueeze(-1)
 
             iou = bbox_iou(
                 pred_bboxes_pos,
@@ -228,11 +229,10 @@ class BboxIoULoss(nn.Module):
             iou = iou[..., None]
             loss_iou = (1 - iou) * bbox_weight
 
-            if target_scores_sum == 0:
-                loss_iou = loss_iou.sum()
-            else:
-                loss_iou = loss_iou.sum() / target_scores_sum
+            loss_iou = loss_iou.sum()
+            if target_scores.sum() > 1:
+                loss_iou /= target_scores.sum()
         else:
-            loss_iou = torch.tensor(0.0).to(pred_dist.device)
+            loss_iou = torch.tensor(0.0).to(pred_bboxes.device)
 
         return loss_iou

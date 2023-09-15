@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from typing import Optional, Literal, Union, List
+from typing import Dict, Optional, Literal, Tuple, Union, List
 from torchvision.ops import sigmoid_focal_loss
 
 from luxonis_train.utils.losses.base_loss import BaseLoss
@@ -38,11 +38,13 @@ class CrossEntropyLoss(BaseLoss):
             label_smoothing=label_smoothing,
         )
 
-    def forward(self, preds: Tensor, target: Tensor, epoch: int, step: int) -> Tensor:
+    def forward(
+        self, preds: Tensor, target: Tensor, epoch: int, step: int
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
         if target.ndim == 4:
             # target should be of size (N,...)
             target = target.argmax(dim=1)
-        return self.criterion(preds, target)
+        return self.criterion(preds, target), {}
 
 
 class BCEWithLogitsLoss(BaseLoss):
@@ -73,8 +75,10 @@ class BCEWithLogitsLoss(BaseLoss):
             pos_weight=pos_weight,
         )
 
-    def forward(self, preds: Tensor, target: Tensor, epoch: int, step: int) -> Tensor:
-        return self.criterion(preds, target)
+    def forward(
+        self, preds: Tensor, target: Tensor, epoch: int, step: int
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        return self.criterion(preds, target), {}
 
 
 class BinaryFocalLoss(BaseLoss):
@@ -104,12 +108,14 @@ class BinaryFocalLoss(BaseLoss):
         self.gamma = gamma
         self.reduction = reduction
 
-    def forward(self, preds: Tensor, target: Tensor, epoch: int, step: int) -> Tensor:
+    def forward(
+        self, preds: Tensor, target: Tensor, epoch: int, step: int
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
         loss = sigmoid_focal_loss(
             preds, target, alpha=self.alpha, gamma=self.gamma, reduction=self.reduction
         )
 
-        return loss
+        return loss, {}
 
 
 class MultiClassFocalLoss(BaseLoss):
@@ -139,7 +145,9 @@ class MultiClassFocalLoss(BaseLoss):
         self.gamma = gamma
         self.reduction = reduction
 
-    def forward(self, preds: Tensor, target: Tensor, epoch: int, step: int) -> Tensor:
+    def forward(
+        self, preds: Tensor, target: Tensor, epoch: int, step: int
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
         if target.ndim == 4:
             # target should be of size (N,...)
             target = target.argmax(dim=1)
@@ -159,4 +167,4 @@ class MultiClassFocalLoss(BaseLoss):
         elif self.reduction == "sum":
             loss = loss.sum()
 
-        return loss
+        return loss, {}

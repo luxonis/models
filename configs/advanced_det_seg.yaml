@@ -9,7 +9,7 @@ model:
       params:
         n_classes: null
       loss: 
-        name: BinaryFocalLoss
+        name: SigmoidFocalLoss
 
 dataset:
   team_id: # TODO

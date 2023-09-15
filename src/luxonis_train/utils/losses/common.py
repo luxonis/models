@@ -24,11 +24,6 @@ class CrossEntropyLoss(BaseLoss):
         """
         super().__init__(**kwargs)
 
-        if self.head_attributes.get("n_classes") == 1:
-            raise ValueError(
-                f"`{self.get_name()}` should be only used for multi-class/multi-label tasks"
-            )
-
         self.criterion = nn.CrossEntropyLoss(
             weight=weight,
             size_average=size_average,
@@ -41,9 +36,16 @@ class CrossEntropyLoss(BaseLoss):
     def forward(
         self, preds: Tensor, target: Tensor, epoch: int, step: int
     ) -> Tuple[Tensor, Dict[str, Tensor]]:
-        if target.ndim == 4:
-            # target should be of size (N,...)
-            target = target.argmax(dim=1)
+        if preds.ndim == target.ndim:
+            # argmax along channels dimension
+            ch_dim = 1 if preds.ndim > 1 else 0
+            target = target.argmax(dim=ch_dim)
+        # target.ndim must be preds.ndim-1 since target should contain class indices
+        if target.ndim != (preds.ndim - 1):
+            raise RuntimeError(
+                f"Target tensor dimension should equeal to preds dimension - 1 ({preds.ndim-1}) "
+                f"but is ({target.ndim})."
+            )
         return self.criterion(preds, target), {}
 
 
@@ -62,11 +64,6 @@ class BCEWithLogitsLoss(BaseLoss):
         """
         super().__init__(**kwargs)
 
-        if self.head_attributes.get("n_classes") != 1:
-            raise ValueError(
-                f"`{self.get_name()}` should be only used for binary tasks"
-            )
-
         self.criterion = nn.BCEWithLogitsLoss(
             weight=weight,
             size_average=size_average,
@@ -78,10 +75,15 @@ class BCEWithLogitsLoss(BaseLoss):
     def forward(
         self, preds: Tensor, target: Tensor, epoch: int, step: int
     ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        if preds.ndim != target.ndim:
+            raise RuntimeError(
+                f"Target tensor dimension ({target.ndim}) and preds tensor"
+                f" dimension ({preds.ndim}) should be the same."
+            )
         return self.criterion(preds, target), {}
 
 
-class BinaryFocalLoss(BaseLoss):
+class SigmoidFocalLoss(BaseLoss):
     def __init__(
         self,
         alpha: float = 0.25,
@@ -99,11 +101,6 @@ class BinaryFocalLoss(BaseLoss):
         """
         super().__init__(**kwargs)
 
-        if self.head_attributes.get("n_classes") != 1:
-            raise ValueError(
-                f"`{self.get_name()}` should be only used for binary tasks"
-            )
-
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
@@ -111,6 +108,11 @@ class BinaryFocalLoss(BaseLoss):
     def forward(
         self, preds: Tensor, target: Tensor, epoch: int, step: int
     ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        if preds.ndim != target.ndim:
+            raise RuntimeError(
+                f"Target tensor dimension ({target.ndim}) and preds tensor"
+                f" dimension ({preds.ndim}) should be the same."
+            )
         loss = sigmoid_focal_loss(
             preds, target, alpha=self.alpha, gamma=self.gamma, reduction=self.reduction
         )
@@ -118,7 +120,7 @@ class BinaryFocalLoss(BaseLoss):
         return loss, {}
 
 
-class MultiClassFocalLoss(BaseLoss):
+class SoftmaxFocalLoss(BaseLoss):
     def __init__(
         self,
         alpha: Union[float, List[float]] = 0.25,
@@ -126,7 +128,7 @@ class MultiClassFocalLoss(BaseLoss):
         reduction: Literal["none", "mean", "sum"] = "mean",
         **kwargs,
     ):
-        """Focal loss implementation for multi-class/multi-label tasks
+        """Focal loss implementation for multi-class/multi-label tasks using Softmax
 
         Args:
             alpha (Union[float, list], optional): Either a float for all channels or
@@ -136,23 +138,15 @@ class MultiClassFocalLoss(BaseLoss):
         """
         super().__init__(**kwargs)
 
-        if self.head_attributes.get("n_classes") == 1:
-            raise ValueError(
-                f"`{self.get_name()}` should be only used for multi-class/multi-label tasks"
-            )
-
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
+        self.ce_criterion = CrossEntropyLoss(reduction="none")
 
     def forward(
         self, preds: Tensor, target: Tensor, epoch: int, step: int
     ) -> Tuple[Tensor, Dict[str, Tensor]]:
-        if target.ndim == 4:
-            # target should be of size (N,...)
-            target = target.argmax(dim=1)
-
-        ce_loss = F.cross_entropy(preds, target, reduction="none")
+        ce_loss, _ = self.ce_criterion(preds, target, epoch, step)
         pt = torch.exp(-ce_loss)
         loss = ce_loss * ((1 - pt) ** self.gamma)
 

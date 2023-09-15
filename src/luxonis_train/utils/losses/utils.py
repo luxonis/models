@@ -1,5 +1,5 @@
 from .common import *
-from .yolov6_loss import YoloV6Loss
+from .bboxyolov6_loss import BboxYoloV6Loss
 from .yolov7_pose_loss import YoloV7PoseLoss
 
 

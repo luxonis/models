@@ -13,7 +13,7 @@ from luxonis_train.utils.assigners import (
 from luxonis_train.utils.boxutils import anchors_for_fpn_features, dist2bbox, bbox_iou
 
 
-class YoloV6Loss(BaseLoss):
+class BboxYoloV6Loss(BaseLoss):
     def __init__(
         self,
         n_warmup_epochs: int = 4,
@@ -24,8 +24,7 @@ class YoloV6Loss(BaseLoss):
         """Bbox loss from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
         https://arxiv.org/pdf/2209.02976.pdf. It combines IoU based bbox regression loss and varifocal loss
         for classification.
-        Code is adapted from https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/models and
-        https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/loss.py
+        Code is adapted from https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/models
 
         Args:
             n_warmup_epochs (int, optional): Number of epochs where ATSS assigner is used, after
@@ -166,6 +165,7 @@ class VarifocalLoss(nn.Module):
     def __init__(self, alpha: float = 0.75, gamma: float = 2.0):
         """Varifocal Loss is a loss function for training a dense object detector to predict
         the IoU-aware classification score, inspired by focal loss.
+        Code is adapted from: https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/models/losses.py
 
         Args:
             alpha (float, optional): Defaults to 0.75.
@@ -192,6 +192,7 @@ class VarifocalLoss(nn.Module):
 class BboxIoULoss(nn.Module):
     def __init__(self, iou_type: Literal["none", "giou", "ciou", "siou"] = "giou"):
         """IoU loss on bounding boxes
+        Code is adapted from: https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/models/losses.py
 
         Args:
             iou_type (Literal["none", "giou", "ciou", "siou"], optional): Defaults to "giou".

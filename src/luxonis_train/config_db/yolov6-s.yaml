@@ -21,6 +21,6 @@ heads:
       n_classes: null
       num_heads: 3
     loss: 
-      name: YoloV6Loss
+      name: BboxYoloV6Loss
       params:
         iou_type: giou

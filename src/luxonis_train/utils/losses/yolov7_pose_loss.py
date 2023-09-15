@@ -47,12 +47,8 @@ class YoloV7PoseLoss(BaseLoss):
         self.kptv_weight = kptv_weight
         self.anchor_t = anchor_t
 
-        self.BCEcls = BCEWithLogitsLoss(
-            pos_weight=torch.tensor([cls_pw]), head_attributes={"n_classes": 1}
-        )  # n_classes set to 1 because inputs are one-hot encoded
-        self.BCEobj = BCEWithLogitsLoss(
-            pos_weight=torch.tensor([obj_pw]), head_attributes={"n_classes": 1}
-        )  # n_classes set to 1 because inputs are one-hot encoded
+        self.BCEcls = BCEWithLogitsLoss(pos_weight=torch.tensor([cls_pw]))
+        self.BCEobj = BCEWithLogitsLoss(pos_weight=torch.tensor([obj_pw]))
 
         # Class label smoothing targets (https://arxiv.org/pdf/1902.04103.pdf eqn 3)
         self.positive_smooth_const, self.negative_smooth_const = self._smooth_BCE(

@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
 from typing import Dict, Optional, Literal, Tuple, Union, List
 from torchvision.ops import sigmoid_focal_loss

@@ -2,7 +2,6 @@
 # Source: https://github.com/taveraantonio/BiseNetv1
 #
 
-import torch
 import torch.nn as nn
 
 from luxonis_train.models.modules import ConvModule

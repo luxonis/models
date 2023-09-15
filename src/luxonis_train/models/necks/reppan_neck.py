@@ -1,6 +1,5 @@
 #
-# Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/reppan.py
-# License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
+# Adapted from: https://arxiv.org/pdf/2209.02976.pdf
 #
 
 

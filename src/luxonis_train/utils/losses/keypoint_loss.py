@@ -3,7 +3,10 @@ from typing import Tuple
 import torch
 from torch import Tensor, nn
 
+from luxonis_train.utils.boxutils import process_keypoints_predictions
+
 from .common import BCEWithLogitsLoss
+
 
 class KeypointLoss(nn.Module):
     def __init__(self, bce_power: float = 1.0, **_):
@@ -24,9 +27,7 @@ class KeypointLoss(nn.Module):
             Tuple[Tensor, Tensor]: A tuple containing the keypoint loss
             tensor of shape (1,) and the visibility loss tensor of shape (1,).
         """
-        x = prediction[:, ::3] * 2.0 - 0.5
-        y = prediction[:, 1::3] * 2.0 - 0.5
-        visibility_score = prediction[:, 2::3]
+        x, y, visibility_score = process_keypoints_predictions(prediction)
 
         mask = target[:, 0::2] != 0
         visibility_loss = self.BCE(visibility_score, mask.float())

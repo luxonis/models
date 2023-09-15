@@ -10,7 +10,12 @@ from torchvision.utils import draw_bounding_boxes, draw_keypoints
 
 from luxonis_train.models.heads.base_heads import BaseHead
 from luxonis_train.models.modules import ConvModule, autopad
-from luxonis_train.utils.boxutils import match_to_anchor, non_max_suppression_kpts
+from luxonis_train.utils.boxutils import (
+    match_to_anchor,
+    non_max_suppression_kpts,
+    process_bbox_predictions,
+    process_keypoints_predictions,
+)
 from luxonis_train.utils.constants import HeadType
 
 
@@ -77,11 +82,11 @@ class KeypointBoxHead(BaseHead):
         self.connectivity = connectivity
         self.visibility_threshold = visibility_threshold
 
-        self.n_det_out = self.n_classes + 5
+        self.box_offset = 5
+        self.n_det_out = self.n_classes + self.box_offset
         self.n_kpt_out = 3 * self.n_keypoints
         self.n_out = self.n_det_out + self.n_kpt_out
         self.n_anchors = len(anchors[0]) // 2
-        self.box_offset = 5
         self.grid: List[Tensor] = []
 
         self.anchors = torch.tensor(anchors).float().view(self.num_heads, -1, 2)
@@ -155,36 +160,26 @@ class KeypointBoxHead(BaseHead):
             x_bbox = feat[..., : self.box_offset + self.n_classes]
             x_keypoints = feat[..., self.box_offset + self.n_classes :]
 
-            out_bbox = self._infer_bbox(
-                x_bbox, self.stride[i], self.grid[i], self.anchor_grid[i]
+            box_xy, box_wh, box_tail = process_bbox_predictions(
+                x_bbox, self.anchor_grid[i]
             )
+            box_xy = (box_xy + self.grid[i]) * self.stride[i]
+            out_bbox = torch.cat((box_xy, box_wh, box_tail), dim=-1)
 
-            out_kpt = self._infer_keypoints(x_keypoints, self.stride[i], self.grid[i])
+            grid_x = self.grid[i][..., 0:1]
+            grid_y = self.grid[i][..., 1:2]
+            kpt_x, kpt_y, kpt_vis = process_keypoints_predictions(x_keypoints)
+            kpt_x = (kpt_x + grid_x) * self.stride[i]
+            kpt_y = (kpt_y + grid_y) * self.stride[i]
+            out_kpt = torch.stack([kpt_x, kpt_y, kpt_vis.sigmoid()], dim=-1).reshape(
+                *kpt_x.shape[:-1], -1
+            )
 
             out = torch.cat((out_bbox, out_kpt), dim=-1)
 
             predictions.append(out.reshape(batch_size, -1, self.n_out))
 
         return torch.cat(predictions, 1), features
-
-    def _infer_keypoints(
-        self, keypoints: Tensor, stride: Tensor, grid: Tensor
-    ) -> Tensor:
-        grid_x = grid[..., 0:1]
-        grid_y = grid[..., 1:2]
-
-        x = (
-            keypoints[..., ::3] * 2.0
-            - 0.5
-            + grid_x.repeat(1, 1, 1, 1, self.n_keypoints)
-        ) * stride
-        y = (
-            keypoints[..., 1::3] * 2.0
-            - 0.5
-            + grid_y.repeat(1, 1, 1, 1, self.n_keypoints)
-        ) * stride
-        visibility = keypoints[..., 2::3].sigmoid()
-        return torch.stack([x, y, visibility], dim=-1).reshape(*x.shape[:-1], -1)
 
     def _infer_bbox(
         self, bbox: Tensor, stride: Tensor, grid: Tensor, anchor_grid: Tensor

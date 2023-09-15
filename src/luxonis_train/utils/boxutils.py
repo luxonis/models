@@ -457,3 +457,24 @@ def anchors_from_dataset(
     )
 
     return proposed_anchors
+
+
+def process_keypoints_predictions(keypoints: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    x = keypoints[..., ::3] * 2.0 - 0.5
+    y = keypoints[..., 1::3] * 2.0 - 0.5
+    visibility = keypoints[..., 2::3]
+    return (
+        x,
+        y,
+        visibility,
+    )
+
+
+def process_bbox_predictions(
+    bbox: Tensor, anchor: Tensor
+) -> Tuple[Tensor, Tensor, Tensor]:
+    out_bbox = bbox.sigmoid()
+    out_bbox_xy = out_bbox[..., 0:2] * 2.0 - 0.5
+    out_bbox_wh = (out_bbox[..., 2:4] * 2) ** 2 * anchor
+    out_bbox_tail = out_bbox[..., 4:]
+    return out_bbox_xy, out_bbox_wh, out_bbox_tail

@@ -3,7 +3,7 @@ from typing import Tuple
 import torch
 from torch import Tensor, nn
 
-from luxonis_train.utils.boxutils import bbox_iou
+from luxonis_train.utils.boxutils import bbox_iou, process_bbox_predictions
 
 
 class BoxLoss(nn.Module):
@@ -27,8 +27,7 @@ class BoxLoss(nn.Module):
             shape (1,) and the IoU is a tensor of shape (n_detections,).
         """
         device = prediction.device
-        x_y = prediction[:, :2].sigmoid() * 2.0 - 0.5
-        w_h = (prediction[:, 2:].sigmoid() * 2) ** 2 * anchor.to(device)
-        boxes = torch.cat((x_y, w_h), 1).T
-        iou = bbox_iou(boxes, target.to(device), box_format="xywh", iou_type="ciou")
+        x_y, w_h, tail = process_bbox_predictions(prediction, anchor.to(device))
+        boxes1 = torch.cat((x_y, w_h, tail), 1).T
+        iou = bbox_iou(boxes1, target.to(device), box_format="xywh", iou_type="ciou")
         return (1.0 - iou).mean(), iou

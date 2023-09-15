@@ -203,6 +203,32 @@ class KeypointBoxHead(BaseHead):
             List[Tensor],
         ],
     ]:
+        """
+        Posptrocesses the labels to be in the correct format for loss calculation.
+        Args:
+            output (Tuple[Tensor, List[Tensor]]): Output from the forward pass.
+            label_dict (Dict[str, Tensor]): Dictionary containing the labels.
+        Returns:
+            Tuple[Tuple[Tensor,
+                        List[Tensor]],
+                        Tuple[
+                            List[Tensor],
+                            List[Tensor],
+                            List[Tensor],
+                            List[Tuple[Tensor, Tensor, Tensor, Tensor]
+                            ],
+                        List[Tensor]]]:
+                Tuple containing the original output and the postprocessed labels.
+                The processed labels are a tuple containing the class targets,
+                box targets, keypoint targets, indices and anchors.
+                Indicies are a tuple containing vectors of indices for batch,
+                anchor, feature y and feature x dimensions, respectively.
+                They are all of shape (n_targets,).
+                The indices are used to index the output tensors of shape
+                (batch_size, n_anchors, feature_height, feature_width,
+                n_classes + box_offset + n_keypoints * 3) to get a tensor of
+                shape (n_targets, n_classes + box_offset + n_keypoints * 3).
+        """
         predictions = output[1]
         kpts = label_dict[LabelType.KEYPOINT]
         boxes = label_dict[LabelType.BOUNDINGBOX]

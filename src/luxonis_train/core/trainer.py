@@ -215,12 +215,6 @@ class Trainer:
                 )
                 self.thread.start()
 
-    def override_loss(self, custom_loss: object, head_id: int):
-        """Overrides loss function for specific head_id with custom loss"""
-        if not 0 <= head_id < len(self.lightning_module.model.heads):
-            raise ValueError("Provided 'head_id' outside of range.")
-        self.lightning_module.losses[head_id] = custom_loss
-
     def override_train_augmentations(self, aug: object):
         """Overrides augmentations used for trainig dataset"""
         self.train_augmentations = aug

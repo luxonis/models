@@ -307,12 +307,12 @@ class Config:
                 dataset_n_classes = len(classes_by_task[label_type.value])
                 if curr_n_classes is None:
                     warnings.warn(
-                        f"Inheriting 'n_classes' parameter from dataset. Setting it to {dataset_n_classes}"
+                        f"Inheriting 'n_classes' parameter for `{head['name']}` from dataset. Setting it to {dataset_n_classes}."
                     )
                 elif curr_n_classes != dataset_n_classes:
                     raise KeyError(
                         f"Number of classes in config ({curr_n_classes}) doesn't match number of "
-                        + f"classes in dataset ({dataset_n_classes})"
+                        f"classes in dataset ({dataset_n_classes}) for `{head['name']}`."
                     )
                 head["params"]["n_classes"] = dataset_n_classes
 

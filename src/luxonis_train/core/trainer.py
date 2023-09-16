@@ -119,6 +119,7 @@ class Trainer:
 
             pytorch_loader_train = torch.utils.data.DataLoader(
                 loader_train,
+                shuffle=True,
                 batch_size=self.cfg.get("train.batch_size"),
                 num_workers=self.cfg.get("train.num_workers"),
                 collate_fn=loader_train.collate_fn,

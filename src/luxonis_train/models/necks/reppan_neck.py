@@ -24,7 +24,8 @@ class RepPANNeck(BaseNeck):
         attach_index: int = -1,
         **kwargs,
     ):
-        """RepPANNeck normally used with YoloV6 model. It has the balance of feature fusion ability and hardware efficiency.
+        """RepPANNeck from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
+        https://arxiv.org/pdf/2209.02976.pdf. It has the balance of feature fusion ability and hardware efficiency.
 
         Args:
             input_channels_shapes (list): List of output shapes from previous module.

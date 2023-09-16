@@ -316,8 +316,7 @@ class RepVGGBlockN(nn.Module):
 
 class SpatialPyramidPoolingBlock(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, kernel_size: int = 5):
-        """Spatial Pyramid Pooling block with ReLU activation
-        Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/layers/common.py
+        """Spatial Pyramid Pooling block with ReLU activation on three different scales
 
         Args:
             in_channels (int): Number of input channels

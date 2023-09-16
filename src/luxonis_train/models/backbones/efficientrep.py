@@ -24,7 +24,8 @@ class EfficientRep(BaseBackbone):
         width_mul: float = 0.25,
         **kwargs
     ):
-        """EfficientRep backbone, normally used with YoloV6 model.
+        """EfficientRep backbone from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
+        https://arxiv.org/pdf/2209.02976.pdf. It uses RepVGG blocks.
 
         Args:
             channels_list (list, optional): List of number of channels for each block. Defaults to [64, 128, 256, 512, 1024].

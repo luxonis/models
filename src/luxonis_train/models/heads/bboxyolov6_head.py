@@ -16,7 +16,7 @@ from luxonis_train.utils.boxutils import anchors_for_fpn_features
 from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression_bbox
 
 
-class YoloV6Head(BaseObjectDetection):
+class BboxYoloV6Head(BaseObjectDetection):
     def __init__(
         self,
         n_classes: int,
@@ -26,8 +26,9 @@ class YoloV6Head(BaseObjectDetection):
         attach_index: int = 0,
         **kwargs,
     ):
-        """YoloV6 object detection head. With hardware-aware degisn, the decoupled head is optimized with
-            hybridchannels methods.
+        """Object detection head from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
+        https://arxiv.org/pdf/2209.02976.pdf. With hardware-aware degisn, the decoupled head is optimized with
+        hybridchannels methods.
 
         Args:
             n_classes (int): Number of classes

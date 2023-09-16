@@ -16,7 +16,7 @@ neck:
     width_mul: 0.25
 
 heads:
-  - name: YoloV6Head
+  - name: BboxYoloV6Head
     params:
       n_classes: null
       num_heads: 3

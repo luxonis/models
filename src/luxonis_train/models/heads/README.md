@@ -21,7 +21,7 @@ Every head takes these parameters:
     - upscale_factor: int # Factor used for upscaling input. Defaults to 8.
     - is_aux: bool # Either use 256 for intermediate channels or 64. Defaults to False.
 
-- **YoloV6Head** (adapted from [here](https://arxiv.org/pdf/2209.02976.pdf))
+- **BboxYoloV6Head** (adapted from [here](https://arxiv.org/pdf/2209.02976.pdf))
   - Params:
     - num_heads: bool # Number of output heads. Defaults to 3. ***Note:** Should be same also on neck in most cases.*
     

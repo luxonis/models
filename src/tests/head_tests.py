@@ -105,7 +105,7 @@ class HeadTestCases(unittest.TestCase):
                         )
                         neck.eval()
 
-                        head = YoloV6Head(
+                        head = BboxYoloV6Head(
                             n_classes=10,
                             input_channels_shapes=input_channels_shapes,
                             original_in_shape=input_shape,
@@ -170,7 +170,7 @@ class HeadTestCases(unittest.TestCase):
                     neck, input_channels_shapes, multi_input=True
                 )
                 neck.eval()
-                head = YoloV6Head(
+                head = BboxYoloV6Head(
                     n_classes=10,
                     input_channels_shapes=input_channels_shapes,
                     original_in_shape=input_shape,
@@ -214,7 +214,7 @@ class HeadTestCases(unittest.TestCase):
                         neck, input_channels_shapes, multi_input=True
                     )
                     neck.eval()
-                    head = YoloV6Head(
+                    head = BboxYoloV6Head(
                         n_classes=10,
                         input_channels_shapes=input_channels_shapes,
                         original_in_shape=input_shape,
@@ -471,7 +471,7 @@ class HeadTestCases(unittest.TestCase):
                 )
                 self.assertEqual(head.stride.tolist(), curr_value["expected_stride"])
 
-                head = YoloV6Head(
+                head = BboxYoloV6Head(
                     n_classes=10,
                     input_channels_shapes=input_channels_shapes,
                     original_in_shape=input_shape,

@@ -425,9 +425,9 @@ class TaskAlignedAssigner(nn.Module):
         # assigned target scores
         assigned_labels[assigned_labels < 0] = 0
         assigned_scores = F.one_hot(assigned_labels, self.n_classes)
-        fg_scores_mask = mask_pos_sum[:, :, None].repeat(1, 1, self.n_classes)
+        mask_pos_scores = mask_pos_sum[:, :, None].repeat(1, 1, self.n_classes)
         assigned_scores = torch.where(
-            fg_scores_mask > 0, assigned_scores, torch.full_like(assigned_scores, 0)
+            mask_pos_scores > 0, assigned_scores, torch.full_like(assigned_scores, 0)
         )
 
         return assigned_labels, assigned_bboxes, assigned_scores
@@ -483,7 +483,8 @@ def fix_collisions(
 
 
 def batch_iou(batch1: Tensor, batch2: Tensor) -> Tensor:
-    """Calculates IoU for each pair of bboxes in the batch
+    """Calculates IoU for each pair of bboxes in the batch.
+    Bboxes must be in xyxy format.
 
     Args:
         batch1 (Tensor): Tensor of shape [bs, N, 4]

@@ -13,7 +13,7 @@ from luxonis_train.models.heads.base_heads import BaseObjectDetection
 from luxonis_train.models.modules import ConvModule
 
 from luxonis_train.utils.boxutils import anchors_for_fpn_features
-from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression_bbox
+from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression
 
 
 class BboxYoloV6Head(BaseObjectDetection):
@@ -87,7 +87,7 @@ class BboxYoloV6Head(BaseObjectDetection):
     def postprocess_for_metric(self, output: tuple, label_dict: dict):
         label = label_dict[self.label_types[0]]
 
-        output_nms = self._out2box(output)
+        output_nms = self._process_to_bbox(output)
         image_size = self.original_in_shape[2:]
 
         output_list = []
@@ -110,7 +110,7 @@ class BboxYoloV6Head(BaseObjectDetection):
         return output_list, label_list, None
 
     def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
-        curr_output = self._out2box(output, conf_thres=0.3, iou_thres=0.6)
+        curr_output = self._process_to_bbox(output, conf_thres=0.3, iou_thres=0.6)
         curr_output = curr_output[idx]
         bboxs = curr_output[:, :4]
         img = draw_bounding_boxes(img, bboxs)
@@ -164,11 +164,11 @@ class BboxYoloV6Head(BaseObjectDetection):
         )
         return stride
 
-    def _out2box(self, output: tuple, **kwargs):
+    def _process_to_bbox(self, output: tuple, **kwargs):
         """Performs post-processing of the YoloV6 output and returns bboxs after NMS"""
-        x, cls_score_list, reg_dist_list = output
+        features, cls_score_list, reg_dist_list = output
         _, anchor_points, _, stride_tensor = anchors_for_fpn_features(
-            x,
+            features,
             self.stride,
             self.grid_cell_size,
             self.grid_cell_offset,
@@ -182,7 +182,7 @@ class BboxYoloV6Head(BaseObjectDetection):
             [
                 pred_bboxes,
                 torch.ones(
-                    (x[-1].shape[0], pred_bboxes.shape[1], 1),
+                    (features[-1].shape[0], pred_bboxes.shape[1], 1),
                     dtype=pred_bboxes.dtype,
                     device=pred_bboxes.device,
                 ),
@@ -193,10 +193,12 @@ class BboxYoloV6Head(BaseObjectDetection):
 
         conf_thres = kwargs.get("conf_thres", 0.001)
         iou_thres = kwargs.get("iou_thres", 0.6)
-        output_nms = non_max_suppression_bbox(
-            output_merged, conf_thres=conf_thres, iou_thres=iou_thres
+        output_nms = non_max_suppression(
+            output_merged,
+            n_classes=self.n_classes,
+            conf_thres=conf_thres,
+            iou_thres=iou_thres,
         )
-
         return output_nms
 
 

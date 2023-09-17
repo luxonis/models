@@ -15,7 +15,7 @@ from luxonis_ml.loader import LabelType
 from luxonis_train.models.heads.base_heads import BaseHead
 from luxonis_train.models.modules import ConvModule, autopad
 from luxonis_train.utils.constants import HeadType
-from luxonis_train.utils.boxutils import non_max_suppression_kpts
+from luxonis_train.utils.boxutils import non_max_suppression
 
 
 class IKeypointHead(BaseHead):
@@ -204,7 +204,9 @@ class IKeypointHead(BaseHead):
         label[:, 7::3] = kpts[:, 3::3]  # insert kp y coordinates
         label[:, 8::3] = kpts[:, 4::3]  # insert kp visibility
 
-        nms = non_max_suppression_kpts(output[0])
+        nms = non_max_suppression(
+            output[0], n_classes=self.n_classes, conf_thres=0.03, iou_thres=0.3
+        )
         output_list_map = []
         output_list_oks = []
         output_list_kpt_map = []
@@ -266,8 +268,11 @@ class IKeypointHead(BaseHead):
 
     def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
         curr_output = output[0][idx]
-        nms = non_max_suppression_kpts(
-            curr_output.unsqueeze(0), conf_thresh=0.25, iou_thresh=0.45
+        nms = non_max_suppression(
+            curr_output.unsqueeze(0),
+            n_classes=self.n_classes,
+            conf_thres=0.25,
+            iou_thres=0.45,
         )[0]
         bboxes = nms[:, :4]
         img = draw_bounding_boxes(img, bboxes)

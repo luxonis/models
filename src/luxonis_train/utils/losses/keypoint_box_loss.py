@@ -13,6 +13,7 @@ class KeypointBoxLoss(nn.Module):
     """
     Joint loss for keypoint and box predictions for cases where the keypoints
     and boxes are inherently linked.
+    Based on [YOLO-Pose: Enhancing YOLO for Multi Person Pose Estimation Using Object Keypoint Similarity Los](https://arxiv.org/ftp/arxiv/papers/2204/2204.06806.pdf)
     """
 
     def __init__(

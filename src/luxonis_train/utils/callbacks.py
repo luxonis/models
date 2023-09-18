@@ -118,6 +118,7 @@ class TestOnTrainEnd(pl.Callback):
                         "train.preprocessing.keep_aspect_ratio"
                     ),
                 ),
+                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
             )
             pytorch_loader_test = DataLoader(
                 loader_test,

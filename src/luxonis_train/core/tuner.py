@@ -147,6 +147,7 @@ class Tuner:
                         "train.preprocessing.keep_aspect_ratio"
                     ),
                 ),
+                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
             )
 
             sampler = None
@@ -183,6 +184,7 @@ class Tuner:
                         "train.preprocessing.keep_aspect_ratio"
                     ),
                 ),
+                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
             )
             pytorch_loader_val = torch.utils.data.DataLoader(
                 loader_val,

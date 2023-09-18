@@ -55,7 +55,7 @@ class YoloV7PoseLoss(BaseLoss):
             eps=label_smoothing
         )
 
-    def forward(self, kpt_pred, kpt, **kwargs):
+    def forward(self, kpt_pred, kpt, epoch, step):
         # model output is (kpt, features). The loss only needs features.
         kpt_pred = kpt_pred[1]
         kpt_pred[0].shape[0]  # batch size
@@ -96,7 +96,7 @@ class YoloV7PoseLoss(BaseLoss):
                 # mask
                 tkpt[i] = tkpt[i].to(device)
                 kpt_mask = tkpt[i][:, 0::2] != 0
-                lkptv += self.BCEcls(pkpt_score, kpt_mask.float())
+                lkptv += self.BCEcls(pkpt_score, kpt_mask.float(), epoch, step)[0]
                 d = (pkpt_x - tkpt[i][:, 0::2]) ** 2 + (pkpt_y - tkpt[i][:, 1::2]) ** 2
                 kpt_loss_factor = (
                     torch.sum(kpt_mask != 0) + torch.sum(kpt_mask == 0)
@@ -115,9 +115,11 @@ class YoloV7PoseLoss(BaseLoss):
                         device=device,
                     )
                     t[range(n), tcls[i]] = self.positive_smooth_const
-                    lcls += self.BCEcls(ps[:, 5 : 5 + self.n_classes], t)  # BCE
+                    lcls += self.BCEcls(ps[:, 5 : 5 + self.n_classes], t, epoch, step)[
+                        0
+                    ]  # BCE
 
-            obji = self.BCEobj(pi[..., 4], tobj)
+            obji = self.BCEobj(pi[..., 4], tobj, epoch, step)[0]
             lobj += obji * self.balance[i]  # obj loss
         lbox *= self.box_weight
         lobj *= self.obj_weight

@@ -132,8 +132,9 @@ class MeanAveragePrecision(detection.MeanAveragePrecision):
         Check original documentation: https://torchmetrics.readthedocs.io/en/stable/detection/mean_average_precision.html
         """
         super().__init__(**kwargs)
+
     def compute(self) -> dict:
-        metric_dict =  super().compute()
+        metric_dict = super().compute()
         # per class metrics are omitted until we find a nice way to log them
         del metric_dict["classes"]
         del metric_dict["map_per_class"]

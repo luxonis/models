@@ -65,7 +65,7 @@ class HeadTestCases(unittest.TestCase):
                         "n_classes": 1,
                         "input_channels_shapes": input_channels_shapes,
                         "original_in_shape": input_shape,
-                        **DEFAULT_HEAD_INIT_VALUES[head_name]
+                        **DEFAULT_HEAD_INIT_VALUES[head_name],
                     }
                     head = eval(head_name)(**head_params)
                     head.eval()

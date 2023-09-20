@@ -1,4 +1,5 @@
 import torch
+import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -33,27 +34,13 @@ class BCEWithLogitsLoss(nn.Module):
 
 
 class FocalLoss(nn.Module):
-    # Source: https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch/notebook
     def __init__(self, alpha=0.8, gamma=2, **kwargs):
         super(FocalLoss, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
-        self.use_sigmoid = kwargs.get("use_sigmoid", True)
 
     def forward(self, inputs, targets, **kwargs):
-        if self.use_sigmoid:
-            inputs = torch.sigmoid(inputs)
-
-        # flatten label and prediction tensors
-        inputs = inputs.view(-1).to(torch.float32)
-        targets = targets.view(-1).to(torch.float32)
-
-        # first compute binary cross-entropy
-        BCE = F.binary_cross_entropy(inputs, targets, reduction="mean")
-        BCE_EXP = torch.exp(-BCE)
-        focal_loss = self.alpha * (1 - BCE_EXP) ** self.gamma * BCE
-
-        return focal_loss
+        return torchvision.ops.sigmoid_focal_loss(inputs, targets, alpha=self.alpha, gamma=self.gamma, reduction="mean")
 
 
 class SegmentationLoss(nn.Module):

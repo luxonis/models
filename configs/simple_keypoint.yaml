@@ -1,7 +1,7 @@
 model:
   name: SimpleKeypoint
-  type: 
-  pretrained: 
+  type:
+  pretrained:
 
   backbone:
     name: EfficientRep
@@ -11,12 +11,12 @@ model:
     name: RepPANNeck
 
   heads:
-    - name: IKeypointHead
+    - name: KeypointBoxHead
       params:
         n_classes: 1
         n_keypoints: 17
       loss:
-        name: YoloV7PoseLoss
+        name: KeypointBoxLoss
         params:
 
 dataset:

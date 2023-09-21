@@ -1,7 +1,10 @@
+import math
+from typing import List, Optional, TypeVar
+
+import numpy as np
 import torch
 import torch.nn as nn
-from typing import Union
-import numpy as np
+from torch import Tensor
 
 from .activations import *
 
@@ -399,19 +402,99 @@ class FeatureFusionBlock(nn.Module):
         return out
 
 
-def autopad(k: Union[int, tuple], p: Union[int, tuple] = None):
+K = TypeVar("K", int, tuple[int, ...])
+
+
+def autopad(kernel_size: K, padding: Optional[K] = None) -> K:
     """Compute padding based on kernel size.
 
     Args:
-        k (Union[int, tuple]): The kernel size
-        p (Union[int, tuple], optional): The padding value or tuple of padding values. Defaults to None.
+        kernel_size (Union[int, tuple[int, ...]]): The kernel size
+        padding (Union[int, tuple[int, ...]], optional): The defalt padding value
+        or a tuple of padding values. Defaults to None. Will be directly returned if
+        specified.
 
     Returns:
         Union[int, tuple]: The computed padding value(s).
     """
-    if p is None:
-        if isinstance(k, int):
-            p = k // 2
-        else:
-            p = tuple(x // 2 for x in k)  # auto-pad for each dimension
-    return p
+    if padding is not None:
+        return padding
+    if isinstance(kernel_size, int):
+        return kernel_size // 2
+    return tuple(x // 2 for x in kernel_size)  # auto-pad for each dimension
+
+class LearnableAdd(nn.Module):
+    def __init__(self, channel: int):
+        """Implicit add block"""
+        super().__init__()
+        self.channel = channel
+        self.implicit = nn.Parameter(torch.zeros(1, channel, 1, 1))
+        nn.init.normal_(self.implicit, std=0.02)
+
+    def forward(self, x: Tensor):
+        return self.implicit.expand_as(x) + x
+
+
+class LearnableMultiply(nn.Module):
+    def __init__(self, channel: int):
+        """Implicit multiply block"""
+        super().__init__()
+        self.channel = channel
+        self.implicit = nn.Parameter(torch.ones(1, channel, 1, 1))
+        nn.init.normal_(self.implicit, mean=1.0, std=0.02)
+
+    def forward(self, x: Tensor):
+        return self.implicit.expand_as(x) * x
+
+
+class LearnableMulAddConv(nn.Module):
+    def __init__(
+        self,
+        add_channel: int,
+        mul_channel: int,
+        conv_in_channel: int,
+        conv_out_channel: int,
+    ):
+        super().__init__()
+        self.add = LearnableAdd(add_channel)
+        self.mul = LearnableMultiply(mul_channel)
+        self.conv = nn.Conv2d(conv_in_channel, conv_out_channel, 1)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.mul(self.conv(self.add(x)))
+
+
+class KeypointBlock(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        """Keypoint head block for keypoint predictions"""
+        super().__init__()
+        layers: List[nn.Module] = []
+        for i in range(6):
+            depth_wise_conv = ConvModule(
+                in_channels,
+                in_channels,
+                kernel_size=3,
+                padding=autopad(3),
+                groups=math.gcd(in_channels, in_channels),
+                activation=nn.SiLU(),
+            )
+            conv = (
+                ConvModule(
+                    in_channels,
+                    in_channels,
+                    kernel_size=1,
+                    padding=autopad(1),
+                    activation=nn.SiLU(),
+                )
+                if i < 5
+                else nn.Conv2d(in_channels, out_channels, 1)
+            )
+
+            layers.append(depth_wise_conv)
+            layers.append(conv)
+
+        self.block = nn.Sequential(*layers)
+
+    def forward(self, x: Tensor):
+        out = self.block(x)
+        return out

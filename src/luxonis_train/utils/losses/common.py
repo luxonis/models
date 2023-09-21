@@ -1,6 +1,6 @@
 import torch
-import torchvision
-import torch.nn as nn
+from torch import nn, Tensor
+from torchvision.ops import sigmoid_focal_loss
 import torch.nn.functional as F
 
 
@@ -32,6 +32,33 @@ class BCEWithLogitsLoss(nn.Module):
     def forward(self, preds, labels, **kwargs):
         return self.criterion(preds, labels)
 
+class SmoothBCELoss(nn.Module):
+    def __init__(self, label_smoothing: float = 0.0, bce_pow: float = 1.0, **_):
+        super().__init__()
+        self.negative_smooth_const = 1.0 - 0.5 * label_smoothing
+        self.positive_smooth_const = 0.5 * label_smoothing
+        self.BCE = BCEWithLogitsLoss(pos_weight=torch.tensor([bce_pow]))
+
+    def forward(self, prediction: Tensor, target: Tensor) -> Tensor:
+        """
+        Computes the BCE loss with label smoothing.
+
+        Args:
+            prediction (torch.Tensor): A tensor of shape (N, n_classes),
+                containing the predicted class scores.
+            target (torch.Tensor): A tensor of shape (N,), containing the
+                ground-truth class labels
+
+        Returns:
+            torch.Tensor: A scalar tensor.
+        """
+        smoothed_target = torch.full_like(
+            prediction,
+            self.negative_smooth_const,
+            device=prediction.device,
+        )
+        smoothed_target[torch.arange(len(target)), target] = self.positive_smooth_const
+        return self.BCE(prediction, smoothed_target)
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=0.8, gamma=2, **kwargs):
@@ -40,7 +67,7 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, inputs, targets, **kwargs):
-        return torchvision.ops.sigmoid_focal_loss(inputs, targets, alpha=self.alpha, gamma=self.gamma, reduction="mean")
+        return sigmoid_focal_loss(inputs, targets, alpha=self.alpha, gamma=self.gamma, reduction="mean")
 
 
 class SegmentationLoss(nn.Module):

@@ -24,10 +24,10 @@ Every head takes these parameters:
 - **YoloV6Head** (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
   - Params:
     - num_heads: bool # Number of output heads. Defaults to 3. ***Note:** Should be same also on neck in most cases.*
-    
-  ***Note:** attach_index: Defaults to 0. Value must be non-negative.* 
 
-- **IKeypoint** (adapted from [here](https://github.com/WongKinYiu/yolov7))
+  ***Note:** attach_index: Defaults to 0. Value must be non-negative.*
+
+- **KeypointBoxHead**
   - Params:
     - n_keypoints: int # Number of keypoints
     - num_heads: bool # Number of output heads. Defaults to 3. ***Note:** Should be same also on neck in most cases.*

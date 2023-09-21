@@ -71,6 +71,7 @@ class Inferer(pl.LightningModule):
         """Runs inference on all images in the dataset"""
 
         with LuxonisDataset(
+            dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
             bucket_type=eval(self.cfg.get("dataset.bucket_type")),
@@ -99,7 +100,10 @@ class Inferer(pl.LightningModule):
                     )
 
             loader_val = LuxonisLoader(
-                dataset, view=view, augmentations=self.augmentations
+                dataset,
+                view=view,
+                augmentations=self.augmentations,
+                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
             )
 
             pytorch_loader_val = torch.utils.data.DataLoader(

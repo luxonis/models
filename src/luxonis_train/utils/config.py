@@ -3,6 +3,7 @@ import yaml
 import warnings
 import json
 import re
+import sys
 from typing import Union
 from copy import deepcopy
 
@@ -290,6 +291,7 @@ class Config:
         from luxonis_train.utils.config_helpers import get_head_label_types
 
         with LuxonisDataset(
+            dataset_name=self._data["dataset"]["dataset_name"],
             team_id=self._data["dataset"]["team_id"],
             dataset_id=self._data["dataset"]["dataset_id"],
             bucket_type=eval(self._data["dataset"]["bucket_type"]),
@@ -417,6 +419,10 @@ class Config:
         if not self._data["train"]["optimizers"]["scheduler"]["params"]:
             self._data["train"]["optimizers"]["scheduler"]["params"] = {}
 
+        # handle setting num_workers to 0 for Mac and Windows
+        if sys.platform == "win32" or sys.platform == "darwin":
+            self._data["train"]["num_workers"] = 0
+
         # handle IKeypointHead with anchors=None by generating them from dataset
         ikeypoint_head_indices = [
             i
@@ -433,6 +439,7 @@ class Config:
                 anchors = head["params"].get("anchors", -1)
                 if anchors is None:
                     with LuxonisDataset(
+                        dataset_name=self._data["dataset"]["dataset_name"],
                         team_id=self._data["dataset"]["team_id"],
                         dataset_id=self._data["dataset"]["dataset_id"],
                         bucket_type=eval(self._data["dataset"]["bucket_type"]),
@@ -452,6 +459,9 @@ class Config:
                             dataset,
                             view=self._data["dataset"]["train_view"],
                             augmentations=val_augmentations,
+                            mode="json"
+                            if self._data["dataset"]["json_mode"]
+                            else "fiftyone",
                         )
                         pytorch_loader = DataLoader(
                             loader,

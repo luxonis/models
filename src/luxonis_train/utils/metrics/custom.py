@@ -23,7 +23,11 @@ class ObjectKeypointSimilarity(Metric):
     groundtruth_scales: List[Tensor]
 
     def __init__(
-        self, num_keypoints: int, kpt_sigmas: Optional[Tensor] = None, **kwargs
+        self,
+        num_keypoints: int,
+        kpt_sigmas: Optional[Tensor] = None,
+        use_cocoeval_oks: bool = False,
+        **kwargs,
     ) -> None:
         """Object Keypoint Similarity metric for evaluating keypoint predictions
 
@@ -31,6 +35,8 @@ class ObjectKeypointSimilarity(Metric):
             num_keypoints (int): Number of keypoints
             kpt_sigmas (Optional[Tensor], optional): Sigma for each keypoint to weigh its importance,
                 if None use same weights for all. Defaults to None.
+            use_cocoeval_oks (bool, optional): Weather to use same OKS formula as in COCOeval or use
+                the one from definition. Defaults to False.
 
         As input to ``forward`` and ``update`` the metric accepts the following input:
         - preds (list): A list consisting of dictionaries each containg key-values for a single image.
@@ -52,6 +58,7 @@ class ObjectKeypointSimilarity(Metric):
         if kpt_sigmas is not None and len(kpt_sigmas) != num_keypoints:
             raise ValueError(f"Expected kpt_sigmas to be of shape (num_keypoints).")
         self.kpt_sigmas = kpt_sigmas or torch.ones(num_keypoints)
+        self.use_cocoeval_oks = use_cocoeval_oks
 
         self.add_state("pred_keypoints", default=[], dist_reduce_fx=None)
         self.add_state("groundtruth_keypoints", default=[], dist_reduce_fx=None)
@@ -80,15 +87,13 @@ class ObjectKeypointSimilarity(Metric):
                 self.pred_keypoints, self.groundtruth_keypoints, self.groundtruth_scales
             )
         ):
-            # reshape tensors in [N, K, 3] format
-            gt_kpts = torch.reshape(gt_kpts, (-1, self.num_keypoints, 3))
-            pred_kpts = torch.reshape(pred_kpts, (-1, self.num_keypoints, 3))
-            image_ious = torch.zeros(gt_kpts.shape[0], pred_kpts.shape[0])
-            for j, curr_gt in enumerate(gt_kpts):
-                for k, curr_pred in enumerate(pred_kpts):
-                    image_ious[j, k] = self._compute_oks(
-                        curr_pred, curr_gt, scale=gt_scales[j]
-                    )
+            gt_kpts = torch.reshape(gt_kpts, (-1, self.num_keypoints, 3))  # [N, K, 3]
+            pred_kpts = torch.reshape(
+                pred_kpts, (-1, self.num_keypoints, 3)
+            )  # [M, K, 3]
+
+            # compute OKS
+            image_ious = self._compute_oks(pred_kpts, gt_kpts, gt_scales)  # [M, N]
 
             # perform linear sum assignment
             gt_indices, pred_indices = linear_sum_assignment(
@@ -103,27 +108,38 @@ class ObjectKeypointSimilarity(Metric):
 
         return final_oks
 
-    def _compute_oks(self, pred: torch.Tensor, gt: torch.Tensor, scale: float):
-        """Compute Object Keypoint Similarity between ground truth and prediction
-            as defined here: https://cocodataset.org/#keypoints-eval
+    def _compute_oks(self, pred: Tensor, gt: Tensor, scales: Tensor):
+        """Compute Object Keypoint Similarity between every GT and prediction
 
         Args:
-            pred (torch.Tensor): Prediction with shape [K, 3]
-            gt (torch.Tensor): GT with shape [K, 3]
-            scale (float): Scale of GT
+            pred (Tensor): Prediction tensor with shape [N, K, 3]
+            gt (Tensor): GT tensor with shape [M, K, 3]
+            scale (float): Scale tensor for every GT [M,]
 
         Returns:
-            torch.FloatTensor: Object Keypoint Similarity between pred and GT
+            Tensor: Object Keypoint Similarity every pred and gt [M, N]
         """
-        # Compute the L2/Euclidean Distance
-        distances = torch.norm(pred[:, :2] - gt[:, :2], dim=-1)
-        # Compute the exponential part of the equation
-        exp_vector = torch.exp(
-            -(distances ** 2) / (2 * (scale ** 2) * (self.kpt_sigmas ** 2))
+        eps = 1e-7
+        distances = (gt[:, None, :, 0] - pred[..., 0]) ** 2 + (
+            gt[:, None, :, 1] - pred[..., 1]
+        ) ** 2  # (N, M, 17)
+        kpt_mask = gt[..., 2] != 0  # only compute on visible keypoints
+        if self.use_cocoeval_oks:
+            # use same formula as in COCOEval script here:
+            # https://github.com/cocodataset/cocoapi/blob/8c9bcc3cf640524c4c20a9c40e89cb6a2f2fa0e9/PythonAPI/pycocotools/cocoeval.py#L229
+            oks = (
+                distances
+                / (2 * self.kpt_sigmas) ** 2
+                / (scales[:, None, None] + eps)
+                / 2
+            )
+        else:
+            # use same formula as defined here: https://cocodataset.org/#keypoints-eval
+            oks = distances / ((scales[:, None, None] + eps) * self.kpt_sigmas) ** 2 / 2
+
+        return (torch.exp(-oks) * kpt_mask[:, None]).sum(-1) / (
+            kpt_mask.sum(-1)[:, None] + eps
         )
-        numerator = torch.dot(exp_vector, gt[:, 2].bool().float())
-        denominator = torch.sum(gt[:, 2].bool().int()) + 1e-9
-        return numerator / denominator
 
 
 class MeanAveragePrecisionKeypoints(Metric):

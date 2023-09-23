@@ -10,7 +10,6 @@ from torchvision.ops import (
     box_iou,
     generalized_box_iou,
     distance_box_iou,
-    complete_box_iou,
 )
 
 
@@ -88,9 +87,28 @@ def bbox_iou(
     elif iou_type == "diou":
         iou = distance_box_iou(bbox1, bbox2)
     elif iou_type == "ciou":
-        iou = complete_box_iou(bbox1, bbox2)
+        # CIoU from `Enhancing Geometric Factors in Model Learning and Inference for
+        # Object Detection and Instance Segmentation`, https://arxiv.org/pdf/2005.03572.pdf.
+        # Implementation adapted from torchvision complete_box_iou with added eps for stability
+        eps = 1e-7
+
+        iou = bbox_iou(bbox1, bbox2, iou_type="none")
+        diou = bbox_iou(bbox1, bbox2, iou_type="diou")
+
+        w1 = bbox1[:, None, 2] - bbox1[:, None, 0]
+        h1 = bbox1[:, None, 3] - bbox1[:, None, 1] + eps
+        w2 = bbox2[:, 2] - bbox2[:, 0]
+        h2 = bbox2[:, 3] - bbox2[:, 1] + eps
+
+        v = (4 / (torch.pi**2)) * torch.pow(
+            torch.atan(w1 / h1) - torch.atan(w2 / h2), 2
+        )
+        with torch.no_grad():
+            alpha = v / (1 - iou + v + eps)
+        iou = diou - alpha * v
+
     elif iou_type == "siou":
-        # SIoU Loss from `SIoU Loss: More Powerful Learning for Bounding Box Regression`,
+        # SIoU from `SIoU Loss: More Powerful Learning for Bounding Box Regression`,
         # https://arxiv.org/pdf/2205.12740.pdf
 
         eps = 1e-7

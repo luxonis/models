@@ -83,7 +83,7 @@ class YoloV7PoseLoss(BaseLoss):
                 iou = bbox_iou(
                     pbox,
                     tbox[i].to(device),
-                    box_format="xywh",
+                    box_format="cxcywh",
                     iou_type="ciou",
                     element_wise=True,
                 )

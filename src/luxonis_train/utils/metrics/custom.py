@@ -2,8 +2,7 @@ import torch
 import contextlib
 import io
 from torch import Tensor
-from typing import List, Optional
-from typing import Literal
+from typing import List, Optional, Dict, Any, Tuple, Literal
 from torchmetrics import Metric
 from scipy.optimize import linear_sum_assignment
 from torchvision.ops import box_convert
@@ -39,12 +38,12 @@ class ObjectKeypointSimilarity(Metric):
                 the one from definition. Defaults to False.
 
         As input to ``forward`` and ``update`` the metric accepts the following input:
-        - preds (list): A list consisting of dictionaries each containg key-values for a single image.
+        - preds (List[Dict[str, Tensor]]): A list consisting of dictionaries each containg key-values for a single image.
             Parameters that should be provided per dict:
             - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
                 are unnormalized keypoint coordinates and `vis` is keypoint visibility.
 
-        - `target` (list): A list consisting of dictionaries each containg key-values for a single image.
+        - `target` (List[Dict[str, Tensor]]): A list consisting of dictionaries each containg key-values for a single image.
             Parameters that should be provided per dict:
             - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
                 are unnormalized keypoint coordinates and `vis` is keypoint visibility.
@@ -64,7 +63,9 @@ class ObjectKeypointSimilarity(Metric):
         self.add_state("groundtruth_keypoints", default=[], dist_reduce_fx=None)
         self.add_state("groundtruth_scales", default=[], dist_reduce_fx=None)
 
-    def update(self, preds: list, target: list):
+    def update(
+        self, preds: List[Dict[str, Tensor]], target: List[Dict[str, Tensor]]
+    ) -> None:
         """Torchmetric update function"""
         for item in preds:
             keypoints = fix_empty_tensors(item["keypoints"])
@@ -75,7 +76,7 @@ class ObjectKeypointSimilarity(Metric):
             self.groundtruth_keypoints.append(keypoints)
             self.groundtruth_scales.append(item["scales"])
 
-    def compute(self):
+    def compute(self) -> Tensor:
         """Torchmetric compute function"""
         self.kpt_sigmas = self.kpt_sigmas.to(
             self.device
@@ -108,7 +109,7 @@ class ObjectKeypointSimilarity(Metric):
 
         return final_oks
 
-    def _compute_oks(self, pred: Tensor, gt: Tensor, scales: Tensor):
+    def _compute_oks(self, pred: Tensor, gt: Tensor, scales: Tensor) -> Tensor:
         """Compute Object Keypoint Similarity between every GT and prediction
 
         Args:
@@ -176,7 +177,7 @@ class MeanAveragePrecisionKeypoints(Metric):
             box_format (Literal[xyxy, xywh, cxcywh], optional): Input bbox format. Defaults to "xyxy".
 
         As input to ``forward`` and ``update`` the metric accepts the following input:
-        - preds (list): A list consisting of dictionaries each containg key-values for a single image.
+        - preds (List[Dict[str, Tensor]]): A list consisting of dictionaries each containg key-values for a single image.
             Parameters that should be provided per dict:
             - boxes (torch.FloatTensor): Tensor of shape ``(num_boxes, 4)`` containing ``num_boxes`` detection
                 boxes of the format specified in the constructor. By default, this method expects ``(xmin, ymin, xmax, ymax)`` in absolute image coordinates.
@@ -185,7 +186,7 @@ class MeanAveragePrecisionKeypoints(Metric):
             - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
                 are unnormalized keypoint coordinates and `vis` is keypoint visibility.
 
-        - `target` (list): A list consisting of dictionaries each containg key-values for a single image.
+        - `target` (List[Dict[str, Tensor]]): A list consisting of dictionaries each containg key-values for a single image.
             Parameters that should be provided per dict:
             - boxes (torch.FloatTensor): Tensor of shape ``(num_boxes, 4)`` containing ``num_boxes`` ground truth
                 boxes of the format specified in the constructor. By default, this method expects ``(xmin, ymin, xmax, ymax)`` in absolute image coordinates.
@@ -224,7 +225,9 @@ class MeanAveragePrecisionKeypoints(Metric):
         self.add_state("groundtruth_crowds", default=[], dist_reduce_fx=None)
         self.add_state("groundtruth_keypoints", default=[], dist_reduce_fx=None)
 
-    def update(self, preds: list, target: list):
+    def update(
+        self, preds: List[Dict[str, Tensor]], target: List[Dict[str, Tensor]]
+    ) -> None:
         """Torchmetric update function"""
         for item in preds:
             boxes, keypoints = self._get_safe_item_values(item)
@@ -245,7 +248,7 @@ class MeanAveragePrecisionKeypoints(Metric):
                 item.get("iscrowd", torch.zeros_like(item["labels"]))
             )
 
-    def compute(self):
+    def compute(self) -> Dict[str, Tensor]:
         """Torchmetric compute function"""
         coco_target, coco_preds = COCO(), COCO()
         coco_target.dataset = self._get_coco_format(
@@ -289,13 +292,13 @@ class MeanAveragePrecisionKeypoints(Metric):
 
     def _get_coco_format(
         self,
-        boxes: list,
-        keypoints: list,
-        labels: list,
-        scores: Optional[list] = None,
-        crowds: Optional[list] = None,
-        area: Optional[list] = None,
-    ):
+        boxes: List[Tensor],
+        keypoints: List[Tensor],
+        labels: List[Tensor],
+        scores: Optional[List[Tensor]] = None,
+        crowds: Optional[List[Tensor]] = None,
+        area: Optional[List[Tensor]] = None,
+    ) -> Dict[str, List[Dict[str, Any]]]:
         """Transforms and returns all cached targets or predictions in COCO format.
         Format is defined at https://cocodataset.org/#format-data
         """
@@ -363,7 +366,7 @@ class MeanAveragePrecisionKeypoints(Metric):
         classes = [{"id": i, "name": str(i)} for i in self._get_classes()]
         return {"images": images, "annotations": annotations, "categories": classes}
 
-    def _get_safe_item_values(self, item: dict):
+    def _get_safe_item_values(self, item: Dict[str, Tensor]) -> Tuple[Tensor, Tensor]:
         """Convert and return the boxes"""
         boxes = fix_empty_tensors(item["boxes"])
         if boxes.numel() > 0:
@@ -371,7 +374,7 @@ class MeanAveragePrecisionKeypoints(Metric):
         keypoints = fix_empty_tensors(item["keypoints"])
         return boxes, keypoints
 
-    def _get_classes(self):
+    def _get_classes(self) -> List[int]:
         """Return a list of unique classes found in ground truth and detection data."""
         if len(self.pred_labels) > 0 or len(self.groundtruth_labels) > 0:
             return (
@@ -383,7 +386,7 @@ class MeanAveragePrecisionKeypoints(Metric):
         return []
 
 
-def fix_empty_tensors(input_tensor: Tensor):
+def fix_empty_tensors(input_tensor: Tensor) -> Tensor:
     """Empty tensors can cause problems in DDP mode, this methods corrects them."""
     if input_tensor.numel() == 0 and input_tensor.ndim == 1:
         return input_tensor.unsqueeze(0)

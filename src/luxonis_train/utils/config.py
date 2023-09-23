@@ -3,7 +3,7 @@ import yaml
 import warnings
 import json
 import re
-from typing import Union
+from typing import Union, Optional, Dict, Any, List, Tuple
 from copy import deepcopy
 
 from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
@@ -16,7 +16,7 @@ class Config:
 
     _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../config_db"))
 
-    def __new__(cls, cfg=None):
+    def __new__(cls, cfg: Optional[Union[str, Dict[str, Any]]] = None):
         if not hasattr(cls, "instance"):
             if cfg is None:
                 raise ValueError("Provide either config path or config dictionary.")
@@ -26,25 +26,25 @@ class Config:
 
         return cls.instance
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return json.dumps(self._data, indent=4)
 
     @classmethod
-    def clear_instance(cls):
+    def clear_instance(cls) -> None:
         """Clears all singleton instances, should be only used for unit-testing"""
         if hasattr(cls, "instance"):
             del cls.instance
 
-    def get_data(self):
+    def get_data(self) -> Dict[str, Any]:
         """Returns a deepcopy of current data dict"""
         return deepcopy(self._data)
 
-    def save_data(self, path: str):
+    def save_data(self, path: str) -> None:
         """Saves data dict to yaml file"""
         with open(path, "w+") as f:
             yaml.dump(self._data, f, default_flow_style=False)
 
-    def override_config(self, args: str):
+    def override_config(self, args: str) -> None:
         """Overrides config values with ones specifid by --override string.
         If last key is not matched to config, creates a new (key, value) pair.
         """
@@ -73,12 +73,12 @@ class Config:
             value = parse_string_to_types(value)
             last_sub_dict[last_key] = value
 
-    def get(self, key_merged: str):
+    def get(self, key_merged: str) -> Any:
         """Returns value from config based on the key"""
         last_key, last_sub_dict = self._config_iterate(key_merged, only_warn=False)
         return last_sub_dict[last_key]
 
-    def validate_config_exporter(self):
+    def validate_config_exporter(self) -> None:
         """Validates 'exporter' block in config"""
         if not self._data["exporter"]:
             raise ValueError("No 'exporter' section in config specified.")
@@ -86,7 +86,7 @@ class Config:
         if not self._data["exporter"]["export_weights"]:
             raise ValueError("No 'export_weights' speficied in config file.")
 
-    def validate_config_tuner(self):
+    def validate_config_tuner(self) -> None:
         """Validates 'tuner' block in config"""
         if not self._data["tuner"]:
             raise ValueError("No 'tuner' section in config specified.")
@@ -96,7 +96,7 @@ class Config:
             )
         # TODO: and more checks if needed
 
-    def _load(self, cfg: Union[str, dict]):
+    def _load(self, cfg: Union[str, Dict[str, Any]]) -> None:
         """Performs complete loading and validation of the config"""
         with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
             base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
@@ -133,7 +133,9 @@ class Config:
         self._validate_config()
         print("Config loaded.")
 
-    def _merge_configs(self, base_cfg: dict, user_cfg: dict):
+    def _merge_configs(
+        self, base_cfg: Dict[str, Any], user_cfg: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Merges user config with base config"""
         if base_cfg is None:
             base_cfg = {}
@@ -155,7 +157,7 @@ class Config:
 
         return base_cfg
 
-    def _load_model_config(self, cfg: dict):
+    def _load_model_config(self, cfg: Dict[str, Any]) -> None:
         """Loads model config from user config"""
         model_cfg = cfg.get("model")
         if model_cfg is None:
@@ -176,7 +178,7 @@ class Config:
 
         self._data["model"] = model_cfg
 
-    def _load_predefined_model(self, model_cfg: dict):
+    def _load_predefined_model(self, model_cfg: Dict[str, Any]) -> Dict[str, Any]:
         """Loads predefined model config from db"""
         model_type = model_cfg["type"].lower()
         if model_type.startswith("yolov6"):
@@ -184,7 +186,7 @@ class Config:
         else:
             raise ValueError(f"{model_type} not supported")
 
-    def _load_yolov6_cfg(self, model_cfg: dict):
+    def _load_yolov6_cfg(self, model_cfg: Dict[str, Any]) -> Dict[str, Any]:
         """Loads predefined YoloV6 config from db"""
         predefined_cfg_path = model_cfg["type"].lower() + ".yaml"
         full_path = os.path.join(self._db_path, predefined_cfg_path)
@@ -224,9 +226,11 @@ class Config:
 
         return model_cfg
 
-    def _config_iterate(self, key_merged: str, only_warn: bool = False):
+    def _config_iterate(
+        self, key_merged: str, only_warn: bool = False
+    ) -> Tuple[Union[str, int, None], Union[Dict[str, Any], List[Any], None]]:
         """Iterates over config based on key_merged and returns last key and
-        sub dict if it mathces structure
+        sub dict if it matches structure
         """
         sub_keys = key_merged.split(".")
         sub_dict = self._data
@@ -257,6 +261,7 @@ class Config:
                     )
 
             sub_dict = sub_dict[key]
+
         # return last_key in correct format (int or string)
         success = True
         if isinstance(sub_dict, dict):
@@ -284,7 +289,7 @@ class Config:
 
         return last_key, sub_dict
 
-    def _validate_dataset_classes(self):
+    def _validate_dataset_classes(self) -> None:
         """Validates config to used datasets, overrides n_classes if needed"""
         with LuxonisDataset(
             team_id=self._data["dataset"]["team_id"],
@@ -316,7 +321,7 @@ class Config:
                     )
                 head["params"]["n_classes"] = dataset_n_classes
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         """Validates whole config based on specified rules"""
         model_cfg = self._data["model"]
         model_predefined = model_cfg.get("type") != None
@@ -462,7 +467,7 @@ class Config:
                         ).tolist()
 
 
-def remove_chars_inside_brackets(string):
+def remove_chars_inside_brackets(string: str) -> str:
     """Find and remove all spaces, single and double quotes inside substring which starts
     with [ and ends with ] character
     """
@@ -476,7 +481,9 @@ def remove_chars_inside_brackets(string):
     return string
 
 
-def parse_string_to_types(input_str: str):
+def parse_string_to_types(
+    input_str: str,
+) -> Union[str, int, bool, List[str | int | bool]]:
     """Parse input strings to different data type if it matches some rule"""
     if input_str.lstrip("-").isdigit():  # check if is digit
         out = int(input_str)

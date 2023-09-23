@@ -1,8 +1,9 @@
-from typing import Any
+from typing import Any, Dict, Optional
 import warnings
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import RichProgressBar
 from rich.table import Table
+from torch import Tensor
 
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 
@@ -12,17 +13,21 @@ class LuxonisProgressBar(RichProgressBar):
         """Custom rich text progress bar based on RichProgressBar from Pytorch Lightning"""
         super().__init__(leave=True)
 
-    def print_single_line(self, text: str):
+    def print_single_line(self, text: str) -> None:
         self._console.print(f"[magenta]{text}[/magenta]")
 
-    def get_metrics(self, trainer, pl_module):
+    def get_metrics(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> Dict[str, int | str | float | Dict[str, float]]:
         # NOTE: there might be a cleaner way of doing this
         items = super().get_metrics(trainer, pl_module)
         if trainer.training:
             items["Loss"] = pl_module.training_step_outputs[-1]["loss"].item()
         return items
 
-    def print_results(self, stage: str, loss: float, metrics: dict):
+    def print_results(
+        self, stage: str, loss: float, metrics: Dict[str, Dict[str, Tensor]]
+    ) -> None:
         """Prints results to the console using rich text"""
 
         self._console.rule(stage, style="bold magenta")
@@ -53,7 +58,7 @@ class AnnotationChecker(pl.Callback):
         pl_module: pl.LightningModule,
         batch: Any,
         batch_idx: int,
-    ):
+    ) -> None:
         super().on_train_batch_start(trainer, pl_module, batch, batch_idx)
         if self.first_train_batch:
             pl_module.model.check_annotations(batch[1])
@@ -66,7 +71,7 @@ class AnnotationChecker(pl.Callback):
         batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
-    ):
+    ) -> None:
         super().on_validation_batch_start(
             trainer, pl_module, batch, batch_idx, dataloader_idx
         )
@@ -81,7 +86,7 @@ class AnnotationChecker(pl.Callback):
         batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
-    ):
+    ) -> None:
         super().on_test_batch_start(
             trainer, pl_module, batch, batch_idx, dataloader_idx
         )
@@ -93,7 +98,7 @@ class AnnotationChecker(pl.Callback):
 class TestOnTrainEnd(pl.Callback):
     """Callback that performs test on pl_module when train ends"""
 
-    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         from luxonis_train.utils.config import Config
         from torch.utils.data import DataLoader
         from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
@@ -138,7 +143,7 @@ class ExportOnTrainEnd(pl.Callback):
         super().__init__()
         self.override_upload_directory = override_upload_directory
 
-    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         from luxonis_train.utils.config import Config
         from luxonis_train.core import Exporter
 
@@ -170,7 +175,7 @@ class ExportOnTrainEnd(pl.Callback):
 
 
 class UploadCheckpointOnTrainEnd(pl.Callback):
-    def __init__(self, upload_directory: str):
+    def __init__(self, upload_directory: Optional[str] = None):
         """Callback that uploads best checkpoint to specified storage according to the validation loss
 
         Args:
@@ -185,7 +190,7 @@ class UploadCheckpointOnTrainEnd(pl.Callback):
             upload_directory, allow_active_mlflow_run=True, allow_local=False
         )
 
-    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         print(f"Started checkpoint upload to {self.fs.full_path()}...")
         model_checkpoint_callbacks = [
             c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)

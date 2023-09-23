@@ -193,6 +193,7 @@ class BboxYoloV6Head(BaseObjectDetection):
 
         conf_thres = kwargs.get("conf_thres", 0.001)
         iou_thres = kwargs.get("iou_thres", 0.6)
+
         output_nms = non_max_suppression(
             output_merged,
             n_classes=self.n_classes,

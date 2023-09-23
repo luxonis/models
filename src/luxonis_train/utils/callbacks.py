@@ -1,9 +1,10 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import warnings
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import RichProgressBar
+from pytorch_lightning.callbacks import RichProgressBar, BaseFinetuning
 from rich.table import Table
 from torch import Tensor
+from torch.optim.optimizer import Optimizer
 
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 
@@ -42,6 +43,40 @@ class LuxonisProgressBar(RichProgressBar):
                 table.add_row(metric_name, value)
             self._console.print(table)
         self._console.rule(style="bold magenta")
+
+
+class ModuleFreezer(BaseFinetuning):
+    def __init__(self, freeze_info: Dict[str, bool | List[bool]]):
+        """Callback that freezes parts of the model based on provided dict
+
+        Args:
+            freeze_info (Dict[str, bool]): Dictionary where key is name of the
+                model's part and value is bool flag for freezing
+        """
+        super().__init__()
+
+        self.freeze_info = freeze_info
+
+    def freeze_before_training(self, pl_module: pl.LightningModule) -> None:
+        for key, value in self.freeze_info.items():
+            if key == "backbone" and value:
+                self.freeze(pl_module.model.backbone, train_bn=False)
+            elif key == "neck" and value:
+                if pl_module.model.neck:
+                    self.freeze(pl_module.model.neck, train_bn=False)
+                else:
+                    warnings.warn(
+                        "Skipping neck freezing as model doesn't have a neck."
+                    )
+            elif key == "heads":
+                for i, v in enumerate(value):
+                    if v:
+                        self.freeze(pl_module.model.heads[i], train_bn=False)
+
+    def finetune_function(
+        self, pl_module: pl.LightningModule, epoch: int, optimizer: Optimizer
+    ) -> None:
+        pass
 
 
 class AnnotationChecker(pl.Callback):

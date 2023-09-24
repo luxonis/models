@@ -1,7 +1,8 @@
-import unittest
-import torch
 import itertools
+import unittest
+
 import luxonis_train.models.backbones as backbones
+import torch
 from luxonis_train.models.backbones import *
 from luxonis_train.models.heads import *
 from luxonis_train.utils.general import dummy_input_run
@@ -65,7 +66,8 @@ class HeadTestCases(unittest.TestCase):
                         "n_classes": 1,
                         "input_channels_shapes": input_channels_shapes,
                         "original_in_shape": input_shape,
-                    } | DEFAULT_HEAD_INIT_VALUES[head_name]
+                        **DEFAULT_HEAD_INIT_VALUES[head_name],
+                    }
                     head = eval(head_name)(**head_params)
                     head.eval()
 
@@ -157,7 +159,7 @@ class HeadTestCases(unittest.TestCase):
 
         for curr_value in correct_values:
             with self.subTest(values=curr_value):
-                input = torch.zeros(input_shape)
+                torch.zeros(input_shape)
                 input_channels_shapes = dummy_input_run(backbone, input_shape)
                 backbone.eval()
 
@@ -201,7 +203,7 @@ class HeadTestCases(unittest.TestCase):
         for curr_value in wrong_values:
             with self.subTest(values=curr_value):
                 with self.assertRaises(ValueError):
-                    input = torch.zeros(input_shape)
+                    torch.zeros(input_shape)
                     input_channels_shapes = dummy_input_run(backbone, input_shape)
                     backbone.eval()
 
@@ -260,7 +262,7 @@ class HeadTestCases(unittest.TestCase):
                         )
                         neck.eval()
 
-                        head = IKeypointHead(
+                        head = KeypointBboxHead(
                             n_classes=10,
                             n_keypoints=10,
                             input_channels_shapes=input_channels_shapes,
@@ -323,7 +325,7 @@ class HeadTestCases(unittest.TestCase):
 
         for curr_value in correct_values:
             with self.subTest(values=curr_value):
-                input = torch.zeros(input_shape)
+                torch.zeros(input_shape)
                 input_channels_shapes = dummy_input_run(backbone, input_shape)
                 backbone.eval()
 
@@ -336,7 +338,7 @@ class HeadTestCases(unittest.TestCase):
                     neck, input_channels_shapes, multi_input=True
                 )
                 neck.eval()
-                head = IKeypointHead(
+                KeypointBboxHead(
                     n_classes=10,
                     n_keypoints=10,
                     input_channels_shapes=input_channels_shapes,
@@ -372,7 +374,7 @@ class HeadTestCases(unittest.TestCase):
         for curr_value in wrong_values:
             with self.subTest(values=curr_value):
                 with self.assertRaises(ValueError):
-                    input = torch.zeros(input_shape)
+                    torch.zeros(input_shape)
                     input_channels_shapes = dummy_input_run(backbone, input_shape)
                     backbone.eval()
 
@@ -385,7 +387,7 @@ class HeadTestCases(unittest.TestCase):
                         neck, input_channels_shapes, multi_input=True
                     )
                     neck.eval()
-                    head = IKeypointHead(
+                    KeypointBboxHead(
                         n_classes=10,
                         n_keypoints=10,
                         input_channels_shapes=input_channels_shapes,
@@ -447,7 +449,7 @@ class HeadTestCases(unittest.TestCase):
 
         for curr_value in values:
             with self.subTest(values=curr_value):
-                input = torch.zeros(input_shape)
+                torch.zeros(input_shape)
                 input_channels_shapes = dummy_input_run(backbone, input_shape)
                 backbone.eval()
 
@@ -460,7 +462,7 @@ class HeadTestCases(unittest.TestCase):
                     neck, input_channels_shapes, multi_input=True
                 )
                 neck.eval()
-                head = IKeypointHead(
+                head = KeypointBboxHead(
                     n_classes=10,
                     n_keypoints=10,
                     input_channels_shapes=input_channels_shapes,

@@ -123,7 +123,7 @@ class BboxYoloV6Head(BaseObjectDetection):
     def forward_deploy(self, x):
         outputs = []
         for i, module in enumerate(self.heads):
-            _, out_cls, out_reg = module([x[self.attach_index + i]])
+            _, out_cls, out_reg = module(x[self.attach_index + i])
             out_cls = torch.sigmoid(out_cls)
             conf, _ = out_cls.max(1, keepdim=True)
             output = torch.cat([out_reg, conf, out_cls], axis=1)
@@ -175,7 +175,7 @@ class BboxYoloV6Head(BaseObjectDetection):
             multiply_with_stride=False,
         )
 
-        pred_bboxes = dist2bbox(reg_dist_list, anchor_points, out_format="cxcywh")
+        pred_bboxes = dist2bbox(reg_dist_list, anchor_points, out_format="xyxy")
 
         pred_bboxes *= stride_tensor
         output_merged = torch.cat(
@@ -199,6 +199,7 @@ class BboxYoloV6Head(BaseObjectDetection):
             n_classes=self.n_classes,
             conf_thres=conf_thres,
             iou_thres=iou_thres,
+            box_format="xyxy",
         )
         return output_nms
 

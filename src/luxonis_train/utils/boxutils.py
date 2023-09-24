@@ -1,7 +1,7 @@
-import torch
-import time
 import math
 import warnings
+import torch
+import time
 from torch import Tensor
 from typing import List, Literal, Tuple, Optional
 from torchvision.ops import (
@@ -11,6 +11,62 @@ from torchvision.ops import (
     generalized_box_iou,
     distance_box_iou,
 )
+
+
+def match_to_anchor(
+    targets: Tensor,
+    anchor: Tensor,
+    xy_shifts: Tensor,
+    scale_width: int,
+    scale_height: int,
+    n_keypoints: int,
+    anchor_threshold: float,
+    bias: float,
+    box_offset: int = 5,
+) -> Tuple[Tensor, Tensor]:
+    """
+    This method:
+    1. Scales the targets to the size of the feature map
+    2. Matches the targets to the anchor, filtering out targets whose aspect
+        ratio is too far from the anchor's aspect ratio
+
+    Returns the scaled targets, repeated for the number of shifts, and the shifts.
+
+    """
+
+    # The boxes and keypoints need to be scaled to the size of the features
+    # First two indices are batch index and class label,
+    # last index is anchor index. Those are not scaled.
+    scale_length = 2 * n_keypoints + box_offset + 2
+    scales = torch.ones(scale_length, device=targets.device)
+    scales[2 : scale_length - 1] = torch.tensor(
+        [scale_width, scale_height] * (n_keypoints + 2)
+    )
+    scaled_targets = targets * scales
+    if targets.size(1) == 0:
+        return targets[0], torch.zeros(1, device=targets.device)
+
+    wh_to_anchor_ratio = scaled_targets[:, :, 4:6] / anchor.unsqueeze(1)
+    ratio_mask = (
+        torch.max(wh_to_anchor_ratio, 1.0 / wh_to_anchor_ratio).max(2)[0]
+        < anchor_threshold
+    )
+
+    filtered_targets = scaled_targets[ratio_mask]
+
+    box_xy = filtered_targets[:, 2:4]
+    box_wh = torch.tensor([scale_width, scale_height]) - box_xy
+
+    def decimal_part(x: Tensor) -> Tensor:
+        return x % 1.0
+
+    x, y = ((decimal_part(box_xy) < bias) & (box_xy > 1.0)).T
+    w, h = ((decimal_part(box_wh) < bias) & (box_wh > 1.0)).T
+    mask = torch.stack((torch.ones_like(x), x, y, w, h))
+    final_targets = filtered_targets.repeat((len(xy_shifts), 1, 1))[mask]
+
+    shifts = xy_shifts.unsqueeze(1).repeat((1, len(box_xy), 1))[mask]
+    return final_targets, shifts
 
 
 def dist2bbox(
@@ -174,7 +230,7 @@ def non_max_suppression(
     keep_classes: Optional[List[int]] = None,
     agnostic: bool = False,
     multi_label: bool = False,
-    box_format: Literal["xyxy", "xywh", "cxcywh"] = "cxcywh",
+    box_format: Literal["xyxy", "xywh", "cxcywh"] = "xyxy",
     max_det: int = 300,
     max_wh: int = 4096,
     max_box_nms: int = 30000,
@@ -192,14 +248,14 @@ def non_max_suppression(
         agnostic (bool, optional): Weather perform NMS per class or treat all classes
             the same. Defaults to False.
         multi_label (bool, optional): Weather one prediction can have multiple labels. Defaults to False.
-        box_format (Literal["xyxy", "xywh", "cxcywh"], optional): Input bbox format. Defaults to "cxcywh".
+        box_format (Literal["xyxy", "xywh", "cxcywh"], optional): Input bbox format. Defaults to "xyxy".
         max_det (int, optional): Number of maximum output detections. Defaults to 300.
         max_wh (int, optional): Maximum width and height of the bbox. Defaults to 4096.
         max_box_nms (int, optional): Maximum number of detections going to torchvision NMS. Defaults to 30000.
         max_total_time (float, optional): Maximum time allowed (in seconds) in this function. Defaults to 10.0.
 
     Returns:
-        List[Tensor]: List of kept detections for each image
+        List[Tensor]: List of kept detections for each image, boxes in "xyxy" format
     """
     if not (0 <= conf_thres <= 1):
         raise ValueError(
@@ -306,8 +362,8 @@ def anchors_from_dataset(
     Returns:
         Tensor: Proposed anchors
     """
-    from scipy.cluster.vq import kmeans
     from luxonis_ml.loader import LabelType
+    from scipy.cluster.vq import kmeans
 
     print("Generating anchors...")
     wh = []
@@ -465,3 +521,24 @@ def anchors_for_fpn_features(
     anchor_points = torch.cat(anchor_points).to(device)
     stride_tensor = torch.cat(stride_tensor).to(device)
     return anchors, anchor_points, n_anchors_list, stride_tensor
+
+
+def process_keypoints_predictions(keypoints: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    x = keypoints[..., ::3] * 2.0 - 0.5
+    y = keypoints[..., 1::3] * 2.0 - 0.5
+    visibility = keypoints[..., 2::3]
+    return (
+        x,
+        y,
+        visibility,
+    )
+
+
+def process_bbox_predictions(
+    bbox: Tensor, anchor: Tensor
+) -> Tuple[Tensor, Tensor, Tensor]:
+    out_bbox = bbox.sigmoid()
+    out_bbox_xy = out_bbox[..., 0:2] * 2.0 - 0.5
+    out_bbox_wh = (out_bbox[..., 2:4] * 2) ** 2 * anchor
+    out_bbox_tail = out_bbox[..., 4:]
+    return out_bbox_xy, out_bbox_wh, out_bbox_tail

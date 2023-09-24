@@ -82,6 +82,7 @@ class Trainer:
         """
 
         with LuxonisDataset(
+            dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
             bucket_type=eval(self.cfg.get("dataset.bucket_type")),
@@ -101,6 +102,7 @@ class Trainer:
                 dataset,
                 view=self.cfg.get("dataset.train_view"),
                 augmentations=self.train_augmentations,
+                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
             )
 
             sampler = None
@@ -141,6 +143,7 @@ class Trainer:
                 dataset,
                 view=self.cfg.get("dataset.val_view"),
                 augmentations=self.val_augmentations,
+                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
             )
             pytorch_loader_val = torch.utils.data.DataLoader(
                 loader_val,
@@ -179,6 +182,7 @@ class Trainer:
         """
 
         with LuxonisDataset(
+            dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
             bucket_type=eval(self.cfg.get("dataset.bucket_type")),
@@ -198,6 +202,7 @@ class Trainer:
                 dataset,
                 view=self.cfg.get("dataset.test_view"),
                 augmentations=self.test_augmentations,
+                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
             )
             pytorch_loader_test = torch.utils.data.DataLoader(
                 loader_test,

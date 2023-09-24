@@ -82,6 +82,45 @@ class BCEWithLogitsLoss(BaseLoss):
         return self.criterion(preds, target), {}
 
 
+class SmoothBCEWithLogitsLoss(BaseLoss):
+    def __init__(self, label_smoothing: float = 0.0, bce_pow: float = 1.0, **kwargs):
+        """BCE with logits loss with label smoothing
+
+        Args:
+            label_smoothing (float, optional): Label smoothing factor. Defaults to 0.0.
+            bce_pow (float, optional): Weight for positive samples. Defaults to 1.0.
+        """
+
+        super().__init__(**kwargs)
+
+        self.negative_smooth_const = 1.0 - 0.5 * label_smoothing
+        self.positive_smooth_const = 0.5 * label_smoothing
+        self.criterion = BCEWithLogitsLoss(pos_weight=torch.tensor([bce_pow]))
+
+    def forward(
+        self, prediction: Tensor, target: Tensor, epoch: int, step: int
+    ) -> Tensor:
+        """
+        Computes the BCE loss with label smoothing.
+
+        Args:
+            prediction (torch.Tensor): A tensor of shape (N, n_classes),
+                containing the predicted class scores.
+            target (torch.Tensor): A tensor of shape (N,), containing the
+                ground-truth class labels
+
+        Returns:
+            torch.Tensor: A scalar tensor.
+        """
+        smoothed_target = torch.full_like(
+            prediction,
+            self.negative_smooth_const,
+            device=prediction.device,
+        )
+        smoothed_target[torch.arange(len(target)), target] = self.positive_smooth_const
+        return self.criterion(prediction, smoothed_target), {}
+
+
 class SigmoidFocalLoss(BaseLoss):
     def __init__(
         self,

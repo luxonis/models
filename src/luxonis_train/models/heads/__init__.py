@@ -3,7 +3,7 @@ from .multilabel_classification_head import MultiLabelClassificationHead
 from .segmentation_head import SegmentationHead
 from .bisenet_head import BiSeNetHead
 from .bboxyolov6_head import BboxYoloV6Head
-from .ikeypoint_head import IKeypointHead
+from .keypoint_bbox_head import KeypointBboxHead
 
 __all__ = [
     "ClassificationHead",
@@ -11,5 +11,5 @@ __all__ = [
     "SegmentationHead",
     "BiSeNetHead",
     "BboxYoloV6Head",
-    "IKeypointHead",
+    "KeypointBboxHead",
 ]

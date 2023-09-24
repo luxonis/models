@@ -3,12 +3,12 @@ import yaml
 import warnings
 import json
 import re
+import sys
 from typing import Union, Optional, Dict, Any, List, Tuple
 from copy import deepcopy
 
 from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_train.utils.filesystem import LuxonisFileSystem
-from luxonis_train.models.heads import *
 
 
 class Config:
@@ -84,7 +84,9 @@ class Config:
             raise ValueError("No 'exporter' section in config specified.")
 
         if not self._data["exporter"]["export_weights"]:
-            raise ValueError("No 'export_weights' speficied in config file.")
+            warnings.warn(
+                "No 'export_weights' speficied in config file, using random weights instead."
+            )
 
     def validate_config_tuner(self) -> None:
         """Validates 'tuner' block in config"""
@@ -291,7 +293,10 @@ class Config:
 
     def _validate_dataset_classes(self) -> None:
         """Validates config to used datasets, overrides n_classes if needed"""
+        from luxonis_train.utils.config_helpers import get_head_label_types
+
         with LuxonisDataset(
+            dataset_name=self._data["dataset"]["dataset_name"],
             team_id=self._data["dataset"]["team_id"],
             dataset_id=self._data["dataset"]["dataset_id"],
             bucket_type=eval(self._data["dataset"]["bucket_type"]),
@@ -308,7 +313,7 @@ class Config:
                     head["params"] = {}
 
                 curr_n_classes = head["params"].get("n_classes", None)
-                label_type = eval(head["name"]).label_types[0]
+                label_type = get_head_label_types(head["name"])[0]
                 dataset_n_classes = len(classes_by_task[label_type.value])
                 if curr_n_classes is None:
                     warnings.warn(
@@ -416,6 +421,10 @@ class Config:
         if not self._data["train"]["optimizers"]["scheduler"]["params"]:
             self._data["train"]["optimizers"]["scheduler"]["params"] = {}
 
+        # handle setting num_workers to 0 for Mac and Windows
+        if sys.platform == "win32" or sys.platform == "darwin":
+            self._data["train"]["num_workers"] = 0
+
         # handle IKeypointHead with anchors=None by generating them from dataset
         ikeypoint_head_indices = [
             i
@@ -432,6 +441,7 @@ class Config:
                 anchors = head["params"].get("anchors", -1)
                 if anchors is None:
                     with LuxonisDataset(
+                        dataset_name=self._data["dataset"]["dataset_name"],
                         team_id=self._data["dataset"]["team_id"],
                         dataset_id=self._data["dataset"]["dataset_id"],
                         bucket_type=eval(self._data["dataset"]["bucket_type"]),
@@ -451,6 +461,9 @@ class Config:
                             dataset,
                             view=self._data["dataset"]["train_view"],
                             augmentations=val_augmentations,
+                            mode="json"
+                            if self._data["dataset"]["json_mode"]
+                            else "fiftyone",
                         )
                         pytorch_loader = DataLoader(
                             loader,

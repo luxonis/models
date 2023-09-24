@@ -3,7 +3,7 @@ import contextlib
 import io
 from torch import Tensor
 from typing import List, Optional, Dict, Any, Tuple, Literal
-from torchmetrics import Metric
+from torchmetrics import Metric, detection
 from scipy.optimize import linear_sum_assignment
 from torchvision.ops import box_convert
 from pycocotools.coco import COCO
@@ -105,7 +105,7 @@ class ObjectKeypointSimilarity(Metric):
             image_mean_oks[i] = torch.tensor(matched_ious).mean()
 
         # final prediction is mean of OKS over all images
-        final_oks = image_mean_oks.mean()
+        final_oks = image_mean_oks.nanmean()
 
         return final_oks
 
@@ -141,6 +141,23 @@ class ObjectKeypointSimilarity(Metric):
         return (torch.exp(-oks) * kpt_mask[:, None]).sum(-1) / (
             kpt_mask.sum(-1)[:, None] + eps
         )
+
+
+class MeanAveragePrecision(detection.MeanAveragePrecision):
+    def __init__(self, **kwargs):
+        """Wrapper for torchmetrics.detection.MeanAveragePrecision that omits some of the returned values
+        Check original documentation: https://torchmetrics.readthedocs.io/en/stable/detection/mean_average_precision.html
+        """
+        super().__init__(**kwargs)
+
+    def compute(self) -> dict:
+        metric_dict = super().compute()
+        # per class metrics are omitted until we find a nice way to log them
+        del metric_dict["classes"]
+        del metric_dict["map_per_class"]
+        del metric_dict["mar_100_per_class"]
+
+        return metric_dict
 
 
 class MeanAveragePrecisionKeypoints(Metric):

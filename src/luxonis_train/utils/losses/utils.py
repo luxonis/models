@@ -1,6 +1,6 @@
 from .common import *
 from .bboxyolov6_loss import BboxYoloV6Loss
-from .yolov7_pose_loss import YoloV7PoseLoss
+from .keypoint_box_loss import KeypointBoxLoss
 
 
 def init_loss(name, **kwargs):

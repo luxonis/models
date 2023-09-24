@@ -8,13 +8,12 @@ model:
     name: RepPANNeck
 
   heads:
-    - name: IKeypointHead
+    - name: KeypointBboxHead
       params:
         n_classes: null
-        n_keypoints: 17
       loss:
-        name: YoloV7PoseLoss
+        name: KeypointBoxLoss
 
 dataset:
-  team_id: # TODO
-  dataset_id: # TODO
+  # team_id: # TODO
+  # dataset_id: # TODO

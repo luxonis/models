@@ -46,6 +46,8 @@ def draw_outputs(
             curr_img = unnormalize(
                 curr_img, to_uint8=True, normalize_params=normalize_params
             )
+        else:
+            curr_img = curr_img.to(torch.uint8)
 
         curr_img = head.draw_output_to_img(curr_img, output, i)
         out_imgs.append(curr_img)
@@ -96,6 +98,8 @@ def draw_labels(
             curr_img = unnormalize(
                 curr_img, to_uint8=True, normalize_params=normalize_params
             )
+        else:
+            curr_img = curr_img.to(torch.uint8)
 
         for label_key in label_keys:
             if label_key == LabelType.CLASSIFICATION:

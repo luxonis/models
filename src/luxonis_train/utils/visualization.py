@@ -157,9 +157,14 @@ def draw_labels(
 
                 # torchvision expects format [n_instances, K, 2]
                 n_instances = curr_label.shape[0]
-                out_keypoints = torch.reshape(
-                    keypoints_points, (n_instances, -1, 2)
-                ).int()
+                if n_instances == 0:
+                    out_keypoints = (
+                        torch.reshape(keypoints_points, (-1, 2)).unsqueeze(0).int()
+                    )
+                else:
+                    out_keypoints = torch.reshape(
+                        keypoints_points, (n_instances, -1, 2)
+                    ).int()
                 curr_img_keypoints = draw_keypoints(
                     curr_img, out_keypoints, colors="red"
                 )

@@ -34,6 +34,6 @@ Every head takes these parameters:
     - anchors: List[List[int]] # Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)* ***Note:** If this is set to null in config then anchors are computed at runtime from the dataset.*
     - connectivity: List[int] # Connectivity mapping used in visualization. Defaults to None.
     - visibility_threshold: float # Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
-    - init_coco_biases: bool # Weather to use COCO bias and weight initialization. Defaults to True.
+    - init_coco_biases: bool # Whether to use COCO bias and weight initialization. Defaults to True.
 
   ***Note:** attach_index: Defaults to 0. Value must be non-negative.*

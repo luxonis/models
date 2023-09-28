@@ -147,7 +147,7 @@ class RepVGGBlock(nn.Module):
             groups (int, optional): Defaults to 1.
             padding_mode (str, optional): Defaults to "zeros".
             deploy (bool, optional): Defaults to False.
-            use_se (bool, optional): Weather to use SqueezeExciteBlock. Defaults to False.
+            use_se (bool, optional): Whether to use SqueezeExciteBlock. Defaults to False.
         """
         super().__init__()
 

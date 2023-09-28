@@ -82,7 +82,7 @@ class ModuleFreezer(BaseFinetuning):
 
 class AnnotationChecker(pl.Callback):
     def __init__(self):
-        """Callback that checks if all annotatios that are required by the heads are present in the label dict"""
+        """Callback that checks if all annotations that are required by the heads are present in the label dict"""
         super().__init__()
         self.first_train_batch = True
         self.first_val_batch = True

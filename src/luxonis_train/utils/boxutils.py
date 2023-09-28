@@ -245,9 +245,9 @@ def non_max_suppression(
         iou_thres (float, optional): IoU threshold. Defaults to 0.45.
         keep_classes (Optional[List[int]], optional): Subset of classes to keep,
             if None then keep all of them. Defaults to None.
-        agnostic (bool, optional): Weather perform NMS per class or treat all classes
+        agnostic (bool, optional): Whether perform NMS per class or treat all classes
             the same. Defaults to False.
-        multi_label (bool, optional): Weather one prediction can have multiple labels. Defaults to False.
+        multi_label (bool, optional): Whether one prediction can have multiple labels. Defaults to False.
         box_format (Literal["xyxy", "xywh", "cxcywh"], optional): Input bbox format. Defaults to "xyxy".
         max_det (int, optional): Number of maximum output detections. Defaults to 300.
         max_wh (int, optional): Maximum width and height of the bbox. Defaults to 4096.
@@ -403,10 +403,10 @@ def anchors_from_dataset(
 
     def calc_best_anchor_ratio(anchors: Tensor, wh: Tensor) -> Tensor:
         """Calculate how well most suitable anchor box matches each target bbox"""
-        symetric_size_ratios = torch.min(
+        symmetric_size_ratios = torch.min(
             wh[:, None] / anchors[None], anchors[None] / wh[:, None]
         )
-        worst_side_size_ratio = symetric_size_ratios.min(-1).values
+        worst_side_size_ratio = symmetric_size_ratios.min(-1).values
         best_anchor_ratio = worst_side_size_ratio.max(-1).values
         return best_anchor_ratio
 
@@ -469,7 +469,7 @@ def anchors_for_fpn_features(
         strides (Tensor): Strides of FPN features
         grid_cell_size (float, optional): Cell size in respect to input image size. Defaults to 5.0.
         grid_cell_offset (float, optional): Percent grid cell center's offset. Defaults to 0.5.
-        multiply_with_stride (bool, optional): Weather to multiply per FPN values with its stride. Defaults to False.
+        multiply_with_stride (bool, optional): Whether to multiply per FPN values with its stride. Defaults to False.
 
     Returns:
         Tuple[Tensor, Tensor, Tensor, Tensor]: Bbox anchors, center anchors, number of anchors, strides

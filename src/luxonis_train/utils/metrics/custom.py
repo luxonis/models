@@ -34,16 +34,16 @@ class ObjectKeypointSimilarity(Metric):
             num_keypoints (int): Number of keypoints
             kpt_sigmas (Optional[Tensor], optional): Sigma for each keypoint to weigh its importance,
                 if None use same weights for all. Defaults to None.
-            use_cocoeval_oks (bool, optional): Weather to use same OKS formula as in COCOeval or use
+            use_cocoeval_oks (bool, optional): Whether to use same OKS formula as in COCOeval or use
                 the one from definition. Defaults to False.
 
         As input to ``forward`` and ``update`` the metric accepts the following input:
-        - preds (List[Dict[str, Tensor]]): A list consisting of dictionaries each containg key-values for a single image.
+        - preds (List[Dict[str, Tensor]]): A list consisting of dictionaries each containing key-values for a single image.
             Parameters that should be provided per dict:
             - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
                 are unnormalized keypoint coordinates and `vis` is keypoint visibility.
 
-        - `target` (List[Dict[str, Tensor]]): A list consisting of dictionaries each containg key-values for a single image.
+        - `target` (List[Dict[str, Tensor]]): A list consisting of dictionaries each containing key-values for a single image.
             Parameters that should be provided per dict:
             - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
                 are unnormalized keypoint coordinates and `vis` is keypoint visibility.
@@ -194,7 +194,7 @@ class MeanAveragePrecisionKeypoints(Metric):
             box_format (Literal[xyxy, xywh, cxcywh], optional): Input bbox format. Defaults to "xyxy".
 
         As input to ``forward`` and ``update`` the metric accepts the following input:
-        - preds (List[Dict[str, Tensor]]): A list consisting of dictionaries each containg key-values for a single image.
+        - preds (List[Dict[str, Tensor]]): A list consisting of dictionaries each containing key-values for a single image.
             Parameters that should be provided per dict:
             - boxes (torch.FloatTensor): Tensor of shape ``(num_boxes, 4)`` containing ``num_boxes`` detection
                 boxes of the format specified in the constructor. By default, this method expects ``(xmin, ymin, xmax, ymax)`` in absolute image coordinates.
@@ -203,7 +203,7 @@ class MeanAveragePrecisionKeypoints(Metric):
             - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
                 are unnormalized keypoint coordinates and `vis` is keypoint visibility.
 
-        - `target` (List[Dict[str, Tensor]]): A list consisting of dictionaries each containg key-values for a single image.
+        - `target` (List[Dict[str, Tensor]]): A list consisting of dictionaries each containing key-values for a single image.
             Parameters that should be provided per dict:
             - boxes (torch.FloatTensor): Tensor of shape ``(num_boxes, 4)`` containing ``num_boxes`` ground truth
                 boxes of the format specified in the constructor. By default, this method expects ``(xmin, ymin, xmax, ymax)`` in absolute image coordinates.

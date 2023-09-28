@@ -18,7 +18,7 @@ def dummy_input_run(
     Args:
         module (torch.nn.Module): Torch module
         input_shape (List[int]): Shape of the input
-        multi_input (bool, optional): Weather module requires multiple inputs.
+        multi_input (bool, optional): Whether module requires multiple inputs.
             Defaults to False.
 
     Returns:

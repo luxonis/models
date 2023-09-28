@@ -23,7 +23,7 @@
 
 - **RexNetV1_lite** ([source](https://github.com/clovaai/rexnet))
   - Params:
-    - fix_head_stem: bool # Weather to multiply head stem. Defaults to False.
+    - fix_head_stem: bool # Whether to multiply head stem. Defaults to False.
     - divisible_value: int # Divisor used. Defaults to 8. 
     - input_ch: int # tarting channel dimension. Defaults to 16.
     - final_ch: int # Final channel dimension. Defaults to 164.
@@ -47,5 +47,5 @@
     - context_backbone: str # Backbone used. Defaults to 'MobileNetV2'.
 
     
-#### Comming soon: 
+#### Coming soon:  
   - DeepLabV3+ ([source](https://github.com/VainF/DeepLabV3Plus-Pytorch))

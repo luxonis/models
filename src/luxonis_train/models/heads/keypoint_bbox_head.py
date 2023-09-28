@@ -64,7 +64,7 @@ class KeypointBboxHead(BaseHead):
             anchors (List[List[int]]): Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)*
             connectivity (Optional[List[int]], optional): Connectivity mapping used in visualization. Defaults to None.
             visibility_threshold (float, optional): Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
-            init_coco_biases (bool, optional): Weather to use COCO bias and weight initialization. Defaults to True.
+            init_coco_biases (bool, optional): Whether to use COCO bias and weight initialization. Defaults to True.
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to 0.
                 ***Note:** Value must be non-negative.**
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".

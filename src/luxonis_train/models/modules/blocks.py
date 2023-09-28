@@ -292,11 +292,19 @@ class RepVGGBlock(nn.Module):
         return kernel * t, beta - running_mean * gamma / std
 
 
-class RepVGGBlockN(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, num_blocks: int = 1):
-        """Module which consists of multiple RepVGGBlocks
+class BlockRepeater(nn.Module):
+    def __init__(
+        self,
+        block: nn.Module,
+        in_channels: int,
+        out_channels: int,
+        num_blocks: int = 1,
+    ):
+        """Module which repeats the block n times. First block accepts in_channels and outputs
+        out_channels while subsequent blocks accept out_channels and output out_channels.
 
         Args:
+            block (nn.Module): Block to repeat
             in_channels (int): Number of input channels
             out_channels (int): Number of output channels
             num_blocks (int] optional): Number of RepVGG blocks. Defaults to 1.
@@ -307,7 +315,7 @@ class RepVGGBlockN(nn.Module):
         self.blocks = nn.ModuleList()
         for _ in range(num_blocks):
             self.blocks.append(
-                RepVGGBlock(in_channels=in_channels, out_channels=out_channels)
+                block(in_channels=in_channels, out_channels=out_channels)
             )
             in_channels = out_channels
 

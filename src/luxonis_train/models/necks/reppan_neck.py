@@ -8,7 +8,7 @@ import torch.nn as nn
 from typing import Literal
 
 from luxonis_train.models.necks.base_neck import BaseNeck
-from luxonis_train.models.modules import RepVGGBlockN, ConvModule
+from luxonis_train.models.modules import BlockRepeater, RepVGGBlock, ConvModule
 from luxonis_train.utils.general import make_divisible
 
 
@@ -32,7 +32,7 @@ class RepPANNeck(BaseNeck):
             num_heads (Literal[2,3,4], optional): Number of output heads. Defaults to 3.
                 ***Note:** Should be same also on head in most cases.*
             channels_list (list, optional): List of number of channels for each block. Defaults to [256, 128, 128, 256, 256, 512].
-            num_repeats (list, optiona): List of number of repeats of RepVGGBlock. Defaults to [12, 12, 12, 12].
+            num_repeats (list, optional): List of number of repeats of RepVGGBlock. Defaults to [12, 12, 12, 12].
             depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
             width_mul (float, optional): Width multiplier. Defaults to 0.25.
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
@@ -215,7 +215,8 @@ class UpBlock(nn.Module):
             stride=2,
             bias=True,
         )
-        self.rep_block = RepVGGBlockN(
+        self.rep_block = BlockRepeater(
+            block=RepVGGBlock,
             in_channels=in_channels_next + out_channels,
             out_channels=out_channels,
             num_blocks=num_repeats,
@@ -256,7 +257,8 @@ class DownBlock(nn.Module):
             stride=2,
             padding=3 // 2,
         )
-        self.rep_block = RepVGGBlockN(
+        self.rep_block = BlockRepeater(
+            block=RepVGGBlock,
             in_channels=downsample_out_channels + in_channels_next,
             out_channels=out_channels,
             num_blocks=num_repeats,

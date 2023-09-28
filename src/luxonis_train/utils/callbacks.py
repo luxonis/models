@@ -198,6 +198,7 @@ class ExportOnTrainEnd(pl.Callback):
             f"exporter.export_weights {best_model_path}"
             + f" exporter.export_image_size {cfg.get('train.preprocessing.train_image_size')}"
             + f" exporter.reverse_input_channels {cfg.get('train.preprocessing.keep_aspect_ratio')}"
+            + f" exporter.export_model_name {cfg.get('model.name')}"
         )
 
         # override normalization

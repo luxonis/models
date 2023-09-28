@@ -27,7 +27,7 @@ class BboxYoloV6Head(BaseObjectDetection):
         **kwargs,
     ):
         """Object detection head from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
-        https://arxiv.org/pdf/2209.02976.pdf. With hardware-aware degisn, the decoupled head is optimized with
+        https://arxiv.org/pdf/2209.02976.pdf. With hardware-aware design, the decoupled head is optimized with
         hybridchannels methods.
 
         Args:
@@ -69,16 +69,16 @@ class BboxYoloV6Head(BaseObjectDetection):
         reg_distri_list = []
 
         for i, module in enumerate(self.heads):
-            out_x, out_cls, out_reg = module(x[self.attach_index + i])
-            feature_list.append(out_x)
+            out_feature, out_cls, out_reg = module(x[self.attach_index + i])
+            feature_list.append(out_feature)
             out_cls = torch.sigmoid(out_cls)
-            cls_score_list.append(out_cls.flatten(2).permute((0, 2, 1)))
-            reg_distri_list.append(out_reg.flatten(2).permute((0, 2, 1)))
+            cls_score_list.append(out_cls.flatten(2))
+            reg_distri_list.append(out_reg.flatten(2))
 
-        cls_score_list = torch.cat(cls_score_list, axis=1)
-        reg_distri_list = torch.cat(reg_distri_list, axis=1)
+        cls_tensor = torch.cat(cls_score_list, axis=2).permute((0, 2, 1))
+        reg_tensor = torch.cat(reg_distri_list, axis=2).permute((0, 2, 1))
 
-        return [feature_list, cls_score_list, reg_distri_list]
+        return [feature_list, cls_tensor, reg_tensor]
 
     def postprocess_for_loss(self, output: tuple, label_dict: dict):
         label = label_dict[self.label_types[0]]
@@ -214,7 +214,7 @@ class EfficientDecoupledBlock(nn.Module):
         """
         super().__init__()
 
-        self.stem = ConvModule(
+        self.decoder = ConvModule(
             in_channels=in_channels,
             out_channels=in_channels,
             kernel_size=1,
@@ -250,15 +250,15 @@ class EfficientDecoupledBlock(nn.Module):
         self._initialize_weights_and_biases(prior_prob)
 
     def forward(self, x):
-        out = self.stem(x)
+        out_feature = self.decoder(x)
         # class branch
-        out_cls = self.cls_conv(out)
+        out_cls = self.cls_conv(out_feature)
         out_cls = self.cls_pred(out_cls)
         # regression branch
-        out_reg = self.reg_conv(out)
+        out_reg = self.reg_conv(out_feature)
         out_reg = self.reg_pred(out_reg)
 
-        return [out, out_cls, out_reg]
+        return [out_feature, out_cls, out_reg]
 
     def _initialize_weights_and_biases(self, prior_prob: float):
         data = [

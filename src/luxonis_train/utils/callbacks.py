@@ -193,8 +193,24 @@ class ExportOnTrainEnd(pl.Callback):
         # NOTE: assume that first checkpoint callback is based on val loss
         best_model_path = model_checkpoint_callbacks[0].best_model_path
 
-        # override export_weights path with path to currently best weights
-        override = f"exporter.export_weights {best_model_path}"
+        # override general settings
+        override = (
+            f"exporter.export_weights {best_model_path}"
+            + f" exporter.export_image_size {cfg.get('train.preprocessing.train_image_size')}"
+            + f" exporter.reverse_input_channels {cfg.get('train.preprocessing.keep_aspect_ratio')}"
+        )
+
+        # override normalization
+        norm_cfg = cfg.get("train.preprocessing.normalize")
+        if norm_cfg.get("active") and norm_cfg.get("params", {}) != None:
+            norm_params = norm_cfg.get("params", {})
+            scale_values = norm_params.get("std", [58.395, 57.120, 57.375])
+            mean_values = norm_params.get("mean", [123.675, 116.28, 103.53])
+            override += (
+                f" exporter.scale_values {scale_values}"
+                + f" exporter.mean_values {mean_values}"
+            )
+
         if self.override_upload_directory:
             if cfg.get("logger.is_mlflow"):
                 new_upload_directory = (

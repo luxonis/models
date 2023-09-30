@@ -6,7 +6,7 @@ from torch import Tensor
 from typing import List, Literal, Tuple, Optional
 from torchvision.ops import (
     box_convert,
-    nms,
+    batched_nms,
     box_iou,
     generalized_box_iou,
     distance_box_iou,
@@ -232,17 +232,15 @@ def non_max_suppression(
     multi_label: bool = False,
     box_format: Literal["xyxy", "xywh", "cxcywh"] = "xyxy",
     max_det: int = 300,
-    max_wh: int = 4096,
-    max_box_nms: int = 30000,
-    max_total_time: float = 10.0,
+    predicts_objectness: bool = True,
 ) -> List[Tensor]:
     """Non-maximum suppression on model's predictions to keep only best instances
 
     Args:
-        preds (Tensor): Model's predictions
+        preds (Tensor): Model's prediction tensor of shape [bs, N, M]
         n_classes (int): Number of model's classes
-        conf_thres (float, optional): Confidence threshold. Defaults to 0.25.
-        iou_thres (float, optional): IoU threshold. Defaults to 0.45.
+        conf_thres (float, optional): Boxes with confidence higher than this will be kept. Defaults to 0.25.
+        iou_thres (float, optional): Boxes with IoU higher than this will be discarded. Defaults to 0.45.
         keep_classes (Optional[List[int]], optional): Subset of classes to keep,
             if None then keep all of them. Defaults to None.
         agnostic (bool, optional): Whether perform NMS per class or treat all classes
@@ -251,11 +249,10 @@ def non_max_suppression(
         box_format (Literal["xyxy", "xywh", "cxcywh"], optional): Input bbox format. Defaults to "xyxy".
         max_det (int, optional): Number of maximum output detections. Defaults to 300.
         max_wh (int, optional): Maximum width and height of the bbox. Defaults to 4096.
-        max_box_nms (int, optional): Maximum number of detections going to torchvision NMS. Defaults to 30000.
-        max_total_time (float, optional): Maximum time allowed (in seconds) in this function. Defaults to 10.0.
+        predicts_objectess (bool, optional): Whether head predicts objectness confidence. Defaults to True.
 
     Returns:
-        List[Tensor]: List of kept detections for each image, boxes in "xyxy" format
+        List[Tensor]: List of kept detections for each image, boxes in "xyxy" format. Tensors with shape [n_kept, M]
     """
     if not (0 <= conf_thres <= 1):
         raise ValueError(
@@ -267,21 +264,35 @@ def non_max_suppression(
         )
 
     multi_label &= n_classes > 1
-    has_additional = preds.size(1) > (4 + 1 + n_classes)  # if kpts are present
+    has_additional = preds.size(-1) > (4 + 1 + n_classes)  # if kpts are present
 
-    candidates = preds[..., 4] > conf_thres  # filter based on conf thres
+    # perform confidence filtering
+    candidate_mask = preds[..., 4] > conf_thres
+    if not predicts_objectness:
+        candidate_mask = torch.logical_and(
+            candidate_mask,
+            torch.max(preds[..., 5 : 5 + n_classes], axis=-1)[0] > conf_thres,
+        )
+
     output = [torch.zeros((0, preds.size(-1)), device=preds.device)] * preds.size(0)
-    start_time = time.time()
 
     for i, x in enumerate(preds):
-        curr_out = x[candidates[i]]
+        curr_out = x[candidate_mask[i]]
 
         # continue if no remains
         if curr_out.size(0) == 0:
             continue
 
         # conf = obj_conf * cls_conf
-        curr_out[:, 5 : 5 + n_classes] *= curr_out[:, 4:5]
+        if predicts_objectness:
+            if n_classes == 1:
+                curr_out[:, 5 : 5 + n_classes] = curr_out[
+                    :, 4:5
+                ]  # cls loss is not active if only one class so don't need to multiply
+            else:
+                curr_out[:, 5 : 5 + n_classes] *= curr_out[:, 4:5]
+        else:
+            curr_out[:, 5 : 5 + n_classes] *= curr_out[:, 4:5]
 
         # bboxes in xyxy format
         bboxes = curr_out[:, :4]
@@ -309,7 +320,7 @@ def non_max_suppression(
 
         if has_additional:
             curr_out = torch.hstack(
-                [curr_out, x[candidates[i]][keep_mask, 5 + n_classes :]]
+                [curr_out, x[candidate_mask[i]][keep_mask, 5 + n_classes :]]
             )
 
         # filter by class if present
@@ -323,23 +334,16 @@ def non_max_suppression(
 
         if not curr_out.size(0):
             continue
-        elif curr_out.size(0) > max_box_nms:
-            curr_out = curr_out[curr_out[:, 4].argsort(descending=True)[:max_box_nms]]
 
-        # prepare for torchvision NMS
-        class_offset = curr_out[:, 5:6] * (0 if agnostic else max_wh)
-        boxes = curr_out[:, :4] + class_offset
-        scores = curr_out[:, 4]
-        keep_indices = nms(boxes=boxes, scores=scores, iou_threshold=iou_thres)
-        if keep_indices.shape[0] > max_det:
-            keep_indices = keep_indices[:max_det]
+        keep_indices = batched_nms(
+            boxes=curr_out[:, :4],
+            scores=curr_out[:, 4],
+            iou_threshold=iou_thres,
+            idxs=curr_out[:, 5].int() * (0 if agnostic else 1),
+        )
+        keep_indices = keep_indices[:max_det]
 
         output[i] = curr_out[keep_indices]
-
-        # time check
-        if (time.time() - start_time) > max_total_time:
-            warnings.warn(f"NMS max total time ({max_total_time}s) exceeded.")
-            break
 
     return output
 

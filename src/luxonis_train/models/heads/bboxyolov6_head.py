@@ -200,6 +200,7 @@ class BboxYoloV6Head(BaseObjectDetection):
             conf_thres=conf_thres,
             iou_thres=iou_thres,
             box_format="xyxy",
+            predicts_objectness=False,
         )
         return output_nms
 

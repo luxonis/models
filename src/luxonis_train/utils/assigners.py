@@ -430,6 +430,12 @@ class TaskAlignedAssigner(nn.Module):
             mask_pos_scores > 0, assigned_scores, torch.full_like(assigned_scores, 0)
         )
 
+        assigned_labels = torch.where(
+            mask_pos_sum.bool(),
+            assigned_labels,
+            torch.full_like(assigned_labels, self.n_classes),
+        )
+
         return assigned_labels, assigned_bboxes, assigned_scores
 
 

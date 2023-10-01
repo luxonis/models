@@ -205,8 +205,28 @@ class ExportOnTrainEnd(pl.Callback):
         norm_cfg = cfg.get("train.preprocessing.normalize")
         if norm_cfg.get("active") and norm_cfg.get("params", {}) != None:
             norm_params = norm_cfg.get("params", {})
-            scale_values = norm_params.get("std", [58.395, 57.120, 57.375])
-            mean_values = norm_params.get("mean", [123.675, 116.28, 103.53])
+            scale_values = norm_params.get("std")
+            if scale_values != None:
+                # for augmentation these values are [0,1], for export they should be [0,255]
+                scale_values = (
+                    [i * 255 for i in scale_values]
+                    if isinstance(scale_values, list)
+                    else scale_values * 255
+                )
+            else:
+                scale_values = [58.395, 57.120, 57.375]
+
+            mean_values = norm_params.get("mean")
+            if mean_values != None:
+                # for augmentation these values are [0,1], for export they should be [0,255]
+                mean_values = (
+                    [i * 255 for i in mean_values]
+                    if isinstance(mean_values, list)
+                    else mean_values * 255
+                )
+            else:
+                mean_values = [123.675, 116.28, 103.53]
+
             override += (
                 f" exporter.scale_values {scale_values}"
                 + f" exporter.mean_values {mean_values}"

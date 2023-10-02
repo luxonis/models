@@ -1,5 +1,5 @@
 #
-# Soure: https://github.com/clovaai/rexnet
+# Source: https://github.com/clovaai/rexnet
 # License: https://github.com/clovaai/rexnet/blob/master/LICENSE
 #
 
@@ -26,7 +26,7 @@ class ReXNetV1_lite(BaseBackbone):
         """ReXNetV1_lite backbone
 
         Args:
-            fix_head_stem (bool, optional): Weather to multiply head stem. Defaults to False.
+            fix_head_stem (bool, optional): Whether to multiply head stem. Defaults to False.
             divisible_value (int, optional): Divisor used. Defaults to 8.
             input_ch (int, optional): Starting channel dimension. Defaults to 16.
             final_ch (int, optional): Final channel dimension. Defaults to 164.

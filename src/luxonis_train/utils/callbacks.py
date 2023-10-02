@@ -1,8 +1,10 @@
-from typing import Any
+from typing import Any, Dict, Optional, List
 import warnings
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import RichProgressBar
+from pytorch_lightning.callbacks import RichProgressBar, BaseFinetuning
 from rich.table import Table
+from torch import Tensor
+from torch.optim.optimizer import Optimizer
 
 from luxonis_train.utils.config import Config
 from luxonis_train.utils.filesystem import LuxonisFileSystem
@@ -13,17 +15,21 @@ class LuxonisProgressBar(RichProgressBar):
         """Custom rich text progress bar based on RichProgressBar from Pytorch Lightning"""
         super().__init__(leave=True)
 
-    def print_single_line(self, text: str):
+    def print_single_line(self, text: str) -> None:
         self._console.print(f"[magenta]{text}[/magenta]")
 
-    def get_metrics(self, trainer, pl_module):
+    def get_metrics(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> Dict[str, int | str | float | Dict[str, float]]:
         # NOTE: there might be a cleaner way of doing this
         items = super().get_metrics(trainer, pl_module)
         if trainer.training:
             items["Loss"] = pl_module.training_step_outputs[-1]["loss"].item()
         return items
 
-    def print_results(self, stage: str, loss: float, metrics: dict):
+    def print_results(
+        self, stage: str, loss: float, metrics: Dict[str, Dict[str, Tensor]]
+    ) -> None:
         """Prints results to the console using rich text"""
 
         self._console.rule(stage, style="bold magenta")
@@ -40,9 +46,43 @@ class LuxonisProgressBar(RichProgressBar):
         self._console.rule(style="bold magenta")
 
 
+class ModuleFreezer(BaseFinetuning):
+    def __init__(self, freeze_info: Dict[str, bool | List[bool]]):
+        """Callback that freezes parts of the model based on provided dict
+
+        Args:
+            freeze_info (Dict[str, bool]): Dictionary where key is name of the
+                model's part and value is bool flag for freezing
+        """
+        super().__init__()
+
+        self.freeze_info = freeze_info
+
+    def freeze_before_training(self, pl_module: pl.LightningModule) -> None:
+        for key, value in self.freeze_info.items():
+            if key == "backbone" and value:
+                self.freeze(pl_module.model.backbone, train_bn=False)
+            elif key == "neck" and value:
+                if pl_module.model.neck:
+                    self.freeze(pl_module.model.neck, train_bn=False)
+                else:
+                    warnings.warn(
+                        "Skipping neck freezing as model doesn't have a neck."
+                    )
+            elif key == "heads":
+                for i, v in enumerate(value):
+                    if v:
+                        self.freeze(pl_module.model.heads[i], train_bn=False)
+
+    def finetune_function(
+        self, pl_module: pl.LightningModule, epoch: int, optimizer: Optimizer
+    ) -> None:
+        pass
+
+
 class AnnotationChecker(pl.Callback):
     def __init__(self):
-        """Callback that checks if all annotatios that are required by the heads are present in the label dict"""
+        """Callback that checks if all annotations that are required by the heads are present in the label dict"""
         super().__init__()
         self.first_train_batch = True
         self.first_val_batch = True
@@ -54,7 +94,7 @@ class AnnotationChecker(pl.Callback):
         pl_module: pl.LightningModule,
         batch: Any,
         batch_idx: int,
-    ):
+    ) -> None:
         super().on_train_batch_start(trainer, pl_module, batch, batch_idx)
         if self.first_train_batch:
             pl_module.model.check_annotations(batch[1])
@@ -67,7 +107,7 @@ class AnnotationChecker(pl.Callback):
         batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
-    ):
+    ) -> None:
         super().on_validation_batch_start(
             trainer, pl_module, batch, batch_idx, dataloader_idx
         )
@@ -82,7 +122,7 @@ class AnnotationChecker(pl.Callback):
         batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
-    ):
+    ) -> None:
         super().on_test_batch_start(
             trainer, pl_module, batch, batch_idx, dataloader_idx
         )
@@ -94,7 +134,8 @@ class AnnotationChecker(pl.Callback):
 class TestOnTrainEnd(pl.Callback):
     """Callback that performs test on pl_module when train ends"""
 
-    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        from luxonis_train.utils.config import Config
         from torch.utils.data import DataLoader
         from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
         from luxonis_ml.loader import LuxonisLoader, ValAugmentations
@@ -140,7 +181,8 @@ class ExportOnTrainEnd(pl.Callback):
         super().__init__()
         self.override_upload_directory = override_upload_directory
 
-    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        from luxonis_train.utils.config import Config
         from luxonis_train.core import Exporter
 
         cfg = Config()
@@ -151,8 +193,45 @@ class ExportOnTrainEnd(pl.Callback):
         # NOTE: assume that first checkpoint callback is based on val loss
         best_model_path = model_checkpoint_callbacks[0].best_model_path
 
-        # override export_weights path with path to currently best weights
-        override = f"exporter.export_weights {best_model_path}"
+        # override general settings
+        override = (
+            f"exporter.export_weights {best_model_path}"
+            + f" exporter.export_image_size {cfg.get('train.preprocessing.train_image_size')}"
+            + f" exporter.reverse_input_channels {cfg.get('train.preprocessing.keep_aspect_ratio')}"
+            + f" exporter.export_model_name {cfg.get('model.name')}"
+        )
+
+        # override normalization
+        norm_cfg = cfg.get("train.preprocessing.normalize")
+        if norm_cfg.get("active") and norm_cfg.get("params", {}) != None:
+            norm_params = norm_cfg.get("params", {})
+            scale_values = norm_params.get("std")
+            if scale_values != None:
+                # for augmentation these values are [0,1], for export they should be [0,255]
+                scale_values = (
+                    [i * 255 for i in scale_values]
+                    if isinstance(scale_values, list)
+                    else scale_values * 255
+                )
+            else:
+                scale_values = [58.395, 57.120, 57.375]
+
+            mean_values = norm_params.get("mean")
+            if mean_values != None:
+                # for augmentation these values are [0,1], for export they should be [0,255]
+                mean_values = (
+                    [i * 255 for i in mean_values]
+                    if isinstance(mean_values, list)
+                    else mean_values * 255
+                )
+            else:
+                mean_values = [123.675, 116.28, 103.53]
+
+            override += (
+                f" exporter.scale_values {scale_values}"
+                + f" exporter.mean_values {mean_values}"
+            )
+
         if self.override_upload_directory:
             if cfg.get("logger.is_mlflow"):
                 new_upload_directory = (
@@ -171,7 +250,7 @@ class ExportOnTrainEnd(pl.Callback):
 
 
 class UploadCheckpointOnTrainEnd(pl.Callback):
-    def __init__(self, upload_directory: str):
+    def __init__(self, upload_directory: Optional[str] = None):
         """Callback that uploads best checkpoint to specified storage according to the validation loss
 
         Args:
@@ -186,7 +265,7 @@ class UploadCheckpointOnTrainEnd(pl.Callback):
             upload_directory, allow_active_mlflow_run=True, allow_local=False
         )
 
-    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         print(f"Started checkpoint upload to {self.fs.full_path()}...")
         model_checkpoint_callbacks = [
             c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)

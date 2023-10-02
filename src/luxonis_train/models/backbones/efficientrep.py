@@ -1,6 +1,5 @@
 #
-# Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/efficientrep.py
-# License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
+# Adapted from: https://arxiv.org/pdf/2209.02976.pdf
 #
 
 
@@ -9,7 +8,7 @@ import torch.nn as nn
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import (
     RepVGGBlock,
-    RepVGGBlockN,
+    BlockRepeater,
     SpatialPyramidPoolingBlock,
 )
 from luxonis_train.utils.general import make_divisible
@@ -25,7 +24,8 @@ class EfficientRep(BaseBackbone):
         width_mul: float = 0.25,
         **kwargs
     ):
-        """EfficientRep backbone, normally used with YoloV6 model.
+        """EfficientRep backbone from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
+        https://arxiv.org/pdf/2209.02976.pdf. It uses RepVGG blocks.
 
         Args:
             channels_list (list, optional): List of number of channels for each block. Defaults to [64, 128, 256, 512, 1024].
@@ -41,7 +41,7 @@ class EfficientRep(BaseBackbone):
             (max(round(i * depth_mul), 1) if i > 1 else i) for i in num_repeats
         ]
 
-        self.stem = RepVGGBlock(
+        self.repvgg_encoder = RepVGGBlock(
             in_channels=in_channels,
             out_channels=channels_list[0],
             kernel_size=3,
@@ -57,7 +57,8 @@ class EfficientRep(BaseBackbone):
                     kernel_size=3,
                     stride=2,
                 ),
-                RepVGGBlockN(
+                BlockRepeater(
+                    block=RepVGGBlock,
                     in_channels=channels_list[i + 1],
                     out_channels=channels_list[i + 1],
                     num_blocks=num_repeats[i + 1],
@@ -75,7 +76,7 @@ class EfficientRep(BaseBackbone):
 
     def forward(self, x):
         outputs = []
-        x = self.stem(x)
+        x = self.repvgg_encoder(x)
         for block in self.blocks:
             x = block(x)
             outputs.append(x)

@@ -1,25 +1,22 @@
-from collections.abc import Mapping
 from typing import Any, Dict, List, Tuple, cast
 
 import torch
 from torch import Tensor, nn
 
+from .base_loss import BaseLoss
 from .box_loss import BoxLoss
-from .common import BCEWithLogitsLoss, SmoothBCELoss
+from .common import BCEWithLogitsLoss, SmoothBCEWithLogitsLoss
 from .keypoint_loss import KeypointLoss
 
 
-class KeypointBoxLoss(nn.Module):
-    """
-    Joint loss for keypoint and box predictions for cases where the keypoints
-    and boxes are inherently linked.
-    Based on [YOLO-Pose: Enhancing YOLO for Multi Person Pose Estimation Using Object Keypoint Similarity Los](https://arxiv.org/ftp/arxiv/papers/2204/2204.06806.pdf)
+class KeypointBoxLoss(BaseLoss):
+    """Joint loss for keypoint and box predictions for cases where the keypoints and boxes are inherently linked.
+    Based on `YOLO-Pose: Enhancing YOLO for Multi Person Pose Estimation Using Object Keypoint Similarity Loss`,
+    https://arxiv.org/ftp/arxiv/papers/2204/2204.06806.pdf
     """
 
     def __init__(
         self,
-        n_classes: int,
-        head_attributes: Mapping[str, Any],
         cls_pw: float = 1.0,
         obj_pw: float = 1.0,
         label_smoothing: float = 0.0,
@@ -32,17 +29,16 @@ class KeypointBoxLoss(nn.Module):
         anchor_t: float = 4.0,
         bias: float = 0.5,
         balance: List[float] = [4.0, 1.0, 0.4],
-        **_,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
 
-        self.n_classes = n_classes
-
-        self.n_keypoints: int = cast(int, head_attributes.get("n_keypoints"))
-        self.n_anchors: int = cast(int, head_attributes.get("n_anchors"))
-        self.num_heads: int = cast(int, head_attributes.get("num_heads"))
-        self.anchors: Tensor = cast(Tensor, head_attributes.get("anchors"))
-        self.box_offset: int = cast(int, head_attributes.get("box_offset"))
+        self.n_classes: int = cast(int, self.head_attributes.get("n_classes"))
+        self.n_keypoints: int = cast(int, self.head_attributes.get("n_keypoints"))
+        self.n_anchors: int = cast(int, self.head_attributes.get("n_anchors"))
+        self.num_heads: int = cast(int, self.head_attributes.get("num_heads"))
+        self.anchors: Tensor = cast(Tensor, self.head_attributes.get("anchors"))
+        self.box_offset: int = cast(int, self.head_attributes.get("box_offset"))
         self.balance = balance
         if len(self.balance) < self.num_heads:
             raise ValueError(
@@ -60,7 +56,9 @@ class KeypointBoxLoss(nn.Module):
         self.bias = bias
 
         self.BCE = BCEWithLogitsLoss(pos_weight=torch.tensor([obj_pw]))
-        self.class_loss = SmoothBCELoss(label_smoothing=label_smoothing, bce_pow=cls_pw)
+        self.class_loss = SmoothBCEWithLogitsLoss(
+            label_smoothing=label_smoothing, bce_pow=cls_pw
+        )
         self.keypoint_loss = KeypointLoss(bce_power=cls_pw)
         self.box_loss = BoxLoss()
 
@@ -77,7 +75,8 @@ class KeypointBoxLoss(nn.Module):
             List[Tuple[Tensor, Tensor, Tensor, Tensor]],
             List[Tensor],
         ],
-        **_,
+        epoch: int,
+        step: int,
     ) -> Tuple[Tensor, Dict[str, Tensor]]:
         predictions = model_output[1]
         device = predictions[0].device
@@ -104,6 +103,8 @@ class KeypointBoxLoss(nn.Module):
                 kpt_loss, kpt_visibility_loss = self.keypoint_loss(
                     pred_subset[:, self.box_offset + self.n_classes :],
                     kpt_target.to(device),
+                    epoch,
+                    step,
                 )
 
                 sub_losses["kpt"] += kpt_loss * self.kpt_weight
@@ -120,12 +121,16 @@ class KeypointBoxLoss(nn.Module):
                                 :, self.box_offset : self.box_offset + self.n_classes
                             ],
                             class_target,
-                        )
+                            epoch,
+                            step,
+                        )[0]
                         * self.cls_weight
                     )
 
             sub_losses["obj"] += (
-                self.BCE(pred[..., 4], obj_targets) * balance * self.obj_weight
+                self.BCE(pred[..., 4], obj_targets, epoch, step)[0]
+                * balance
+                * self.obj_weight
             )
 
         loss = cast(Tensor, sum(sub_losses.values())).reshape([])

@@ -1,11 +1,9 @@
-from typing import Tuple
-
 import torch
 from torch import Tensor, nn
-
-from luxonis_train.utils.boxutils import process_keypoints_predictions
+from typing import Tuple
 
 from .common import BCEWithLogitsLoss
+from luxonis_train.utils.boxutils import process_keypoints_predictions
 
 
 class KeypointLoss(nn.Module):
@@ -13,7 +11,9 @@ class KeypointLoss(nn.Module):
         super().__init__()
         self.BCE = BCEWithLogitsLoss(pos_weight=torch.tensor([bce_power]))
 
-    def forward(self, prediction: Tensor, target: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self, prediction: Tensor, target: Tensor, epoch: int, step: int
+    ) -> Tuple[Tensor, Tensor]:
         """
         Computes the keypoint loss and visibility loss
         for a given prediction and target.
@@ -30,7 +30,7 @@ class KeypointLoss(nn.Module):
         x, y, visibility_score = process_keypoints_predictions(prediction)
 
         mask = target[:, 0::2] != 0
-        visibility_loss = self.BCE(visibility_score, mask.float())
+        visibility_loss = self.BCE(visibility_score, mask.float(), epoch, step)[0]
         distance = (x - target[:, 0::2]) ** 2 + (y - target[:, 1::2]) ** 2
 
         loss_factor = (torch.sum(mask != 0) + torch.sum(mask == 0)) / (

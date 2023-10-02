@@ -1,24 +1,19 @@
 model:
   name: SimpleKeypoint
-  type:
-  pretrained:
 
   backbone:
     name: EfficientRep
-    pretrained:
 
   neck:
     name: RepPANNeck
 
   heads:
-    - name: KeypointBoxHead
+    - name: KeypointBboxHead
       params:
-        n_classes: 1
-        n_keypoints: 17
+        n_classes: null
       loss:
         name: KeypointBoxLoss
-        params:
 
 dataset:
-  team_id: # TODO
-  dataset_id: # TODO
+  # team_id: # TODO
+  # dataset_id: # TODO

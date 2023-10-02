@@ -5,7 +5,7 @@ Every neck takes these parameters:
 
 
 ### List
-- **RepPANNeck** (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/reppan.py))
+- **RepPANNeck** (adapted from [here](https://arxiv.org/pdf/2209.02976.pdf))
   - Params:
     - num_heads: Literal[2,3,4] # Number of output heads. Defaults to 3. ***Note:** Should be same also on head in most cases*.
     - channels_list: List[int] # List of number of channels for each block. Defaults to [256, 128, 128, 256, 256, 512].

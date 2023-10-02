@@ -1,9 +1,11 @@
+#
+# Adapted from: https://arxiv.org/pdf/2207.02696.pdf
+#
+
 import math
 import warnings
-from typing import Dict, List, Optional, Tuple, cast
-
 import torch
-from luxonis_ml.loader import LabelType
+from typing import Dict, List, Optional, Tuple, cast
 from torch import Tensor, nn
 from torchvision.ops import box_convert
 from torchvision.utils import draw_bounding_boxes, draw_keypoints
@@ -15,14 +17,15 @@ from luxonis_train.models.modules import (
 )
 from luxonis_train.utils.boxutils import (
     match_to_anchor,
-    non_max_suppression_kpts,
+    non_max_suppression,
     process_bbox_predictions,
     process_keypoints_predictions,
 )
 from luxonis_train.utils.constants import HeadType
+from luxonis_ml.loader import LabelType
 
 
-class KeypointBoxHead(BaseHead):
+class KeypointBboxHead(BaseHead):
     head_types: List[HeadType] = [
         HeadType.OBJECT_DETECTION,
         HeadType.KEYPOINT_DETECTION,
@@ -34,7 +37,7 @@ class KeypointBoxHead(BaseHead):
         n_classes: int,
         input_channels_shapes: List[List[int]],
         original_in_shape: List[int],
-        n_keypoints: int,
+        n_keypoints: int = 17,
         num_heads: int = 3,
         anchors: List[List[int]] = [
             [12, 16, 19, 36, 40, 28],
@@ -48,19 +51,20 @@ class KeypointBoxHead(BaseHead):
         main_metric: str = "map",
         **kwargs,
     ):
-        """Head for for object and keypoint detection
+        """Head for for object and keypoint detection from `YOLOv7: Trainable bag-of-freebies
+        sets new state-of-the-art for real-time object detectors`, https://arxiv.org/pdf/2207.02696.pdf
 
         Args:
             n_classes (int): Number of classes
-            input_channels_shapes (list): List of output shapes from previous module
-            original_in_shape (list): Original input shape to the model
-            n_keypoints (int): Number of keypoints
+            input_channels_shapes (List[List[int]]): List of output shapes from previous module
+            original_in_shape (List[int]): Original input shape to the model
+            n_keypoints (int): Number of keypoints. Defaults to 17.
             num_heads (int): Number of output heads. Defaults to 3.
                 ***Note:** Should be same also on neck in most cases.*
-            anchors (list): Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)*
-            connectivity (Optional[list], optional): Connectivity mapping used in visualization. Defaults to None.
+            anchors (List[List[int]]): Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)*
+            connectivity (Optional[List[int]], optional): Connectivity mapping used in visualization. Defaults to None.
             visibility_threshold (float, optional): Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
-            init_coco_biases (bool, optional): Weather to use COCO bias and weight initialization. Defaults to True.
+            init_coco_biases (bool, optional): Whether to use COCO bias and weight initialization. Defaults to True.
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to 0.
                 ***Note:** Value must be non-negative.**
             main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
@@ -325,12 +329,18 @@ class KeypointBoxHead(BaseHead):
         nkpts = (kpts.shape[1] - 2) // 3
         label = torch.zeros((len(boxes), nkpts * 3 + 6))
         label[:, :2] = boxes[:, :2]
-        label[:, 2:6] = box_convert(boxes[:, 2:], "xywh", "cxcywh")
+        label[:, 2:6] = box_convert(boxes[:, 2:], "xywh", "xyxy")
         label[:, 6::3] = kpts[:, 2::3]  # insert kp x coordinates
         label[:, 7::3] = kpts[:, 3::3]  # insert kp y coordinates
         label[:, 8::3] = kpts[:, 4::3]  # insert kp visibility
 
-        nms = non_max_suppression_kpts(output[0])
+        nms = non_max_suppression(
+            output[0],
+            n_classes=self.n_classes,
+            conf_thres=0.03,
+            iou_thres=0.3,
+            box_format="cxcywh",
+        )
         output_list_map = []
         output_list_oks = []
         output_list_kpt_map = []
@@ -358,7 +368,7 @@ class KeypointBoxHead(BaseHead):
             )
 
             curr_label = label[label[:, 0] == i].to(nms[i].device)
-            curr_bboxs = box_convert(curr_label[:, 2:6], "cxcywh", "xyxy")
+            curr_bboxs = curr_label[:, 2:6]
             curr_bboxs[:, 0::2] *= image_size[1]
             curr_bboxs[:, 1::2] *= image_size[0]
             label_list_map.append(
@@ -392,8 +402,12 @@ class KeypointBoxHead(BaseHead):
 
     def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
         curr_output = output[0][idx]
-        nms = non_max_suppression_kpts(
-            curr_output.unsqueeze(0), conf_thresh=0.25, iou_thresh=0.45
+        nms = non_max_suppression(
+            curr_output.unsqueeze(0),
+            n_classes=self.n_classes,
+            conf_thres=0.25,
+            iou_thres=0.45,
+            box_format="cxcywh",
         )[0]
         bboxes = nms[:, :4]
         img = draw_bounding_boxes(img, bboxes)
@@ -452,19 +466,23 @@ class KeypointBoxHead(BaseHead):
         """Checks num_heads, cumultive offset and anchors"""
         if num_heads not in [2, 3, 4]:
             raise ValueError(
-                "Specified number of heads not supported. Choose one of [2,3,4]"
+                f"Specified number of heads for `{self.get_name()}` not supported. Choose one of [2,3,4]"
             )
 
         if len(anchors) != num_heads:
             raise ValueError(
-                f"Number of anchors ({len(anchors)}) doesn't match number of heads ({num_heads})"
+                f"Number of anchors ({len(anchors)}) doesn't match number of heads ({num_heads}) for `{self.get_name()}`"
             )
 
         if self.attach_index < 0:
-            raise ValueError("Value of attach_index must be non-negative")
+            raise ValueError(
+                f"Value of attach_index for `{self.get_name()}` must be non-negative"
+            )
 
         if len(self.input_channels_shapes) - (self.attach_index + num_heads) < 0:
-            raise ValueError("Cumulative offset (attach_index+num_head) out of range.")
+            raise ValueError(
+                f"Cumulative offset (attach_index+num_head) out of range for `{self.get_name()}`"
+            )
 
     def _fit_to_num_heads(self, channel_list: list):
         """Returns correct channel list and stride based on num_heads and attach_index"""

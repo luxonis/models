@@ -1,5 +1,5 @@
 #
-# Soure: https://github.com/rwightman/gen-efficientnet-pytorch
+# Source: https://github.com/rwightman/gen-efficientnet-pytorch
 # License: https://github.com/rwightman/gen-efficientnet-pytorch/blob/master/LICENSE
 #
 

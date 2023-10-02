@@ -88,9 +88,9 @@ if __name__ == "__main__":
             )
 
             for i in out_imgs:
-                plt.imshow(i)
                 if save_dir is not None:
                     counter += 1
-                    plt.savefig(os.path.join(save_dir, f"{counter}.png"))
+                    plt.imsave(os.path.join(save_dir, f"{counter}.png"), i)
                 if not args.no_display:
+                    plt.imshow(i)
                     plt.show()

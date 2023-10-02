@@ -43,7 +43,7 @@ class Trainer:
             rank=self.rank,
             mlflow_tracking_uri=os.getenv(
                 "MLFLOW_TRACKING_URI"
-            ),  # read seperately from env vars
+            ),  # read separately from env vars
             **logger_params,
         )
         logger.log_hyperparams(hparams)
@@ -121,6 +121,7 @@ class Trainer:
 
             pytorch_loader_train = torch.utils.data.DataLoader(
                 loader_train,
+                shuffle=True,
                 batch_size=self.cfg.get("train.batch_size"),
                 num_workers=self.cfg.get("train.num_workers"),
                 collate_fn=loader_train.collate_fn,
@@ -157,7 +158,7 @@ class Trainer:
                 )
                 print(f"Checkpoints saved in: {self.get_save_dir()}")
             else:
-                # Every time expection happens in the Thread, this hook will activate
+                # Every time exception happens in the Thread, this hook will activate
                 def thread_exception_hook(args):
                     self.error_message = str(args.exc_value)
 
@@ -227,7 +228,7 @@ class Trainer:
         self.lightning_module.losses[head_id] = custom_loss
 
     def override_train_augmentations(self, aug: object):
-        """Overrides augmentations used for trainig dataset"""
+        """Overrides augmentations used for training dataset"""
         self.train_augmentations = aug
 
     def override_val_augmentations(self, aug: object):
@@ -267,7 +268,7 @@ class Trainer:
 
     @rank_zero_only
     def get_error_message(self):
-        """Return error message if one occures while running in thread, otherwise None
+        """Return error message if one occurs while running in thread, otherwise None
 
         Returns:
             str or None: Error message

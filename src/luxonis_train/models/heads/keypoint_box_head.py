@@ -270,7 +270,7 @@ class KeypointBoxHead(BaseHead):
 
         for i in range(self.num_heads):
             anchor = self.anchors[i]
-            feature_width, feature_height = predictions[i].shape[2:4]
+            feature_height, feature_width = predictions[i].shape[2:4]
 
             scaled_targets, xy_shifts = match_to_anchor(
                 targets,

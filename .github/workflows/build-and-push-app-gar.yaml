@@ -1,4 +1,4 @@
-name: Build and deploy app image
+name: Build and deploy app image to GAR
 
 on:
   push:

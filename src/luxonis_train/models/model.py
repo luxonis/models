@@ -21,18 +21,15 @@ class Model(nn.Module):
         """Builds the model from defined config"""
         cfg = Config()
         modules_cfg = cfg.get("model")
-        dummy_input_shape = [
-            1,
-            3,
-        ] + cfg.get(
+        dummy_input_shape = [1, 3,] + cfg.get(
             "train.preprocessing.train_image_size"
         )  # NOTE: we assume 3 dimensional input shape
 
         self.backbone = eval(modules_cfg["backbone"]["name"])(
             **modules_cfg["backbone"].get("params", {})
         )
-        # load local backbone weights if avaliable
-        if modules_cfg["backbone"]["pretrained"]:
+        # load backbone weights if avaliable
+        if modules_cfg["backbone"].get("pretrained"):
             path = modules_cfg["backbone"]["pretrained"]
             print(f"Loading backbone weights from: {path}")
             fs = LuxonisFileSystem(path)
@@ -44,7 +41,7 @@ class Model(nn.Module):
 
         if "neck" in modules_cfg and modules_cfg["neck"]:
             self.neck = eval(modules_cfg["neck"]["name"])(
-                prev_out_shapes=self.backbone_out_shapes,
+                input_channels_shapes=self.backbone_out_shapes,
                 **modules_cfg["neck"].get("params", {}),
             )
             self.neck_out_shapes = dummy_input_run(
@@ -53,13 +50,18 @@ class Model(nn.Module):
 
         for head in modules_cfg["heads"]:
             curr_head = eval(head["name"])(
-                prev_out_shapes=self.neck_out_shapes
+                input_channels_shapes=self.neck_out_shapes
                 if self.neck
                 else self.backbone_out_shapes,
                 original_in_shape=dummy_input_shape,
                 **head["params"],
             )
             self.heads.append(curr_head)
+
+    def check_annotations(self, label_dict: dict):
+        """Checks if all required annotations are present"""
+        for head in self.heads:
+            head.check_annotations(label_dict)
 
     def forward(self, x: torch.Tensor):
         """Models forward method

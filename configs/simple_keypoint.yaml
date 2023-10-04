@@ -1,38 +1,19 @@
 model:
   name: SimpleKeypoint
-  type: 
-  pretrained: 
 
   backbone:
     name: EfficientRep
-    pretrained:
-    params:
-      channels_list: [64, 128, 256, 512, 1024]
-      num_repeats: [1, 6, 12, 18, 6]
-      depth_mul: 0.33
-      width_mul: 0.25
 
   neck:
     name: RepPANNeck
-    params:
-      channels_list: [256, 128, 128, 256, 256, 512]
-      num_repeats: [12, 12, 12, 12]
-      depth_mul: 0.33
-      width_mul: 0.25
 
   heads:
-    - name: IKeypoint
+    - name: KeypointBboxHead
       params:
-        n_classes: 1
-        n_keypoints: 17
-        anchors:
-          - [12,16, 19,36, 40,28]  # P3/8
-          - [36,75, 76,55, 72,146]  # P4/16
-          - [142,110, 192,243, 459,401]  # P5/32
+        n_classes: null
       loss:
-        name: YoloV7PoseLoss
-        params:
+        name: KeypointBoxLoss
 
 dataset:
-  team_id: # TODO
-  dataset_id: # TODO
+  # team_id: # TODO
+  # dataset_id: # TODO

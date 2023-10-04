@@ -3,9 +3,11 @@ import yaml
 import warnings
 import json
 import re
-from typing import Union
-from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
+import sys
+from typing import Union, Optional, Dict, Any, List, Tuple
 from copy import deepcopy
+
+from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
@@ -14,7 +16,7 @@ class Config:
 
     _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../config_db"))
 
-    def __new__(cls, cfg=None):
+    def __new__(cls, cfg: Optional[Union[str, Dict[str, Any]]] = None):
         if not hasattr(cls, "instance"):
             if cfg is None:
                 raise ValueError("Provide either config path or config dictionary.")
@@ -24,25 +26,25 @@ class Config:
 
         return cls.instance
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return json.dumps(self._data, indent=4)
 
     @classmethod
-    def clear_instance(cls):
+    def clear_instance(cls) -> None:
         """Clears all singleton instances, should be only used for unit-testing"""
         if hasattr(cls, "instance"):
             del cls.instance
 
-    def get_data(self):
+    def get_data(self) -> Dict[str, Any]:
         """Returns a deepcopy of current data dict"""
         return deepcopy(self._data)
 
-    def save_data(self, path: str):
+    def save_data(self, path: str) -> None:
         """Saves data dict to yaml file"""
         with open(path, "w+") as f:
             yaml.dump(self._data, f, default_flow_style=False)
 
-    def override_config(self, args: str):
+    def override_config(self, args: str) -> None:
         """Overrides config values with ones specifid by --override string.
         If last key is not matched to config, creates a new (key, value) pair.
         """
@@ -71,20 +73,22 @@ class Config:
             value = parse_string_to_types(value)
             last_sub_dict[last_key] = value
 
-    def get(self, key_merged: str):
+    def get(self, key_merged: str) -> Any:
         """Returns value from config based on the key"""
         last_key, last_sub_dict = self._config_iterate(key_merged, only_warn=False)
         return last_sub_dict[last_key]
 
-    def validate_config_exporter(self):
+    def validate_config_exporter(self) -> None:
         """Validates 'exporter' block in config"""
         if not self._data["exporter"]:
             raise ValueError("No 'exporter' section in config specified.")
 
         if not self._data["exporter"]["export_weights"]:
-            raise ValueError("No 'export_weights' speficied in config file.")
+            warnings.warn(
+                "No 'export_weights' speficied in config file, using random weights instead."
+            )
 
-    def validate_config_tuner(self):
+    def validate_config_tuner(self) -> None:
         """Validates 'tuner' block in config"""
         if not self._data["tuner"]:
             raise ValueError("No 'tuner' section in config specified.")
@@ -94,7 +98,7 @@ class Config:
             )
         # TODO: and more checks if needed
 
-    def _load(self, cfg: Union[str, dict]):
+    def _load(self, cfg: Union[str, Dict[str, Any]]) -> None:
         """Performs complete loading and validation of the config"""
         with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
             base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
@@ -131,7 +135,9 @@ class Config:
         self._validate_config()
         print("Config loaded.")
 
-    def _merge_configs(self, base_cfg: dict, user_cfg: dict):
+    def _merge_configs(
+        self, base_cfg: Dict[str, Any], user_cfg: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Merges user config with base config"""
         if base_cfg is None:
             base_cfg = {}
@@ -153,13 +159,13 @@ class Config:
 
         return base_cfg
 
-    def _load_model_config(self, cfg: dict):
+    def _load_model_config(self, cfg: Dict[str, Any]) -> None:
         """Loads model config from user config"""
         model_cfg = cfg.get("model")
         if model_cfg is None:
             raise KeyError("Model config must be present in config file.")
         # check if we should load predefined model
-        if model_cfg["type"] is not None:
+        if model_cfg.get("type"):
             warnings.warn(
                 "Loading predefined model overrides local config of backbone, neck and head."
             )
@@ -174,7 +180,7 @@ class Config:
 
         self._data["model"] = model_cfg
 
-    def _load_predefined_model(self, model_cfg: dict):
+    def _load_predefined_model(self, model_cfg: Dict[str, Any]) -> Dict[str, Any]:
         """Loads predefined model config from db"""
         model_type = model_cfg["type"].lower()
         if model_type.startswith("yolov6"):
@@ -182,7 +188,7 @@ class Config:
         else:
             raise ValueError(f"{model_type} not supported")
 
-    def _load_yolov6_cfg(self, model_cfg: dict):
+    def _load_yolov6_cfg(self, model_cfg: Dict[str, Any]) -> Dict[str, Any]:
         """Loads predefined YoloV6 config from db"""
         predefined_cfg_path = model_cfg["type"].lower() + ".yaml"
         full_path = os.path.join(self._db_path, predefined_cfg_path)
@@ -209,10 +215,10 @@ class Config:
             if key == "n_classes":
                 model_cfg["heads"][0]["params"]["n_classes"] = value
                 model_cfg["heads"][0]["loss"]["params"]["n_classes"] = value
-            if key == "is_4head":
-                model_cfg["backbone"]["params"]["is_4head"] = value
-                model_cfg["neck"]["params"]["is_4head"] = value
-                model_cfg["heads"][0]["params"]["is_4head"] = value
+            # refactored in further PRs
+            if key == "num_heads":
+                model_cfg["neck"]["params"]["num_heads"] = value
+                model_cfg["heads"][0]["params"]["num_heads"] = value
 
         if "additional_heads" in model_cfg and isinstance(
             model_cfg["additional_heads"], list
@@ -222,9 +228,11 @@ class Config:
 
         return model_cfg
 
-    def _config_iterate(self, key_merged: str, only_warn: bool = False):
+    def _config_iterate(
+        self, key_merged: str, only_warn: bool = False
+    ) -> Tuple[Union[str, int, None], Union[Dict[str, Any], List[Any], None]]:
         """Iterates over config based on key_merged and returns last key and
-        sub dict if it mathces structure
+        sub dict if it matches structure
         """
         sub_keys = key_merged.split(".")
         sub_dict = self._data
@@ -255,6 +263,7 @@ class Config:
                     )
 
             sub_dict = sub_dict[key]
+
         # return last_key in correct format (int or string)
         success = True
         if isinstance(sub_dict, dict):
@@ -282,23 +291,21 @@ class Config:
 
         return last_key, sub_dict
 
-    def _validate_dataset_classes(self):
+    def _validate_dataset_classes(self) -> None:
         """Validates config to used datasets, overrides n_classes if needed"""
+        from luxonis_train.utils.config_helpers import get_head_label_types
+
         with LuxonisDataset(
+            dataset_name=self._data["dataset"]["dataset_name"],
             team_id=self._data["dataset"]["team_id"],
             dataset_id=self._data["dataset"]["dataset_id"],
             bucket_type=eval(self._data["dataset"]["bucket_type"]),
             bucket_storage=eval(self._data["dataset"]["bucket_storage"]),
         ) as dataset:
             classes, classes_by_task = dataset.get_classes()
-            dataset_n_classes = len(classes)
 
-            if dataset_n_classes == 0:
+            if not classes:
                 raise ValueError("Provided dataset doesn't have any classes.")
-
-            # TODO: implement per task number of classes
-            # for key in dataset.classes_by_task:
-            #     print(key, len(dataset.classes_by_task[key]))
 
             model_cfg = self._data["model"]
             for head in model_cfg["heads"]:
@@ -306,29 +313,23 @@ class Config:
                     head["params"] = {}
 
                 curr_n_classes = head["params"].get("n_classes", None)
+                label_type = get_head_label_types(head["name"])[0]
+                dataset_n_classes = len(classes_by_task[label_type.value])
                 if curr_n_classes is None:
                     warnings.warn(
-                        f"Inheriting 'n_classes' parameter from dataset. Setting it to {dataset_n_classes}"
+                        f"Inheriting 'n_classes' parameter for `{head['name']}` from dataset. Setting it to {dataset_n_classes}."
                     )
                 elif curr_n_classes != dataset_n_classes:
                     raise KeyError(
                         f"Number of classes in config ({curr_n_classes}) doesn't match number of "
-                        + f"classes in dataset ({dataset_n_classes})"
+                        f"classes in dataset ({dataset_n_classes}) for `{head['name']}`."
                     )
                 head["params"]["n_classes"] = dataset_n_classes
 
-                # also set n_classes to loss params
-                if not ("loss" in head and head["loss"]):
-                    # loss definition should be present in every head
-                    raise KeyError("Loss must be defined for every head.")
-                if not ("params" in head["loss"] and head["loss"]["params"]):
-                    head["loss"]["params"] = {}
-                head["loss"]["params"]["n_classes"] = dataset_n_classes
-
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         """Validates whole config based on specified rules"""
         model_cfg = self._data["model"]
-        model_predefined = model_cfg["type"] != None
+        model_predefined = model_cfg.get("type") != None
         backbone_specified = "backbone" in model_cfg and model_cfg["backbone"]
         neck_specified = "neck" in model_cfg and model_cfg["neck"]
         heads_specified = "heads" in model_cfg and isinstance(model_cfg["heads"], list)
@@ -342,12 +343,17 @@ class Config:
                     "Model-wise parameters won't be taken into account if you don't specify model type."
                 )
 
-        if model_cfg["pretrained"] and model_cfg["backbone"]["pretrained"]:
+        if model_cfg.get("pretrained") and model_cfg["backbone"].get("pretrained"):
             warnings.warn(
                 "Weights of the backbone will be overridden by whole model weights."
             )
 
         n_heads = len(model_cfg["heads"])
+
+        # loss definition should be present in every head
+        for head in self._data["model"]["heads"]:
+            if not ("loss" in head and head["loss"]):
+                raise KeyError("Loss must be defined for every head.")
 
         # handle main_head_index
         if not (0 <= self._data["train"]["main_head_index"] < n_heads):
@@ -415,8 +421,66 @@ class Config:
         if not self._data["train"]["optimizers"]["scheduler"]["params"]:
             self._data["train"]["optimizers"]["scheduler"]["params"] = {}
 
+        # handle setting num_workers to 0 for Mac and Windows
+        if sys.platform == "win32" or sys.platform == "darwin":
+            self._data["train"]["num_workers"] = 0
 
-def remove_chars_inside_brackets(string):
+        # handle IKeypointHead with anchors=None by generating them from dataset
+        ikeypoint_head_indices = [
+            i
+            for i, head in enumerate(self._data["model"]["heads"])
+            if head["name"] == "IKeypointHead"
+        ]
+        if len(ikeypoint_head_indices):
+            from torch.utils.data import DataLoader
+            from luxonis_ml.loader import ValAugmentations, LuxonisLoader
+            from luxonis_train.utils.boxutils import anchors_from_dataset
+
+            for i in ikeypoint_head_indices:
+                head = self._data["model"]["heads"][i]
+                anchors = head["params"].get("anchors", -1)
+                if anchors is None:
+                    with LuxonisDataset(
+                        dataset_name=self._data["dataset"]["dataset_name"],
+                        team_id=self._data["dataset"]["team_id"],
+                        dataset_id=self._data["dataset"]["dataset_id"],
+                        bucket_type=eval(self._data["dataset"]["bucket_type"]),
+                        bucket_storage=eval(self._data["dataset"]["bucket_storage"]),
+                    ) as dataset:
+                        val_augmentations = ValAugmentations(
+                            image_size=self._data["train"]["preprocessing"][
+                                "train_image_size"
+                            ],
+                            augmentations=[{"name": "Normalize", "params": {}}],
+                            train_rgb=self._data["train"]["preprocessing"]["train_rgb"],
+                            keep_aspect_ratio=self._data["train"]["preprocessing"][
+                                "keep_aspect_ratio"
+                            ],
+                        )
+                        loader = LuxonisLoader(
+                            dataset,
+                            view=self._data["dataset"]["train_view"],
+                            augmentations=val_augmentations,
+                            mode="json"
+                            if self._data["dataset"]["json_mode"]
+                            else "fiftyone",
+                        )
+                        pytorch_loader = DataLoader(
+                            loader,
+                            batch_size=self._data["train"]["batch_size"],
+                            num_workers=self._data["train"]["num_workers"],
+                            collate_fn=loader.collate_fn,
+                        )
+                        num_heads = head["params"].get("num_heads", 3)
+                        proposed_anchors = anchors_from_dataset(
+                            pytorch_loader, n_anchors=num_heads * 3
+                        )
+                        head["params"]["anchors"] = proposed_anchors.reshape(
+                            -1, 6
+                        ).tolist()
+
+
+def remove_chars_inside_brackets(string: str) -> str:
     """Find and remove all spaces, single and double quotes inside substring which starts
     with [ and ends with ] character
     """
@@ -430,7 +494,9 @@ def remove_chars_inside_brackets(string):
     return string
 
 
-def parse_string_to_types(input_str: str):
+def parse_string_to_types(
+    input_str: str,
+) -> Union[str, int, bool, List[str | int | bool]]:
     """Parse input strings to different data type if it matches some rule"""
     if input_str.lstrip("-").isdigit():  # check if is digit
         out = int(input_str)

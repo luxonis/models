@@ -1,7 +1,9 @@
+from typing import Optional, Dict, List, Union
 import torch
 import cv2
 import numpy as np
 import torchvision.transforms.functional as F
+from torch import Tensor
 from torchvision.utils import (
     draw_bounding_boxes,
     draw_segmentation_masks,
@@ -13,25 +15,27 @@ from luxonis_ml.loader import LabelType
 
 
 def draw_outputs(
-    imgs: torch.Tensor,
-    output: torch.Tensor,
+    imgs: Tensor,
+    output: Tensor,
     head: torch.nn.Module,
     return_numpy: bool = True,
     unnormalize_img: bool = True,
     cvt_color: bool = False,
-):
+    normalize_params: Optional[Dict[str, List[float]]] = None,
+) -> List[Union[Tensor, np.ndarray]]:
     """Draw model outputs on a batch of images
 
     Args:
-        imgs (torch.Tensor): Batch of images (NCHW format)
-        output (torch.Tensor): Model output
+        imgs (Tensor): Batch of images (NCHW format)
+        output (Tensor): Model output
         head (torch.nn.Module): Model head used for drawing
         return_numpy (bool, optional): Flag if should return images in numpy format (HWC). Defaults to True.
         unnormalize_img (bool, optional): Unormalize image before drawing to it. Defaults to True.
         cvt_color (bool, optional): Convert from BGR to RGB. Defaults to False.
+        normalize_params (Optional[Dict[str, List[float]]], optional): Params used for normalization. Defaults to None.
 
     Returns:
-        list[Union[torch.Tensor, np.ndarray]]: list of images with visualizations
+        list[Union[Tensor, np.ndarray]]: List of images with visualizations
             (either torch tensors in CHW or numpy arrays in HWC format)
     """
 
@@ -39,7 +43,11 @@ def draw_outputs(
     for i in range(imgs.shape[0]):
         curr_img = imgs[i]
         if unnormalize_img:
-            curr_img = unnormalize(curr_img, to_uint8=True)
+            curr_img = unnormalize(
+                curr_img, to_uint8=True, normalize_params=normalize_params
+            )
+        else:
+            curr_img = curr_img.to(torch.uint8)
 
         curr_img = head.draw_output_to_img(curr_img, output, i)
         out_imgs.append(curr_img)
@@ -51,27 +59,29 @@ def draw_outputs(
 
 
 def draw_labels(
-    imgs: torch.tensor,
-    label_dict: dict,
-    label_keys: list = None,
+    imgs: Tensor,
+    label_dict: Dict[LabelType, Tensor],
+    label_keys: Optional[List[LabelType]] = None,
     return_numpy: bool = True,
     unnormalize_img: bool = True,
     cvt_color: bool = False,
     overlay: bool = False,
-):
+    normalize_params: Optional[Dict[str, List[float]]] = None,
+) -> List[Union[Tensor, np.ndarray]]:
     """Draw all present labels on a batch of images
 
     Args:
         imgs (torch.tensor): Batch of images (NCHW format)
-        label_dict (dict): Dictionary of present labels
-        label_keys (list, optional): List of keys for labels to draw, if None use all. Defaults to None
+        label_dict (Dict[LabelType, Tensor]): Dictionary of present labels
+        label_keys (Optional[List[LabelType]], optional): List of keys for labels to draw, if None use all. Defaults to None
         return_numpy (bool, optional): Flag if should return images in numpy format (HWC). Defaults to True.
         unnormalize_img (bool, optional): Unormalize image before drawing to it. Defaults to True.
         cvt_color (bool, optional): Convert from BGR to RGB. Defaults to False.
         overlay (bool, optional): Draw all labels on the same image. Defaults to False.
+        normalize_params (Optional[Dict[str, List[float]]], optional): Params used for normalization. Defaults to None.
 
     Returns:
-        list[Union[torch.Tensor, np.ndarray]]: list of images with visualizations
+        List[Union[Tensor, np.ndarray]]: List of images with visualizations
             (either torch tensors in CHW or numpy arrays in HWC format)
     """
 
@@ -85,7 +95,11 @@ def draw_labels(
         curr_img = imgs[i]
         curr_out_imgs = []
         if unnormalize_img:
-            curr_img = unnormalize(curr_img, to_uint8=True)
+            curr_img = unnormalize(
+                curr_img, to_uint8=True, normalize_params=normalize_params
+            )
+        else:
+            curr_img = curr_img.to(torch.uint8)
 
         for label_key in label_keys:
             if label_key == LabelType.CLASSIFICATION:
@@ -143,9 +157,14 @@ def draw_labels(
 
                 # torchvision expects format [n_instances, K, 2]
                 n_instances = curr_label.shape[0]
-                out_keypoints = torch.reshape(
-                    keypoints_points, (n_instances, -1, 2)
-                ).int()
+                if n_instances == 0:
+                    out_keypoints = (
+                        torch.reshape(keypoints_points, (-1, 2)).unsqueeze(0).int()
+                    )
+                else:
+                    out_keypoints = torch.reshape(
+                        keypoints_points, (n_instances, -1, 2)
+                    ).int()
                 curr_img_keypoints = draw_keypoints(
                     curr_img, out_keypoints, colors="red"
                 )
@@ -168,7 +187,7 @@ def draw_labels(
     return out_imgs
 
 
-def seg_output_to_bool(data: torch.Tensor, binary_threshold: float = 0.5):
+def seg_output_to_bool(data: Tensor, binary_threshold: float = 0.5) -> Tensor:
     """Converts seg head output to 2D boolean mask for visualization"""
     masks = torch.empty_like(data, dtype=torch.bool, device=data.device)
     if data.shape[0] == 1:
@@ -182,14 +201,14 @@ def seg_output_to_bool(data: torch.Tensor, binary_threshold: float = 0.5):
 
 
 def unnormalize(
-    img: torch.Tensor,
-    original_mean: tuple = (0.485, 0.456, 0.406),
-    original_std: tuple = (0.229, 0.224, 0.225),
+    img: Tensor,
+    normalize_params: Optional[Dict[str, List[float]]] = None,
     to_uint8: bool = False,
-):
+) -> Tensor:
     """Unnormalizes image back to original values, optionally converts it to uin8"""
-    mean = np.array(original_mean)
-    std = np.array(original_std)
+    normalize_params = normalize_params or {}
+    mean = np.array(normalize_params.get("mean", [0.485, 0.456, 0.406]))
+    std = np.array(normalize_params.get("std", [0.229, 0.224, 0.225]))
     new_mean = -mean / std
     new_std = 1 / std
     out_img = F.normalize(img, mean=new_mean, std=new_std)
@@ -198,7 +217,7 @@ def unnormalize(
     return out_img
 
 
-def torch_img_to_numpy(img: torch.Tensor, cvt_color: bool = False):
+def torch_img_to_numpy(img: Tensor, cvt_color: bool = False) -> np.ndarray:
     """Converts torch image (CHW) to numpy array (HWC). Optionally also converts colors."""
     if img.is_floating_point():
         img = img.mul(255).int()
@@ -210,7 +229,7 @@ def torch_img_to_numpy(img: torch.Tensor, cvt_color: bool = False):
     return img
 
 
-def numpy_to_torch_img(img: np.array):
+def numpy_to_torch_img(img: np.array) -> Tensor:
     """Converts numpy image (HWC) to torch image (CHW)"""
     img = torch.from_numpy(img).permute(2, 0, 1)
     return img

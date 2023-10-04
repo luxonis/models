@@ -39,9 +39,20 @@ class Exporter(pl.LightningModule):
         self.model = Model()
         self.model.build_model()
 
-        self.load_checkpoint(self.cfg.get("exporter.export_weights"))
+        pretrained_path = self.cfg.get("exporter.export_weights")
+        if pretrained_path:
+            self.load_checkpoint(pretrained_path)
+
         self.model.eval()
         self.to_deploy()
+
+        # save current config to output directory
+        self.cfg.save_data(
+            os.path.join(
+                self.cfg.get("exporter.export_save_directory"),
+                f"export_config_{self.cfg.get('exporter.export_model_name')}.yaml",
+            )
+        )
 
     def load_checkpoint(self, path: str):
         """Loads checkpoint weights from provided path"""
@@ -202,7 +213,7 @@ class Exporter(pl.LightningModule):
             "reverse_input_channels": self.cfg.get("exporter.reverse_input_channels"),
             "use_bgr": not self.cfg.get("train.preprocessing.train_rgb"),
             "input_shape": [1, 3] + self.cfg.get("exporter.export_image_size"),
-            "data_type": "f16",  # self.cfg.get("exporter.data_type"), # NOTE: change this when modelconverter is updated
+            "data_type": self.cfg.get("exporter.data_type"),
             "output": [{"name": name} for name in self._get_output_names()],
             "meta": {"description": self.cfg.get("exporter.export_model_name")},
         }

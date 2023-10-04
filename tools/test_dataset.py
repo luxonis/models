@@ -38,6 +38,7 @@ if __name__ == "__main__":
     image_size = cfg.get("train.preprocessing.train_image_size")
 
     with LuxonisDataset(
+        dataset_name=cfg.get("dataset.dataset_name"),
         team_id=cfg.get("dataset.team_id"),
         dataset_id=cfg.get("dataset.dataset_id"),
         bucket_type=eval(cfg.get("dataset.bucket_type")),
@@ -60,7 +61,10 @@ if __name__ == "__main__":
         )
 
         loader_train = LuxonisLoader(
-            dataset, view=args.view, augmentations=augmentations
+            dataset,
+            view=args.view,
+            augmentations=augmentations,
+            mode="json" if cfg.get("dataset.json_mode") else "fiftyone",
         )
         pytorch_loader_train = torch.utils.data.DataLoader(
             loader_train,
@@ -84,9 +88,9 @@ if __name__ == "__main__":
             )
 
             for i in out_imgs:
-                plt.imshow(i)
                 if save_dir is not None:
                     counter += 1
-                    plt.savefig(os.path.join(save_dir, f"{counter}.png"))
+                    plt.imsave(os.path.join(save_dir, f"{counter}.png"), i)
                 if not args.no_display:
+                    plt.imshow(i)
                     plt.show()

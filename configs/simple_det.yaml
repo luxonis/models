@@ -1,10 +1,8 @@
 model:
   name: SimpleDetection
   type: yolov6-n
-  pretrained:
   params:
     n_classes: null
-    is_4head: False
 
 dataset:
   team_id: # TODO

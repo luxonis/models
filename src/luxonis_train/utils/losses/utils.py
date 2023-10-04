@@ -1,7 +1,8 @@
 from .common import *
-from .yolov6_loss import YoloV6Loss 
-from .yolov7_pose_loss import YoloV7PoseLoss
+from .bboxyolov6_loss import BboxYoloV6Loss
+from .keypoint_box_loss import KeypointBoxLoss
+
 
 def init_loss(name, **kwargs):
-    """ Initializes and returns loss based on provided name and config"""
+    """Initializes and returns loss based on provided name and config"""
     return eval(name)(**kwargs)

@@ -46,6 +46,14 @@ class Exporter(pl.LightningModule):
         self.model.eval()
         self.to_deploy()
 
+        # save current config to output directory
+        self.cfg.save_data(
+            os.path.join(
+                self.cfg.get("exporter.export_save_directory"),
+                f"export_config_{self.cfg.get('exporter.export_model_name')}.yaml",
+            )
+        )
+
     def load_checkpoint(self, path: str):
         """Loads checkpoint weights from provided path"""
         print(f"Loading weights from: {path}")

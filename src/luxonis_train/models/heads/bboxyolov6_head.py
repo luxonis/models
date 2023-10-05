@@ -1,6 +1,5 @@
 #
-# Adapted from: https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py
-# License: https://github.com/meituan/YOLOv6/blob/main/LICENSE
+# Adapted from: https://arxiv.org/pdf/2209.02976.pdf
 #
 
 import math
@@ -12,13 +11,16 @@ from torchvision.utils import draw_bounding_boxes
 
 from luxonis_train.models.heads.base_heads import BaseObjectDetection
 from luxonis_train.models.modules import ConvModule
-from luxonis_train.utils.assigners.anchor_generator import generate_anchors
-from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression_bbox
 from luxonis_train.utils.registry import HEADS
+from luxonis_train.utils.boxutils import (
+    anchors_for_fpn_features,
+    dist2bbox,
+    non_max_suppression,
+)
 
 
 @HEADS.register_module()
-class YoloV6Head(BaseObjectDetection):
+class BboxYoloV6Head(BaseObjectDetection):
     def __init__(
         self,
         n_classes: int,
@@ -28,8 +30,9 @@ class YoloV6Head(BaseObjectDetection):
         attach_index: int = 0,
         **kwargs,
     ):
-        """YoloV6 object detection head. With hardware-aware degisn, the decoupled head is optimized with
-            hybridchannels methods.
+        """Object detection head from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
+        https://arxiv.org/pdf/2209.02976.pdf. With hardware-aware design, the decoupled head is optimized with
+        hybridchannels methods.
 
         Args:
             n_classes (int): Number of classes
@@ -70,16 +73,16 @@ class YoloV6Head(BaseObjectDetection):
         reg_distri_list = []
 
         for i, module in enumerate(self.heads):
-            out_x, out_cls, out_reg = module(x[self.attach_index + i])
-            feature_list.append(out_x)
+            out_feature, out_cls, out_reg = module(x[self.attach_index + i])
+            feature_list.append(out_feature)
             out_cls = torch.sigmoid(out_cls)
-            cls_score_list.append(out_cls.flatten(2).permute((0, 2, 1)))
-            reg_distri_list.append(out_reg.flatten(2).permute((0, 2, 1)))
+            cls_score_list.append(out_cls.flatten(2))
+            reg_distri_list.append(out_reg.flatten(2))
 
-        cls_score_list = torch.cat(cls_score_list, axis=1)
-        reg_distri_list = torch.cat(reg_distri_list, axis=1)
+        cls_tensor = torch.cat(cls_score_list, axis=2).permute((0, 2, 1))
+        reg_tensor = torch.cat(reg_distri_list, axis=2).permute((0, 2, 1))
 
-        return [feature_list, cls_score_list, reg_distri_list]
+        return [feature_list, cls_tensor, reg_tensor]
 
     def postprocess_for_loss(self, output: tuple, label_dict: dict):
         label = label_dict[self.label_types[0]]
@@ -88,7 +91,7 @@ class YoloV6Head(BaseObjectDetection):
     def postprocess_for_metric(self, output: tuple, label_dict: dict):
         label = label_dict[self.label_types[0]]
 
-        output_nms = self._out2box(output)
+        output_nms = self._process_to_bbox(output)
         image_size = self.original_in_shape[2:]
 
         output_list = []
@@ -111,7 +114,7 @@ class YoloV6Head(BaseObjectDetection):
         return output_list, label_list, None
 
     def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
-        curr_output = self._out2box(output, conf_thres=0.3, iou_thres=0.6)
+        curr_output = self._process_to_bbox(output, conf_thres=0.3, iou_thres=0.6)
         curr_output = curr_output[idx]
         bboxs = curr_output[:, :4]
         img = draw_bounding_boxes(img, bboxs)
@@ -138,14 +141,18 @@ class YoloV6Head(BaseObjectDetection):
         """Checks if specified number of heads is supported and if cumulative offset is valid"""
         if num_heads not in [2, 3, 4]:
             raise ValueError(
-                "Specified number of heads not supported. Choose one of [2,3,4]"
+                f"Specified number of heads for `{self.get_name()}` not supported. Choose one of [2,3,4]"
             )
 
         if self.attach_index < 0:
-            raise ValueError("Value of attach_index must be non-negative")
+            raise ValueError(
+                f"Value of attach_index for `{self.get_name()}` must be non-negative"
+            )
 
         if len(self.input_channels_shapes) - (self.attach_index + num_heads) < 0:
-            raise ValueError("Cumulative offset (attach_index+num_head) out of range.")
+            raise ValueError(
+                f"Cumulative offset (attach_index+num_head) out of range for `{self.get_name()}`"
+            )
 
     def _fit_stride_to_num_heads(self):
         """Returns correct stride for number of heads and attach index"""
@@ -161,20 +168,25 @@ class YoloV6Head(BaseObjectDetection):
         )
         return stride
 
-    def _out2box(self, output: tuple, **kwargs):
+    def _process_to_bbox(self, output: tuple, **kwargs):
         """Performs post-processing of the YoloV6 output and returns bboxs after NMS"""
-        x, cls_score_list, reg_dist_list = output
-        anchor_points, stride_tensor = generate_anchors(
-            x, self.stride, self.grid_cell_size, self.grid_cell_offset, is_eval=True
+        features, cls_score_list, reg_dist_list = output
+        _, anchor_points, _, stride_tensor = anchors_for_fpn_features(
+            features,
+            self.stride,
+            self.grid_cell_size,
+            self.grid_cell_offset,
+            multiply_with_stride=False,
         )
-        pred_bboxes = dist2bbox(reg_dist_list, anchor_points, box_format="xywh")
+
+        pred_bboxes = dist2bbox(reg_dist_list, anchor_points, out_format="xyxy")
 
         pred_bboxes *= stride_tensor
         output_merged = torch.cat(
             [
                 pred_bboxes,
                 torch.ones(
-                    (x[-1].shape[0], pred_bboxes.shape[1], 1),
+                    (features[-1].shape[0], pred_bboxes.shape[1], 1),
                     dtype=pred_bboxes.dtype,
                     device=pred_bboxes.device,
                 ),
@@ -185,10 +197,15 @@ class YoloV6Head(BaseObjectDetection):
 
         conf_thres = kwargs.get("conf_thres", 0.001)
         iou_thres = kwargs.get("iou_thres", 0.6)
-        output_nms = non_max_suppression_bbox(
-            output_merged, conf_thres=conf_thres, iou_thres=iou_thres
-        )
 
+        output_nms = non_max_suppression(
+            output_merged,
+            n_classes=self.n_classes,
+            conf_thres=conf_thres,
+            iou_thres=iou_thres,
+            box_format="xyxy",
+            predicts_objectness=False,
+        )
         return output_nms
 
 
@@ -202,7 +219,7 @@ class EfficientDecoupledBlock(nn.Module):
         """
         super().__init__()
 
-        self.stem = ConvModule(
+        self.decoder = ConvModule(
             in_channels=in_channels,
             out_channels=in_channels,
             kernel_size=1,
@@ -238,15 +255,15 @@ class EfficientDecoupledBlock(nn.Module):
         self._initialize_weights_and_biases(prior_prob)
 
     def forward(self, x):
-        out = self.stem(x)
+        out_feature = self.decoder(x)
         # class branch
-        out_cls = self.cls_conv(out)
+        out_cls = self.cls_conv(out_feature)
         out_cls = self.cls_pred(out_cls)
         # regression branch
-        out_reg = self.reg_conv(out)
+        out_reg = self.reg_conv(out_feature)
         out_reg = self.reg_pred(out_reg)
 
-        return [out, out_cls, out_reg]
+        return [out_feature, out_cls, out_reg]
 
     def _initialize_weights_and_biases(self, prior_prob: float):
         data = [

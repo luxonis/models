@@ -1,16 +1,29 @@
 import math
 import torch
+from typing import List, Union
 
 
-def make_divisible(x: int, divisor: int):
-    """Upward revision the value x to make it evenly divisible by the divisor."""
+def make_divisible(x: int, divisor: int) -> int:
+    """Upward revision the value x to make it evenly divisible by the divisor"""
     return math.ceil(x / divisor) * divisor
 
 
 def dummy_input_run(
-    module: torch.nn.Module, input_shape: list, multi_input: bool = False
-):
-    """Runs dummy input through the module"""
+    module: torch.nn.Module,
+    input_shape: List[Union[int, List[int]]],
+    multi_input: bool = False,
+) -> List[List[int]]:
+    """Runs dummy input through the module and return output shapes
+
+    Args:
+        module (torch.nn.Module): Torch module
+        input_shape (List[int]): Shape of the input
+        multi_input (bool, optional): Whether module requires multiple inputs.
+            Defaults to False.
+
+    Returns:
+        List[List[int]]: Shapes of each module output
+    """
     module.eval()
     if multi_input:
         input = [torch.zeros(i) for i in input_shape]

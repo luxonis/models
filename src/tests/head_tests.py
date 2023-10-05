@@ -1,6 +1,6 @@
+import itertools
 import unittest
 import torch
-import itertools
 
 from luxonis_train.utils.general import dummy_input_run
 from luxonis_train.utils.registry import BACKBONES, NECKS, HEADS
@@ -80,7 +80,7 @@ class HeadTestCases(unittest.TestCase):
         """Tests YoloV6 head together with EfficienRep backbone and RepPANNeck"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
-        from luxonis_train.models.heads import YoloV6Head
+        from luxonis_train.models.heads import BboxYoloV6Head
 
         input_shapes = [[1, 3, 256, 256], [1, 3, 512, 256]]
         backbone = EfficientRep()
@@ -108,7 +108,7 @@ class HeadTestCases(unittest.TestCase):
                         )
                         neck.eval()
 
-                        head = YoloV6Head(
+                        head = BboxYoloV6Head(
                             n_classes=10,
                             input_channels_shapes=input_channels_shapes,
                             original_in_shape=input_shape,
@@ -133,7 +133,7 @@ class HeadTestCases(unittest.TestCase):
         """Tests attach_index parameter of YoloV6 head"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
-        from luxonis_train.models.heads import YoloV6Head
+        from luxonis_train.models.heads import BboxYoloV6Head
 
         input_shape = [1, 3, 256, 256]
         backbone = EfficientRep()
@@ -161,7 +161,7 @@ class HeadTestCases(unittest.TestCase):
 
         for curr_value in correct_values:
             with self.subTest(values=curr_value):
-                input = torch.zeros(input_shape)
+                torch.zeros(input_shape)
                 input_channels_shapes = dummy_input_run(backbone, input_shape)
                 backbone.eval()
 
@@ -174,7 +174,7 @@ class HeadTestCases(unittest.TestCase):
                     neck, input_channels_shapes, multi_input=True
                 )
                 neck.eval()
-                head = YoloV6Head(
+                head = BboxYoloV6Head(
                     n_classes=10,
                     input_channels_shapes=input_channels_shapes,
                     original_in_shape=input_shape,
@@ -205,7 +205,7 @@ class HeadTestCases(unittest.TestCase):
         for curr_value in wrong_values:
             with self.subTest(values=curr_value):
                 with self.assertRaises(ValueError):
-                    input = torch.zeros(input_shape)
+                    torch.zeros(input_shape)
                     input_channels_shapes = dummy_input_run(backbone, input_shape)
                     backbone.eval()
 
@@ -218,7 +218,7 @@ class HeadTestCases(unittest.TestCase):
                         neck, input_channels_shapes, multi_input=True
                     )
                     neck.eval()
-                    head = YoloV6Head(
+                    head = BboxYoloV6Head(
                         n_classes=10,
                         input_channels_shapes=input_channels_shapes,
                         original_in_shape=input_shape,
@@ -226,11 +226,11 @@ class HeadTestCases(unittest.TestCase):
                         attach_index=curr_value["head_attach_index"],
                     )
 
-    def test_ikeypoint_head(self):
-        """Tests IKeypoint head together with EfficienRep backbone and RepPANNeck"""
+    def test_keypointbbox_head(self):
+        """Tests KeypointBbox head together with EfficienRep backbone and RepPANNeck"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
-        from luxonis_train.models.heads import IKeypointHead
+        from luxonis_train.models.heads import KeypointBboxHead
 
         dummy_anchors = [
             [1, 1, 1, 1, 1, 1],
@@ -265,7 +265,7 @@ class HeadTestCases(unittest.TestCase):
                         )
                         neck.eval()
 
-                        head = IKeypointHead(
+                        head = KeypointBboxHead(
                             n_classes=10,
                             n_keypoints=10,
                             input_channels_shapes=input_channels_shapes,
@@ -278,7 +278,7 @@ class HeadTestCases(unittest.TestCase):
                         outs = neck(outs)
                         outs = head(outs)
 
-                        self.assertIsInstance(outs, list)
+                        self.assertIsInstance(outs, tuple)
                         self.assertEqual(len(outs), 2)
 
                         self.assertIsInstance(outs[0], torch.Tensor)
@@ -287,11 +287,11 @@ class HeadTestCases(unittest.TestCase):
                         for out in outs[1]:
                             self.assertIsInstance(out, torch.Tensor)
 
-    def test_ikeypoint_head_params(self):
-        """Tests parameters of IKeypoint head"""
+    def test_keypointbbox_head_params(self):
+        """Tests parameters of KeypointBbox head"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
-        from luxonis_train.models.heads import IKeypointHead
+        from luxonis_train.models.heads import KeypointBboxHead
 
         dummy_anchors = [
             [1, 1, 1, 1, 1, 1],
@@ -329,7 +329,7 @@ class HeadTestCases(unittest.TestCase):
 
         for curr_value in correct_values:
             with self.subTest(values=curr_value):
-                input = torch.zeros(input_shape)
+                torch.zeros(input_shape)
                 input_channels_shapes = dummy_input_run(backbone, input_shape)
                 backbone.eval()
 
@@ -342,7 +342,7 @@ class HeadTestCases(unittest.TestCase):
                     neck, input_channels_shapes, multi_input=True
                 )
                 neck.eval()
-                head = IKeypointHead(
+                KeypointBboxHead(
                     n_classes=10,
                     n_keypoints=10,
                     input_channels_shapes=input_channels_shapes,
@@ -378,7 +378,7 @@ class HeadTestCases(unittest.TestCase):
         for curr_value in wrong_values:
             with self.subTest(values=curr_value):
                 with self.assertRaises(ValueError):
-                    input = torch.zeros(input_shape)
+                    torch.zeros(input_shape)
                     input_channels_shapes = dummy_input_run(backbone, input_shape)
                     backbone.eval()
 
@@ -391,7 +391,7 @@ class HeadTestCases(unittest.TestCase):
                         neck, input_channels_shapes, multi_input=True
                     )
                     neck.eval()
-                    head = IKeypointHead(
+                    KeypointBboxHead(
                         n_classes=10,
                         n_keypoints=10,
                         input_channels_shapes=input_channels_shapes,
@@ -402,10 +402,10 @@ class HeadTestCases(unittest.TestCase):
                     )
 
     def test_head_stride(self):
-        """Tests stride of heads based on neck output for IKeypoint and YoloV6 head"""
+        """Tests stride of heads based on neck output for KeypointBbox and YoloV6 head"""
         from luxonis_train.models.backbones import EfficientRep
         from luxonis_train.models.necks import RepPANNeck
-        from luxonis_train.models.heads import YoloV6Head, IKeypointHead
+        from luxonis_train.models.heads import BboxYoloV6Head, KeypointBboxHead
 
         dummy_anchors = [
             [1, 1, 1, 1, 1, 1],
@@ -454,7 +454,7 @@ class HeadTestCases(unittest.TestCase):
 
         for curr_value in values:
             with self.subTest(values=curr_value):
-                input = torch.zeros(input_shape)
+                torch.zeros(input_shape)
                 input_channels_shapes = dummy_input_run(backbone, input_shape)
                 backbone.eval()
 
@@ -467,7 +467,7 @@ class HeadTestCases(unittest.TestCase):
                     neck, input_channels_shapes, multi_input=True
                 )
                 neck.eval()
-                head = IKeypointHead(
+                head = KeypointBboxHead(
                     n_classes=10,
                     n_keypoints=10,
                     input_channels_shapes=input_channels_shapes,
@@ -478,7 +478,7 @@ class HeadTestCases(unittest.TestCase):
                 )
                 self.assertEqual(head.stride.tolist(), curr_value["expected_stride"])
 
-                head = YoloV6Head(
+                head = BboxYoloV6Head(
                     n_classes=10,
                     input_channels_shapes=input_channels_shapes,
                     original_in_shape=input_shape,

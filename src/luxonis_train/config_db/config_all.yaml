@@ -19,6 +19,7 @@ logger:
   logged_hyperparams: ["train.epochs", "train.batch_size"] # list of hyperparameters to log (list)
 
 dataset:
+  dataset_name: null # name of the dataset (string)
   team_id: null # team under which you can find all datasets (string)
   dataset_id: null # id of the dataset (string)
   bucket_type: BucketType.INTERNAL # type of underlying storage (BucketType)
@@ -26,6 +27,7 @@ dataset:
   train_view: train # view to use for training (string)
   val_view: val # view to use for validation (string)
   test_view: test # view to use for testing (string)
+  json_mode: False # load using JSON annotations instead of MongoDB
 
 train:
   preprocessing:

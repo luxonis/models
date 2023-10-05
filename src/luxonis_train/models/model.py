@@ -19,18 +19,15 @@ class Model(nn.Module):
         """Builds the model from defined config"""
         cfg = Config()
         modules_cfg = cfg.get("model")
-        dummy_input_shape = [
-            1,
-            3,
-        ] + cfg.get(
+        dummy_input_shape = [1, 3,] + cfg.get(
             "train.preprocessing.train_image_size"
         )  # NOTE: we assume 3 dimensional input shape
 
         self.backbone = BACKBONES.get(modules_cfg["backbone"]["name"])(
             **modules_cfg["backbone"].get("params", {})
         )
-        # load local backbone weights if avaliable
-        if modules_cfg["backbone"].get("pretrained", False):
+        # load backbone weights if avaliable
+        if modules_cfg["backbone"].get("pretrained"):
             path = modules_cfg["backbone"]["pretrained"]
             print(f"Loading backbone weights from: {path}")
             fs = LuxonisFileSystem(path)

@@ -1,12 +1,19 @@
-from .common import CrossEntropyLoss, BCEWithLogitsLoss, FocalLoss, SegmentationLoss
-from .yolov6_loss import YoloV6Loss
-from .yolov7_pose_loss import YoloV7PoseLoss
+from .common import (
+    CrossEntropyLoss,
+    BCEWithLogitsLoss,
+    SmoothBCEWithLogitsLoss,
+    SigmoidFocalLoss,
+    SoftmaxFocalLoss,
+)
+from .bboxyolov6_loss import BboxYoloV6Loss
+from .keypoint_box_loss import KeypointBoxLoss
 
 __all__ = [
     "CrossEntropyLoss",
     "BCEWithLogitsLoss",
-    "FocalLoss",
-    "SegmentationLoss",
-    "YoloV6Loss",
-    "YoloV7PoseLoss",
+    "SmoothBCEWithLogitsLoss",
+    "SigmoidFocalLoss",
+    "SoftmaxFocalLoss",
+    "BboxYoloV6Loss",
+    "KeypointBoxLoss",
 ]

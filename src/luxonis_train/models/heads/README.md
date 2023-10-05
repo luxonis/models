@@ -21,19 +21,19 @@ Every head takes these parameters:
     - upscale_factor: int # Factor used for upscaling input. Defaults to 8.
     - is_aux: bool # Either use 256 for intermediate channels or 64. Defaults to False.
 
-- **YoloV6Head** (adapted from [here](https://github.com/meituan/YOLOv6/blob/725913050e15a31cd091dfd7795a1891b0524d35/yolov6/models/effidehead.py))
+- **BboxYoloV6Head** (adapted from [here](https://arxiv.org/pdf/2209.02976.pdf))
   - Params:
     - num_heads: bool # Number of output heads. Defaults to 3. ***Note:** Should be same also on neck in most cases.*
-    
-  ***Note:** attach_index: Defaults to 0. Value must be non-negative.* 
 
-- **IKeypoint** (adapted from [here](https://github.com/WongKinYiu/yolov7))
+  ***Note:** attach_index: Defaults to 0. Value must be non-negative.*
+
+- **KeypointBboxHead** (adapted from [here](https://arxiv.org/pdf/2207.02696.pdf))
   - Params:
-    - n_keypoints: int # Number of keypoints
+    - n_keypoints: int # Number of keypoints. Defaults to 17.
     - num_heads: bool # Number of output heads. Defaults to 3. ***Note:** Should be same also on neck in most cases.*
-    - anchors: list # Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)* ***Note:** If this is set to null in config then anchors are computed at runtime from the dataset.*
-    - connectivity: list # Connectivity mapping used in visualization. Defaults to None.
+    - anchors: List[List[int]] # Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)* ***Note:** If this is set to null in config then anchors are computed at runtime from the dataset.*
+    - connectivity: List[int] # Connectivity mapping used in visualization. Defaults to None.
     - visibility_threshold: float # Keypoints with visibility lower than threshold won't be drawn. Defaults to 0.5.
-    - init_coco_biases (bool, optional): Weather to use COCO bias and weight initialization. Defaults to True.
+    - init_coco_biases: bool # Whether to use COCO bias and weight initialization. Defaults to True.
 
   ***Note:** attach_index: Defaults to 0. Value must be non-negative.*

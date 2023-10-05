@@ -1,6 +1,6 @@
 import os
 import mlflow
-from typing import Optional
+from typing import Optional, Any, List
 from types import ModuleType
 import fsspec
 from io import BytesIO
@@ -9,7 +9,7 @@ from io import BytesIO
 class LuxonisFileSystem:
     def __init__(
         self,
-        path: str,
+        path: Optional[str],
         allow_active_mlflow_run: Optional[bool] = False,
         allow_local: Optional[bool] = True,
     ):
@@ -17,7 +17,7 @@ class LuxonisFileSystem:
         Supports S3, MLflow and local file systems.
 
         Args:
-            path (str): Input path consisting of protocol and actual path or just path for local files
+            path (Optional[str]): Input path consisting of protocol and actual path or just path for local files
             allow_active_mlflow_run (Optional[bool], optional): Flag if operations are allowed on active MLFlow run. Defaults to False.
             allow_local (Optional[bool], optional): Flag if operations are allowed on local file system. Defaults to True.
         """
@@ -70,11 +70,11 @@ class LuxonisFileSystem:
             self.is_fsspec = True
             self.fs = self.init_fsspec_filesystem()
 
-    def full_path(self):
+    def full_path(self) -> str:
         """Returns full path"""
         return f"{self.protocol}://{self.path}"
 
-    def init_fsspec_filesystem(self):
+    def init_fsspec_filesystem(self) -> Any:
         """Returns fsspec filesystem based on protocol"""
         if self.protocol == "s3":
             # NOTE: In theory boto3 should look in environment variables automatically but it doesn't seem to work
@@ -92,14 +92,14 @@ class LuxonisFileSystem:
     def put_file(
         self,
         local_path: str,
-        remote_path: Optional[str] = None,
+        remote_path: str,
         mlflow_instance: Optional[ModuleType] = None,
-    ):
+    ) -> None:
         """Copy single file to remote
 
         Args:
             local_path (str): Path to local file
-            remote_path (Optional[str], optional): Relative path to remote file. Defaults to None.
+            remote_path (str): Relative path to remote file
             mlflow_instance (Optional[ModuleType], optional): MLFlow instance if uploading to active run. Defaults to None.
         """
         if self.is_mlflow:
@@ -116,7 +116,7 @@ class LuxonisFileSystem:
         elif self.is_fsspec:
             self.fs.put_file(local_path, os.path.join(self.path, remote_path))
 
-    def read_to_byte_buffer(self):
+    def read_to_byte_buffer(self) -> BytesIO:
         """Reads a file and returns Byte buffer"""
         if self.is_mlflow:
             if self.is_mlflow_active_run:
@@ -140,7 +140,7 @@ class LuxonisFileSystem:
 
         return buffer
 
-    def _split_mlflow_path(self, path):
+    def _split_mlflow_path(self, path: str) -> List[Optional[str]]:
         """Splits mlflow path into 3 parts"""
         parts = path.split("/")
         if len(parts) < 3:

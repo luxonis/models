@@ -15,7 +15,7 @@ from luxonis_train.utils.registry import LOSSES, CALLBACKS, OPTIMIZERS, SCHEDULE
 from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
 from luxonis_train.utils.filesystem import LuxonisFileSystem
-from luxonis_train.utils.callbacks import AnnotationChecker
+from luxonis_train.utils.callbacks import AnnotationChecker, ModuleFreezer
 
 
 class ModelLightningModule(pl.LightningModule):
@@ -35,7 +35,7 @@ class ModelLightningModule(pl.LightningModule):
         for i, head in enumerate(self.cfg.get("model.heads")):
             # pass config params + head instance attributes
             params = {
-                **head["loss"]["params"],
+                **head["loss"].get("params", {}),
                 "head_attributes": self.model.heads[i].__dict__,
             }
             self.losses.append(LOSSES.get(head["loss"]["name"])(**params))
@@ -46,42 +46,13 @@ class ModelLightningModule(pl.LightningModule):
             self.metrics[curr_head.get_name(i)] = init_metrics(curr_head)
 
         # load pretrained weights if defined
-        if self.cfg.get("model.pretrained"):
+        if self.cfg.get("model").get("pretrained"):
             self.load_checkpoint(self.cfg.get("model.pretrained"))
-
-        # freeze modules if defined
-        self.freeze_modules(self.cfg.get("train.freeze_modules"))
 
         # lists for storing intermediate step outputs
         self.training_step_outputs = []
         self.validation_step_outputs = []
         self.test_step_outputs = []
-
-    def freeze_modules(self, freeze_info: dict):
-        """Selectively freezes models modules from the training
-
-        Args:
-            freeze_info (dict): Dictionary of model parts (backbone|neck|heads) with boolean values set to True if the part should be frozen
-        """
-        modules_to_freeze = []
-        for key, value in freeze_info.items():
-            if key == "backbone" and value:
-                modules_to_freeze.append(self.model.backbone)
-            elif key == "neck" and value:
-                if self.model.neck:
-                    modules_to_freeze.append(self.model.neck)
-                else:
-                    warnings.warn(
-                        "Skipping neck freezing as model doesn't have a neck."
-                    )
-            elif key == "heads":
-                modules_to_freeze.extend(
-                    [self.model.heads[i] for i, v in enumerate(value) if v]
-                )
-
-        for module in modules_to_freeze:
-            for param in module.parameters():
-                param.requires_grad = False
 
     def configure_callbacks(self):
         """Configures Pytorch Lightning callbacks"""
@@ -118,7 +89,14 @@ class ModelLightningModule(pl.LightningModule):
 
         lr_monitor = LearningRateMonitor(logging_interval="step")
         annotation_checker = AnnotationChecker()
-        callbacks = [loss_checkpoint, metric_checkpoint, lr_monitor, annotation_checker]
+        module_freezer = ModuleFreezer(freeze_info=self.cfg.get("train.freeze_modules"))
+        callbacks = [
+            loss_checkpoint,
+            metric_checkpoint,
+            lr_monitor,
+            annotation_checker,
+            module_freezer,
+        ]
 
         # used if we want to perform fine-grained debugging
         if self.cfg.get("train.callbacks.use_device_stats_monitor"):
@@ -187,7 +165,7 @@ class ModelLightningModule(pl.LightningModule):
         # config params + model parameters
         optim_params = {
             **cfg_optimizer["optimizer"].get("params", {}),
-            "params": self.model.parameters(),
+            "params": filter(lambda p: p.requires_grad, self.model.parameters()),
         }
         optimizer = OPTIMIZERS.get(cfg_optimizer["optimizer"]["name"])(**optim_params)
 

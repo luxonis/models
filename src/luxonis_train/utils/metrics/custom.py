@@ -2,8 +2,7 @@ import torch
 import contextlib
 import io
 from torch import Tensor
-from typing import List, Optional
-from typing_extensions import Literal
+from typing import List, Optional, Dict, Any, Tuple, Literal
 from torchmetrics import Metric, detection
 from scipy.optimize import linear_sum_assignment
 from torchvision.ops import box_convert
@@ -23,7 +22,11 @@ class ObjectKeypointSimilarity(Metric):
     groundtruth_scales: List[Tensor]
 
     def __init__(
-        self, num_keypoints: int, kpt_sigmas: Optional[Tensor] = None, **kwargs
+        self,
+        num_keypoints: int,
+        kpt_sigmas: Optional[Tensor] = None,
+        use_cocoeval_oks: bool = False,
+        **kwargs,
     ) -> None:
         """Object Keypoint Similarity metric for evaluating keypoint predictions
 
@@ -31,14 +34,16 @@ class ObjectKeypointSimilarity(Metric):
             num_keypoints (int): Number of keypoints
             kpt_sigmas (Optional[Tensor], optional): Sigma for each keypoint to weigh its importance,
                 if None use same weights for all. Defaults to None.
+            use_cocoeval_oks (bool, optional): Whether to use same OKS formula as in COCOeval or use
+                the one from definition. Defaults to False.
 
         As input to ``forward`` and ``update`` the metric accepts the following input:
-        - preds (list): A list consisting of dictionaries each containg key-values for a single image.
+        - preds (List[Dict[str, Tensor]]): A list consisting of dictionaries each containing key-values for a single image.
             Parameters that should be provided per dict:
             - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
                 are unnormalized keypoint coordinates and `vis` is keypoint visibility.
 
-        - `target` (list): A list consisting of dictionaries each containg key-values for a single image.
+        - `target` (List[Dict[str, Tensor]]): A list consisting of dictionaries each containing key-values for a single image.
             Parameters that should be provided per dict:
             - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
                 are unnormalized keypoint coordinates and `vis` is keypoint visibility.
@@ -52,12 +57,15 @@ class ObjectKeypointSimilarity(Metric):
         if kpt_sigmas is not None and len(kpt_sigmas) != num_keypoints:
             raise ValueError(f"Expected kpt_sigmas to be of shape (num_keypoints).")
         self.kpt_sigmas = kpt_sigmas or torch.ones(num_keypoints)
+        self.use_cocoeval_oks = use_cocoeval_oks
 
         self.add_state("pred_keypoints", default=[], dist_reduce_fx=None)
         self.add_state("groundtruth_keypoints", default=[], dist_reduce_fx=None)
         self.add_state("groundtruth_scales", default=[], dist_reduce_fx=None)
 
-    def update(self, preds: list, target: list):
+    def update(
+        self, preds: List[Dict[str, Tensor]], target: List[Dict[str, Tensor]]
+    ) -> None:
         """Torchmetric update function"""
         for item in preds:
             keypoints = fix_empty_tensors(item["keypoints"])
@@ -68,7 +76,7 @@ class ObjectKeypointSimilarity(Metric):
             self.groundtruth_keypoints.append(keypoints)
             self.groundtruth_scales.append(item["scales"])
 
-    def compute(self):
+    def compute(self) -> Tensor:
         """Torchmetric compute function"""
         self.kpt_sigmas = self.kpt_sigmas.to(
             self.device
@@ -80,15 +88,13 @@ class ObjectKeypointSimilarity(Metric):
                 self.pred_keypoints, self.groundtruth_keypoints, self.groundtruth_scales
             )
         ):
-            # reshape tensors in [N, K, 3] format
-            gt_kpts = torch.reshape(gt_kpts, (-1, self.num_keypoints, 3))
-            pred_kpts = torch.reshape(pred_kpts, (-1, self.num_keypoints, 3))
-            image_ious = torch.zeros(gt_kpts.shape[0], pred_kpts.shape[0])
-            for j, curr_gt in enumerate(gt_kpts):
-                for k, curr_pred in enumerate(pred_kpts):
-                    image_ious[j, k] = self._compute_oks(
-                        curr_pred, curr_gt, scale=gt_scales[j]
-                    )
+            gt_kpts = torch.reshape(gt_kpts, (-1, self.num_keypoints, 3))  # [N, K, 3]
+            pred_kpts = torch.reshape(
+                pred_kpts, (-1, self.num_keypoints, 3)
+            )  # [M, K, 3]
+
+            # compute OKS
+            image_ious = self._compute_oks(pred_kpts, gt_kpts, gt_scales)  # [M, N]
 
             # perform linear sum assignment
             gt_indices, pred_indices = linear_sum_assignment(
@@ -99,31 +105,42 @@ class ObjectKeypointSimilarity(Metric):
             image_mean_oks[i] = torch.tensor(matched_ious).mean()
 
         # final prediction is mean of OKS over all images
-        final_oks = image_mean_oks.mean()
+        final_oks = image_mean_oks.nanmean()
 
         return final_oks
 
-    def _compute_oks(self, pred: torch.Tensor, gt: torch.Tensor, scale: float):
-        """Compute Object Keypoint Similarity between ground truth and prediction
-            as defined here: https://cocodataset.org/#keypoints-eval
+    def _compute_oks(self, pred: Tensor, gt: Tensor, scales: Tensor) -> Tensor:
+        """Compute Object Keypoint Similarity between every GT and prediction
 
         Args:
-            pred (torch.Tensor): Prediction with shape [K, 3]
-            gt (torch.Tensor): GT with shape [K, 3]
-            scale (float): Scale of GT
+            pred (Tensor): Prediction tensor with shape [N, K, 3]
+            gt (Tensor): GT tensor with shape [M, K, 3]
+            scale (float): Scale tensor for every GT [M,]
 
         Returns:
-            torch.FloatTensor: Object Keypoint Similarity between pred and GT
+            Tensor: Object Keypoint Similarity every pred and gt [M, N]
         """
-        # Compute the L2/Euclidean Distance
-        distances = torch.norm(pred[:, :2] - gt[:, :2], dim=-1)
-        # Compute the exponential part of the equation
-        exp_vector = torch.exp(
-            -(distances**2) / (2 * (scale**2) * (self.kpt_sigmas**2))
+        eps = 1e-7
+        distances = (gt[:, None, :, 0] - pred[..., 0]) ** 2 + (
+            gt[:, None, :, 1] - pred[..., 1]
+        ) ** 2  # (N, M, 17)
+        kpt_mask = gt[..., 2] != 0  # only compute on visible keypoints
+        if self.use_cocoeval_oks:
+            # use same formula as in COCOEval script here:
+            # https://github.com/cocodataset/cocoapi/blob/8c9bcc3cf640524c4c20a9c40e89cb6a2f2fa0e9/PythonAPI/pycocotools/cocoeval.py#L229
+            oks = (
+                distances
+                / (2 * self.kpt_sigmas) ** 2
+                / (scales[:, None, None] + eps)
+                / 2
+            )
+        else:
+            # use same formula as defined here: https://cocodataset.org/#keypoints-eval
+            oks = distances / ((scales[:, None, None] + eps) * self.kpt_sigmas) ** 2 / 2
+
+        return (torch.exp(-oks) * kpt_mask[:, None]).sum(-1) / (
+            kpt_mask.sum(-1)[:, None] + eps
         )
-        numerator = torch.dot(exp_vector, gt[:, 2].bool().float())
-        denominator = torch.sum(gt[:, 2].bool().int()) + 1e-9
-        return numerator / denominator
 
 
 class MeanAveragePrecision(detection.MeanAveragePrecision):
@@ -132,8 +149,9 @@ class MeanAveragePrecision(detection.MeanAveragePrecision):
         Check original documentation: https://torchmetrics.readthedocs.io/en/stable/detection/mean_average_precision.html
         """
         super().__init__(**kwargs)
+
     def compute(self) -> dict:
-        metric_dict =  super().compute()
+        metric_dict = super().compute()
         # per class metrics are omitted until we find a nice way to log them
         del metric_dict["classes"]
         del metric_dict["map_per_class"]
@@ -176,7 +194,7 @@ class MeanAveragePrecisionKeypoints(Metric):
             box_format (Literal[xyxy, xywh, cxcywh], optional): Input bbox format. Defaults to "xyxy".
 
         As input to ``forward`` and ``update`` the metric accepts the following input:
-        - preds (list): A list consisting of dictionaries each containg key-values for a single image.
+        - preds (List[Dict[str, Tensor]]): A list consisting of dictionaries each containing key-values for a single image.
             Parameters that should be provided per dict:
             - boxes (torch.FloatTensor): Tensor of shape ``(num_boxes, 4)`` containing ``num_boxes`` detection
                 boxes of the format specified in the constructor. By default, this method expects ``(xmin, ymin, xmax, ymax)`` in absolute image coordinates.
@@ -185,7 +203,7 @@ class MeanAveragePrecisionKeypoints(Metric):
             - keypoints (torch.FloatTensor): Tensor of shape (N, 3*K) and in format [x,y,vis,x,y,vis,...] where `x` an `y`
                 are unnormalized keypoint coordinates and `vis` is keypoint visibility.
 
-        - `target` (list): A list consisting of dictionaries each containg key-values for a single image.
+        - `target` (List[Dict[str, Tensor]]): A list consisting of dictionaries each containing key-values for a single image.
             Parameters that should be provided per dict:
             - boxes (torch.FloatTensor): Tensor of shape ``(num_boxes, 4)`` containing ``num_boxes`` ground truth
                 boxes of the format specified in the constructor. By default, this method expects ``(xmin, ymin, xmax, ymax)`` in absolute image coordinates.
@@ -224,7 +242,9 @@ class MeanAveragePrecisionKeypoints(Metric):
         self.add_state("groundtruth_crowds", default=[], dist_reduce_fx=None)
         self.add_state("groundtruth_keypoints", default=[], dist_reduce_fx=None)
 
-    def update(self, preds: list, target: list):
+    def update(
+        self, preds: List[Dict[str, Tensor]], target: List[Dict[str, Tensor]]
+    ) -> None:
         """Torchmetric update function"""
         for item in preds:
             boxes, keypoints = self._get_safe_item_values(item)
@@ -245,7 +265,7 @@ class MeanAveragePrecisionKeypoints(Metric):
                 item.get("iscrowd", torch.zeros_like(item["labels"]))
             )
 
-    def compute(self):
+    def compute(self) -> Dict[str, Tensor]:
         """Torchmetric compute function"""
         coco_target, coco_preds = COCO(), COCO()
         coco_target.dataset = self._get_coco_format(
@@ -289,13 +309,13 @@ class MeanAveragePrecisionKeypoints(Metric):
 
     def _get_coco_format(
         self,
-        boxes: list,
-        keypoints: list,
-        labels: list,
-        scores: Optional[list] = None,
-        crowds: Optional[list] = None,
-        area: Optional[list] = None,
-    ):
+        boxes: List[Tensor],
+        keypoints: List[Tensor],
+        labels: List[Tensor],
+        scores: Optional[List[Tensor]] = None,
+        crowds: Optional[List[Tensor]] = None,
+        area: Optional[List[Tensor]] = None,
+    ) -> Dict[str, List[Dict[str, Any]]]:
         """Transforms and returns all cached targets or predictions in COCO format.
         Format is defined at https://cocodataset.org/#format-data
         """
@@ -363,7 +383,7 @@ class MeanAveragePrecisionKeypoints(Metric):
         classes = [{"id": i, "name": str(i)} for i in self._get_classes()]
         return {"images": images, "annotations": annotations, "categories": classes}
 
-    def _get_safe_item_values(self, item: dict):
+    def _get_safe_item_values(self, item: Dict[str, Tensor]) -> Tuple[Tensor, Tensor]:
         """Convert and return the boxes"""
         boxes = fix_empty_tensors(item["boxes"])
         if boxes.numel() > 0:
@@ -371,7 +391,7 @@ class MeanAveragePrecisionKeypoints(Metric):
         keypoints = fix_empty_tensors(item["keypoints"])
         return boxes, keypoints
 
-    def _get_classes(self):
+    def _get_classes(self) -> List[int]:
         """Return a list of unique classes found in ground truth and detection data."""
         if len(self.pred_labels) > 0 or len(self.groundtruth_labels) > 0:
             return (
@@ -383,7 +403,7 @@ class MeanAveragePrecisionKeypoints(Metric):
         return []
 
 
-def fix_empty_tensors(input_tensor: Tensor):
+def fix_empty_tensors(input_tensor: Tensor) -> Tensor:
     """Empty tensors can cause problems in DDP mode, this methods corrects them."""
     if input_tensor.numel() == 0 and input_tensor.ndim == 1:
         return input_tensor.unsqueeze(0)

@@ -231,6 +231,9 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "dataset_name": {
+                    "type": "string"
+                },
                 "team_id": {
                     "type": "string"
                 },
@@ -266,6 +269,9 @@
                 "test_view": {
                     "type": "string",
                     "default": "test"
+                },
+                "json_mode": {
+                    "type": "boolean"
                 }
             },
             "required": [

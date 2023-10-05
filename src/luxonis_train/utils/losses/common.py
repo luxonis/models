@@ -5,8 +5,10 @@ from typing import Dict, Optional, Literal, Tuple, Union, List
 from torchvision.ops import sigmoid_focal_loss
 
 from luxonis_train.utils.losses.base_loss import BaseLoss
+from luxonis_train.utils.registry import LOSSES
 
 
+@LOSSES.register_module()
 class CrossEntropyLoss(BaseLoss):
     def __init__(
         self,
@@ -48,6 +50,7 @@ class CrossEntropyLoss(BaseLoss):
         return self.criterion(preds, target), {}
 
 
+@LOSSES.register_module()
 class BCEWithLogitsLoss(BaseLoss):
     def __init__(
         self,
@@ -82,6 +85,7 @@ class BCEWithLogitsLoss(BaseLoss):
         return self.criterion(preds, target), {}
 
 
+@LOSSES.register_module()
 class SmoothBCEWithLogitsLoss(BaseLoss):
     def __init__(self, label_smoothing: float = 0.0, bce_pow: float = 1.0, **kwargs):
         """BCE with logits loss with label smoothing
@@ -121,6 +125,7 @@ class SmoothBCEWithLogitsLoss(BaseLoss):
         return self.criterion(prediction, smoothed_target), {}
 
 
+@LOSSES.register_module()
 class SigmoidFocalLoss(BaseLoss):
     def __init__(
         self,
@@ -158,6 +163,7 @@ class SigmoidFocalLoss(BaseLoss):
         return loss, {}
 
 
+@LOSSES.register_module()
 class SoftmaxFocalLoss(BaseLoss):
     def __init__(
         self,

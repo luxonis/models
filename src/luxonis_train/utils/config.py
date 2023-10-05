@@ -8,7 +8,9 @@ from typing import Union, Optional, Dict, Any, List, Tuple
 from copy import deepcopy
 
 from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
+from luxonis_ml.loader import LabelType
 from luxonis_train.utils.filesystem import LuxonisFileSystem
+from luxonis_train.utils.registry import HEADS
 
 
 class Config:
@@ -293,7 +295,6 @@ class Config:
 
     def _validate_dataset_classes(self) -> None:
         """Validates config to used datasets, overrides n_classes if needed"""
-        from luxonis_train.utils.config_helpers import get_head_label_types
 
         with LuxonisDataset(
             dataset_name=self._data["dataset"]["dataset_name"],
@@ -478,6 +479,11 @@ class Config:
                         head["params"]["anchors"] = proposed_anchors.reshape(
                             -1, 6
                         ).tolist()
+
+
+def get_head_label_types(head_str: str) -> List[LabelType]:
+    """Returns all label types defined as head class attributes"""
+    return HEADS.get(head_str).label_types
 
 
 def remove_chars_inside_brackets(string: str) -> str:

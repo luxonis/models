@@ -6,15 +6,16 @@
 import torch.nn as nn
 from torch.nn import functional as F
 
-from luxonis_train.models.backbones import *
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import (
     ConvModule,
     AttentionRefinmentBlock,
     FeatureFusionBlock,
 )
+from luxonis_train.utils.registry import BACKBONES
 
 
+@BACKBONES.register_module()
 class ContextSpatial(BaseBackbone):
     def __init__(self, context_backbone: str = "MobileNetV2", **kwargs):
         """Context spatial backbone
@@ -24,7 +25,7 @@ class ContextSpatial(BaseBackbone):
         """
         super().__init__(**kwargs)
 
-        self.context_path = ContextPath(eval(context_backbone)())
+        self.context_path = ContextPath(BACKBONES.get(context_backbone)())
         self.spatial_path = SpatialPath(3, 128)
         self.ffm = FeatureFusionBlock(256, 256)
 

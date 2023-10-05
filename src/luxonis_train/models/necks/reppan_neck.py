@@ -10,8 +10,10 @@ from typing import Literal
 from luxonis_train.models.necks.base_neck import BaseNeck
 from luxonis_train.models.modules import BlockRepeater, RepVGGBlock, ConvModule
 from luxonis_train.utils.general import make_divisible
+from luxonis_train.utils.registry import NECKS
 
 
+@NECKS.register_module()
 class RepPANNeck(BaseNeck):
     def __init__(
         self,

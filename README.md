@@ -131,6 +131,7 @@ To store and load the data we use LuxonisDataset and LuxonisLoader. For specific
 
 ```yaml
 dataset:
+  dataset_name: null # name of the dataset (string)
   team_id: null # team under which you can find all datasets (string)
   dataset_id: null # id of the dataset (string)
   bucket_type: BucketType.INTERNAL # type of underlying storage (BucketType)
@@ -138,12 +139,13 @@ dataset:
   train_view: train # view to use for training (string)
   val_view: val # view to use for validation (string)
   test_view: test # view to use for testing (string)
+  json_mode: False # load using JSON annotations instead of MongoDB
 ```
 
 ### Train
 Here you can change everything related to actual training of the model.
 
-We use [Albumentations](https://albumentations.ai/docs/) library for `augmentations`. [Here](https://albumentations.ai/docs/api_reference/full_reference/#pixel-level-transforms) you can see a list of all pixel level augmentations supported, and [here](https://albumentations.ai/docs/api_reference/full_reference/#spatial-level-transforms) you see all spatial level transformations. In config you can specify any augmentation from this lists and their params.
+We use [Albumentations](https://albumentations.ai/docs/) library for `augmentations`. [Here](https://albumentations.ai/docs/api_reference/full_reference/#pixel-level-transforms) you can see a list of all pixel level augmentations supported, and [here](https://albumentations.ai/docs/api_reference/full_reference/#spatial-level-transforms) you see all spatial level transformations. In config you can specify any augmentation from this lists and their params. Additionaly we support `Mosaic4` batch augmentation and letterbox resizing if `keep_aspect_ratio: True`.
 
 For `callbacks` Pytorch Lightning is used and you can check [here](https://lightning.ai/docs/pytorch/stable/extensions/callbacks.html) for parameter definitions. We also provide some additional callbacks:
 - `test_on_finish` - Runs test on the test set with best weights on train finish.
@@ -243,27 +245,31 @@ python3 tools/train.py -cfg configs/custom.yaml --override "train.batch_size 8 t
 ```
 where key and value are space separated and sub-keys are dot(`.`) separated. If structure is of type list then key/sub-key should be a number (e.g. `train.preprocessing.augmentations.0.name RotateCustom`).
 
-## Customize Trainer through API
-Before trainig the model you can also additionaly configure it with the use of our [Trainer](./src/luxonis_train/core/trainer.py) API. Look at [train.py](./tools/train.py) to see how Trainer is initialized. 
+## Customizations
+We provide a module registry interface through which you can create new backbones, necks, heads, losses, callbacks, optimizers and scheduler. This can be then referenced in the config and used during training. To ensure that everything still works correctly we recommend you inherit from specific base classes:
+- Backbone - [BaseBackbone](src/luxonis_train/models/backbones/base_backbone.py)
+- Neck - [BaseNeck](src/luxonis_train/models/necks/base_neck.py)
+- Head - [BaseHead](src/luxonis_train/models/heads/base_heads.py)
+- Loss - [BaseLoss](src/luxonis_train/utils/losses/base_loss.py)
+- Callback - [Callback from lightning.pytorch.callbacks](lightning.pytorch.callbacks)
+  - This are referenced through Config in `train.callbacks.custom_callbacks` similarly as augmentations (list of dictionaries with module name and params)
+- Optimizer - [Optimizer from torch.optim](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer)
+- Scheduler - [LRScheduler from torch.optim.lr_scheduler](https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate)
 
-From there you can override the loss function for specific head by calling: 
+Here is an example of how to use custom loss module:
 ```python
-my_loss = my_custom_loss() # this should be torch.nn.Module
-trainer = Trainer(args_dict, cfg)
-trainer.override_loss(custom_loss=my_loss, head_id=0)
-```
-***Note**: Number of classes (`n_classes`) is beaing passed to each loss initialization by default. In addition to output and labels we also pass current epoch (`epoch`) and current step (`step`) as parameters on every loss function call. If you don't need this use `**kwargs` keyword when defining loss function.*
+from luxonis_train.utils.losses.base_loss import BaseLoss
+from luxonis_train.utils.registry import LOSSES
 
-You can also override train or validation augmentations like this:
-```python
-my_train_aug = my_custom_train_aug()
-my_val_aug = my_custom_val_aug()
-trainer = Trainer(cfg, args_dict)
-trainer.override_train_augmentations(aug=my_train_aug)
-trainer.override_val_augmentations(aug=my_val_aug)
+@LOSSES.register_module()
+class CustomLoss(BaseLoss):
+    def forward(self, preds: Any, target: Any, epoch: int, step: int):
+      ...
 ```
+And then in the config you reference this CustomLoss under the head.
 
-To run training in another thread use this:
+
+Lastly there is also an option to run training in a separate thread:
 ```python
 trainer = Trainer(cfg, args_dict)
 trainer.train(new_thread=True)

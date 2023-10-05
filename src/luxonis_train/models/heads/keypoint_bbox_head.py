@@ -22,9 +22,11 @@ from luxonis_train.utils.boxutils import (
     process_keypoints_predictions,
 )
 from luxonis_train.utils.constants import HeadType
+from luxonis_train.utils.registry import HEADS
 from luxonis_ml.loader import LabelType
 
 
+@HEADS.register_module()
 class KeypointBboxHead(BaseHead):
     head_types: List[HeadType] = [
         HeadType.OBJECT_DETECTION,

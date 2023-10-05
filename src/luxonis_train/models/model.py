@@ -1,9 +1,7 @@
 import torch.nn as nn
 import torch
-from .backbones import *
-from .necks import *
-from .heads import *
 
+from luxonis_train.utils.registry import BACKBONES, NECKS, HEADS
 from luxonis_train.utils.config import Config
 from luxonis_train.utils.general import dummy_input_run
 from luxonis_train.utils.filesystem import LuxonisFileSystem
@@ -25,7 +23,7 @@ class Model(nn.Module):
             "train.preprocessing.train_image_size"
         )  # NOTE: we assume 3 dimensional input shape
 
-        self.backbone = eval(modules_cfg["backbone"]["name"])(
+        self.backbone = BACKBONES.get(modules_cfg["backbone"]["name"])(
             **modules_cfg["backbone"].get("params", {})
         )
         # load backbone weights if avaliable
@@ -40,7 +38,7 @@ class Model(nn.Module):
         self.backbone_out_shapes = dummy_input_run(self.backbone, dummy_input_shape)
 
         if "neck" in modules_cfg and modules_cfg["neck"]:
-            self.neck = eval(modules_cfg["neck"]["name"])(
+            self.neck = NECKS.get(modules_cfg["neck"]["name"])(
                 input_channels_shapes=self.backbone_out_shapes,
                 **modules_cfg["neck"].get("params", {}),
             )
@@ -49,7 +47,7 @@ class Model(nn.Module):
             )
 
         for head in modules_cfg["heads"]:
-            curr_head = eval(head["name"])(
+            curr_head = HEADS.get(head["name"])(
                 input_channels_shapes=self.neck_out_shapes
                 if self.neck
                 else self.backbone_out_shapes,

@@ -11,9 +11,7 @@ from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_train.models import Model
 from luxonis_train.utils.config import Config
-from luxonis_train.utils.losses import init_loss
-from luxonis_train.utils.optimizers import init_optimizer
-from luxonis_train.utils.schedulers import init_scheduler
+from luxonis_train.utils.registry import LOSSES, CALLBACKS, OPTIMIZERS, SCHEDULERS
 from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
 from luxonis_train.utils.filesystem import LuxonisFileSystem
@@ -28,7 +26,6 @@ class ModelLightningModule(pl.LightningModule):
         self.cfg = Config()
         self.save_dir = save_dir
         self.model_name = self.cfg.get("model.name")
-        self.early_stopping = None  # early stopping callback
 
         self.model = Model()
         self.model.build_model()
@@ -41,7 +38,7 @@ class ModelLightningModule(pl.LightningModule):
                 **head["loss"].get("params", {}),
                 "head_attributes": self.model.heads[i].__dict__,
             }
-            self.losses.append(init_loss(name=head["loss"]["name"], **params))
+            self.losses.append(LOSSES.get(head["loss"]["name"])(**params))
 
         # for each head initialize its metrics
         self.metrics = nn.ModuleDict()
@@ -150,24 +147,37 @@ class ModelLightningModule(pl.LightningModule):
                 )
             )
 
+        custom_callbacks = self.cfg.get("train.callbacks.custom_callbacks")
+        if custom_callbacks:
+            for custom_callback in custom_callbacks:
+                callbacks.append(
+                    CALLBACKS.get(custom_callback["name"])(
+                        **custom_callback.get("params", {})
+                    )
+                )
+
         return callbacks
 
     def configure_optimizers(self):
         """Configures model optimizers and schedulers"""
         cfg_optimizer = self.cfg.get("train.optimizers")
-        optimizer_name = cfg_optimizer["optimizer"]["name"]
-        optimizer = init_optimizer(
-            model_params=filter(lambda p: p.requires_grad, self.model.parameters()),
-            name=optimizer_name,
-            **cfg_optimizer["optimizer"]["params"],
+
+        # config params + model parameters
+        optim_params = {
+            **cfg_optimizer["optimizer"].get("params", {}),
+            "params": filter(lambda p: p.requires_grad, self.model.parameters()),
+        }
+        optimizer = OPTIMIZERS.get(cfg_optimizer["optimizer"]["name"])(**optim_params)
+
+        # config params + optimizer
+        scheduler_params = {
+            **cfg_optimizer["scheduler"]["params"],
+            "optimizer": optimizer,
+        }
+        scheduler = SCHEDULERS.get(cfg_optimizer["scheduler"]["name"])(
+            **scheduler_params
         )
 
-        scheduler_name = cfg_optimizer["scheduler"]["name"]
-        scheduler = init_scheduler(
-            optimizer=optimizer,
-            name=scheduler_name,
-            **cfg_optimizer["scheduler"]["params"],
-        )
         return [optimizer], [scheduler]
 
     def load_checkpoint(self, path: str):

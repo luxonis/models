@@ -1,8 +1,10 @@
 import torch.nn as nn
 
 from luxonis_train.models.heads.base_heads import BaseClassificationHead
+from luxonis_train.utils.registry import HEADS
 
 
+@HEADS.register_module()
 class ClassificationHead(BaseClassificationHead):
     def __init__(
         self,

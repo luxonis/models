@@ -10,8 +10,10 @@ from typing import Optional, Literal
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import RepVGGBlock
+from luxonis_train.utils.registry import BACKBONES
 
 
+@BACKBONES.register_module()
 class RepVGG(BaseBackbone):
     def __init__(self, variant: Literal["A0", "A1", "A2"] = "A0", **kwargs):
         """RepVGG baackbone

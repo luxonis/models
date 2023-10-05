@@ -7,8 +7,10 @@
 import torchvision
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
+from luxonis_train.utils.registry import BACKBONES
 
 
+@BACKBONES.register_module()
 class MobileNetV2(BaseBackbone):
     def __init__(self, download_weights: bool = False, **kwargs):
         """MobileNetV2 backbone

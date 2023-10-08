@@ -5,7 +5,7 @@
 import math
 import torch
 import torch.nn as nn
-from typing import Literal
+from typing import Literal, Optional, Dict, Any
 from torchvision.ops import box_convert
 from torchvision.utils import draw_bounding_boxes
 
@@ -28,6 +28,8 @@ class BboxYoloV6Head(BaseObjectDetection):
         original_in_shape: list,
         num_heads: Literal[2, 3, 4] = 3,
         attach_index: int = 0,
+        metric_cfg: Optional[Dict[str, Any]] = None,
+        main_metric: Optional[str] = None,
         **kwargs,
     ):
         """Object detection head from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
@@ -43,11 +45,23 @@ class BboxYoloV6Head(BaseObjectDetection):
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to 0.
                 ***Note:** Value must be non-negative.**
         """
+        if not metric_cfg:
+            metric_cfg = [
+                {
+                    "name": "MeanAveragePrecision",
+                    "params": {"box_format": "xyxy"},
+                }
+            ]
+        if not main_metric:
+            main_metric = "MeanAveragePrecision_map"
+
         super().__init__(
             n_classes=n_classes,
             input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            metric_cfg=metric_cfg,
+            main_metric=main_metric,
             **kwargs,
         )
 
@@ -89,15 +103,15 @@ class BboxYoloV6Head(BaseObjectDetection):
         return output, label
 
     def postprocess_for_metric(self, output: tuple, label_dict: dict):
-        label = label_dict[self.label_types[0]]
+        targets = label_dict[self.label_types[0]]
 
         output_nms = self._process_to_bbox(output)
         image_size = self.original_in_shape[2:]
 
-        output_list = []
-        label_list = []
+        preds_list = []
+        target_list = []
         for i in range(len(output_nms)):
-            output_list.append(
+            preds_list.append(
                 {
                     "boxes": output_nms[i][:, :4],
                     "scores": output_nms[i][:, 4],
@@ -105,13 +119,17 @@ class BboxYoloV6Head(BaseObjectDetection):
                 }
             )
 
-            curr_label = label[label[:, 0] == i]
-            curr_bboxs = box_convert(curr_label[:, 2:], "xywh", "xyxy")
+            curr_target = targets[targets[:, 0] == i]
+            curr_bboxs = box_convert(curr_target[:, 2:], "xywh", "xyxy")
             curr_bboxs[:, 0::2] *= image_size[1]
             curr_bboxs[:, 1::2] *= image_size[0]
-            label_list.append({"boxes": curr_bboxs, "labels": curr_label[:, 1].int()})
+            target_list.append({"boxes": curr_bboxs, "labels": curr_target[:, 1].int()})
 
-        return output_list, label_list, None
+        metric_mapping = {
+            "MeanAveragePrecision": (preds_list, target_list),
+            "raw": (output, label_dict),
+        }
+        return metric_mapping
 
     def draw_output_to_img(self, img: torch.Tensor, output: torch.Tensor, idx: int):
         curr_output = self._process_to_bbox(output, conf_thres=0.3, iou_thres=0.6)

@@ -2,11 +2,12 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 import cv2
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict, Any
 from torchvision.utils import draw_segmentation_masks
 import warnings
 
 from luxonis_ml.loader import LabelType
+from luxonis_train.utils.metrics import MetricModule
 from luxonis_train.utils.visualization import (
     torch_img_to_numpy,
     numpy_to_torch_img,
@@ -25,6 +26,7 @@ class BaseHead(nn.Module, ABC):
         input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
+        metric_cfg: Optional[List[Dict[str, Any]]] = None,
         main_metric: Optional[str] = None,
         **kwargs,
     ):
@@ -35,6 +37,7 @@ class BaseHead(nn.Module, ABC):
             input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
+            metric_cfg (Optional[List[Dict[str, Any]]], optional): List of init parameters for the metrics. Defaults to None.
             main_metric (Optional[str], optional): Name of the main metric which is used for tracking training process. Defaults to None.
         """
         super().__init__()
@@ -45,7 +48,22 @@ class BaseHead(nn.Module, ABC):
         self.attach_index = attach_index
         self.input_channels_shapes = input_channels_shapes
         self.original_in_shape = original_in_shape
-        self.main_metric = main_metric
+
+        if metric_cfg:
+            self.metric_module = MetricModule(metric_cfg)
+            # check if specified main metric is included (only check first part in case it's a submetric)
+            if (
+                main_metric
+                and main_metric.split("_")[0] not in self.metric_module.all_metrics
+            ):
+                raise KeyError(
+                    f"Specified main metric `{main_metric}` not present in metric module. "
+                    f"Either add this metric or choose one of {self.metric_module.all_metrics}"
+                )
+            else:
+                self.main_metric = main_metric
+        else:
+            self.metric_module = None
 
         if len(kwargs):
             warnings.warn(
@@ -77,7 +95,7 @@ class BaseHead(nn.Module, ABC):
     def postprocess_for_metric(
         self, output: Union[tuple, torch.Tensor], label_dict: dict
     ):
-        """Performs postprocessing on output and label for metric comput input
+        """Performs postprocessing on output and label for metric compute input
 
         Args:
             output (torch.Tensor): Output of current head
@@ -349,7 +367,8 @@ class BaseObjectDetection(BaseHead, ABC):
         input_channels_shapes: list,
         original_in_shape: list,
         attach_index: int = -1,
-        main_metric: str = "map",
+        metric_cfg: Optional[List[Dict[str, Any]]] = None,
+        main_metric: Optional[str] = None,
         **kwargs,
     ):
         """Base head for object detection tasks
@@ -359,13 +378,15 @@ class BaseObjectDetection(BaseHead, ABC):
             input_channels_shapes (list): List of output shapes from previous module
             original_in_shape (list): Original input shape to the model
             attach_index (int, optional): Index of previous output that the head attaches to. Defaults to -1.
-            main_metric (str, optional): Name of the main metric which is used for tracking training process. Defaults to "map".
+            metric_cfg (Optional[List[Dict[str, Any]]], optional): List of init parameters for the metrics. Defaults to None.
+            main_metric (Optional[str], optional): Name of the main metric which is used for tracking training process. Defaults to None.
         """
         super().__init__(
             n_classes=n_classes,
             input_channels_shapes=input_channels_shapes,
             original_in_shape=original_in_shape,
             attach_index=attach_index,
+            metric_cfg=metric_cfg,
             main_metric=main_metric,
             **kwargs,
         )

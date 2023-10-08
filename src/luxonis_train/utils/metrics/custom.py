@@ -9,7 +9,10 @@ from torchvision.ops import box_convert
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
+from luxonis_train.utils.registry import METRICS
 
+
+@METRICS.register_module()
 class ObjectKeypointSimilarity(Metric):
     is_differentiable: bool = False
     higher_is_better: bool = True
@@ -143,6 +146,7 @@ class ObjectKeypointSimilarity(Metric):
         )
 
 
+@METRICS.register_module()
 class MeanAveragePrecision(detection.MeanAveragePrecision):
     def __init__(self, **kwargs):
         """Wrapper for torchmetrics.detection.MeanAveragePrecision that omits some of the returned values
@@ -160,6 +164,7 @@ class MeanAveragePrecision(detection.MeanAveragePrecision):
         return metric_dict
 
 
+@METRICS.register_module()
 class MeanAveragePrecisionKeypoints(Metric):
     is_differentiable: bool = False
     higher_is_better: bool = True

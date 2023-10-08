@@ -19,7 +19,10 @@ class Model(nn.Module):
         """Builds the model from defined config"""
         cfg = Config()
         modules_cfg = cfg.get("model")
-        dummy_input_shape = [1, 3,] + cfg.get(
+        dummy_input_shape = [
+            1,
+            3,
+        ] + cfg.get(
             "train.preprocessing.train_image_size"
         )  # NOTE: we assume 3 dimensional input shape
 
@@ -52,6 +55,7 @@ class Model(nn.Module):
                 if self.neck
                 else self.backbone_out_shapes,
                 original_in_shape=dummy_input_shape,
+                metric_cfg=head.get("metrics"),
                 **head["params"],
             )
             self.heads.append(curr_head)

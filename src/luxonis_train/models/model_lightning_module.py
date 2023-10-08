@@ -4,6 +4,8 @@ import warnings
 import cv2
 import torch.nn as nn
 import numpy as np
+from typing import Dict
+from torch import Tensor
 from copy import deepcopy
 from pprint import pprint
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
@@ -12,7 +14,8 @@ from pytorch_lightning.utilities import rank_zero_only
 from luxonis_train.models import Model
 from luxonis_train.utils.config import Config
 from luxonis_train.utils.registry import LOSSES, CALLBACKS, OPTIMIZERS, SCHEDULERS
-from luxonis_train.utils.metrics import init_metrics
+
+# from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 from luxonis_train.utils.callbacks import AnnotationChecker, ModuleFreezer
@@ -41,9 +44,9 @@ class ModelLightningModule(pl.LightningModule):
             self.losses.append(LOSSES.get(head["loss"]["name"])(**params))
 
         # for each head initialize its metrics
-        self.metrics = nn.ModuleDict()
-        for i, curr_head in enumerate(self.model.heads):
-            self.metrics[curr_head.get_name(i)] = init_metrics(curr_head)
+        # self.metrics = nn.ModuleDict()
+        # for i, curr_head in enumerate(self.model.heads):
+        #     self.metrics[curr_head.get_name(i)] = init_metrics(curr_head)
 
         # load pretrained weights if defined
         if self.cfg.get("model").get("pretrained"):
@@ -316,17 +319,23 @@ class ModelLightningModule(pl.LightningModule):
 
             loss += curr_loss * self.cfg.get("train.losses.weights")[i]
 
-            curr_metrics = self.metrics[curr_head_name]["val_metrics"]
-            (
-                output_metrics,
-                label_metrics,
-                metric_mapping,
-            ) = curr_head.postprocess_for_metric(output, label_dict)
-            if metric_mapping is None:
-                curr_metrics.update(output_metrics, label_metrics)
-            else:
-                for k, v in metric_mapping.items():
-                    curr_metrics[k].update(output_metrics[v], label_metrics[v])
+            if curr_head.metric_module:
+                curr_metric_mapping = curr_head.postprocess_for_metric(
+                    output, label_dict
+                )
+                curr_head.metric_module.update("val", curr_metric_mapping)
+
+            # curr_metrics = self.metrics[curr_head_name]["val_metrics"]
+            # (
+            #     output_metrics,
+            #     label_metrics,
+            #     metric_mapping,
+            # ) = curr_head.postprocess_for_metric(output, label_dict)
+            # if metric_mapping is None:
+            #     curr_metrics.update(output_metrics, label_metrics)
+            # else:
+            #     for k, v in metric_mapping.items():
+            #         curr_metrics[k].update(output_metrics[v], label_metrics[v])
 
             # images for visualization and logging
             if batch_idx == 0:
@@ -515,25 +524,27 @@ class ModelLightningModule(pl.LightningModule):
                 )
                 self.log(f"val_loss/{key}", epoch_sub_loss, sync_dist=True)
 
-        metric_results = {}  # used for printing to console
+        metric_results = {}
         self._print_metric_warning("Computing metrics on val subset ...")
-        for i, curr_head_name in enumerate(self.metrics):
-            curr_metrics = self.metrics[curr_head_name]["val_metrics"].compute()
-            metric_results[curr_head_name] = curr_metrics
-            for metric_name in curr_metrics:
+        for i, curr_head in enumerate(self.model.heads):
+            curr_head_name = curr_head.get_name(i)
+            curr_results = curr_head.metric_module.compute("val")
+            metric_results[curr_head_name] = curr_results
+            for metric_name in curr_results:
                 self.log(
                     f"val_metric/{curr_head_name}_{metric_name}",
-                    curr_metrics[metric_name],
+                    curr_results[metric_name],
                     sync_dist=True,
                 )
+
             # log main metrics separately (used in callback)
             if i == 0:
                 self.log(
                     f"val_metric/{self.main_metric}",
-                    curr_metrics[self.main_metric],
+                    curr_results[self.main_metric],
                     sync_dist=True,
                 )
-            self.metrics[curr_head_name]["val_metrics"].reset()
+            curr_head.metric_module.reset("val")
         self._print_metric_warning("Metrics computed.")
 
         if self.cfg.get("trainer.verbose"):
@@ -542,6 +553,34 @@ class ModelLightningModule(pl.LightningModule):
             )
 
         self.validation_step_outputs.clear()
+
+        # metric_results = {}  # used for printing to console
+        # self._print_metric_warning("Computing metrics on val subset ...")
+        # for i, curr_head_name in enumerate(self.metrics):
+        #     curr_metrics = self.metrics[curr_head_name]["val_metrics"].compute()
+        #     metric_results[curr_head_name] = curr_metrics
+        #     for metric_name in curr_metrics:
+        #         self.log(
+        #             f"val_metric/{curr_head_name}_{metric_name}",
+        #             curr_metrics[metric_name],
+        #             sync_dist=True,
+        #         )
+        #     # log main metrics separately (used in callback)
+        #     if i == 0:
+        #         self.log(
+        #             f"val_metric/{self.main_metric}",
+        #             curr_metrics[self.main_metric],
+        #             sync_dist=True,
+        #         )
+        #     self.metrics[curr_head_name]["val_metrics"].reset()
+        # self._print_metric_warning("Metrics computed.")
+
+        # if self.cfg.get("trainer.verbose"):
+        #     self._print_results(
+        #         stage="Validation", loss=epoch_val_loss, metrics=metric_results
+        #     )
+
+        # self.validation_step_outputs.clear()
 
     def on_test_epoch_end(self):
         """Performs test epoch end operations"""

@@ -1,6 +1,6 @@
 import math
 import torch
-from typing import List, Union
+from typing import List, Union, Dict, Any
 
 
 def make_divisible(x: int, divisor: int) -> int:
@@ -39,3 +39,26 @@ def dummy_input_run(
         return shapes
     else:
         return [list(out.shape)]
+
+
+def flatten_dict(
+    nested_dict: Dict[str, Any], parent_key: str = "", separator: str = "_"
+) -> Dict[str, Any]:
+    """Flattens nested dict
+
+    Args:
+        nested_dict (Dict[str, Any]): Input nested dictionary
+        parent_key (str, optional): Prefix to be added to keys. Defaults to "".
+        separator (str, optional): Separator used to concatenate the keys. Defaults to "_".
+
+    Returns:
+        Dict[str, Any]: Output dictionary
+    """
+    items = []
+    for k, v in nested_dict.items():
+        new_key = f"{parent_key}{separator}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, separator=separator).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)

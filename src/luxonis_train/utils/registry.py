@@ -109,3 +109,5 @@ CALLBACKS = Registry(name="callbacks")
 OPTIMIZERS = Registry(name="optimizers")
 
 SCHEDULERS = Registry(name="schedulers")
+
+METRICS = Registry(name="metrics")

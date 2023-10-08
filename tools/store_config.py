@@ -1,4 +1,4 @@
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 import mlflow
 import argparse
 from dotenv import load_dotenv
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    cfg = Config(args.config)
+    cfg = ConfigHandler(args.config)
     if args.override:
         cfg.override_config(args.override)
 

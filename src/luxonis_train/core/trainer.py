@@ -13,7 +13,7 @@ from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentation
 
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 
 
 class Trainer:
@@ -26,7 +26,7 @@ class Trainer:
             args (Optional[dict]): argument dict provided through command line, used for config overriding
         """
 
-        self.cfg = Config(cfg)
+        self.cfg = ConfigHandler(cfg)
 
         if args and args["override"]:
             self.cfg.override_config(args["override"])

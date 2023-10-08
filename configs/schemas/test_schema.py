@@ -1,9 +1,9 @@
 import jsonschema
 import json
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 import yaml
 
-cfg = Config("../simple_det.yaml")
+cfg = ConfigHandler("../simple_det.yaml")
 data = cfg.get_data()
 
 # with open("../simple_det.yaml") as f:

@@ -12,7 +12,7 @@ from luxonis_ml.tracker import LuxonisTrackerPL
 from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
 
@@ -31,7 +31,7 @@ class Tuner:
 
     def tune(self):
         """Runs Optuna tunning of hyperparameters"""
-        self.cfg = Config(self.cfg_data)
+        self.cfg = ConfigHandler(self.cfg_data)
         if self.args and self.args["override"]:
             self.cfg.override_config(self.args["override"])
         self.cfg.validate_config_tuner()
@@ -77,8 +77,8 @@ class Tuner:
     def _objective(self, trial: optuna.trial.Trial):
         """Objective function used to optimize Optuna study"""
         # TODO: check if this is even needed needed because config is singleton
-        # Config.clear_instance()
-        self.cfg = Config(self.cfg_data)
+        # ConfigHandler.clear_instance()
+        self.cfg = ConfigHandler(self.cfg_data)
         if self.args and self.args["override"]:
             self.cfg.override_config(self.args["override"])
         self.cfg.validate_config_tuner()

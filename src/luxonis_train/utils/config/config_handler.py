@@ -13,7 +13,7 @@ from luxonis_train.utils.filesystem import LuxonisFileSystem
 from luxonis_train.utils.registry import HEADS
 
 
-class Config:
+class ConfigHandler:
     """Singleton class which checks and merges user config with default one and provides access to its values"""
 
     _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../config_db"))
@@ -23,7 +23,7 @@ class Config:
             if cfg is None:
                 raise ValueError("Provide either config path or config dictionary.")
 
-            cls.instance = super(Config, cls).__new__(cls)
+            cls.instance = super(ConfigHandler, cls).__new__(cls)
             cls.instance._load(cfg)
 
         return cls.instance

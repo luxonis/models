@@ -1,6 +1,6 @@
 import unittest
 import os
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from dotenv import load_dotenv
 
 TEAM_ID = "2af31474-a342-49c9-8fa4-786ac83a43a3"
@@ -9,8 +9,8 @@ BUCKET_TYPE = "aws"
 
 
 def reset_env():
-    """Removes Config() instance from current envirnoment."""
-    Config.clear_instance()
+    """Removes ConfigHandler() instance from current envirnoment."""
+    ConfigHandler.clear_instance()
 
 
 class ConfigFileTestCases(unittest.TestCase):
@@ -24,14 +24,14 @@ class ConfigFileTestCases(unittest.TestCase):
             os.path.join(os.path.dirname(__file__), relative_cfg_pth)
         )
         try:
-            cfg = Config(user_cfg_path)
+            cfg = ConfigHandler(user_cfg_path)
         except Exception as e:
-            self.fail(f"Config() raised exception: {e}!")
+            self.fail(f"ConfigHandler() raised exception: {e}!")
 
     def test_path_doesnt_exists(self):
         """Test passing path that doesn't exists"""
         with self.assertRaises(ValueError):
-            cfg = Config("incorrect_path.yaml")
+            cfg = ConfigHandler("incorrect_path.yaml")
 
     def test_incorrect_yaml_cfg(self):
         """Test passing path to yaml that doens't include model definition"""
@@ -40,7 +40,7 @@ class ConfigFileTestCases(unittest.TestCase):
             os.path.join(os.path.dirname(__file__), relative_cfg_pth)
         )
         with self.assertRaises(KeyError):
-            cfg = Config(user_cfg_path)
+            cfg = ConfigHandler(user_cfg_path)
 
 
 class ConfigDictTestCases(unittest.TestCase):
@@ -48,7 +48,7 @@ class ConfigDictTestCases(unittest.TestCase):
         reset_env()
 
     def test_dir_init(self):
-        """Test passing dir to Config"""
+        """Test passing dir to ConfigHandler"""
         user_cfg_dict = {
             "model": {
                 "name": "TestModel",
@@ -70,14 +70,14 @@ class ConfigDictTestCases(unittest.TestCase):
             },
         }
         try:
-            cfg = Config(user_cfg_dict)
+            cfg = ConfigHandler(user_cfg_dict)
         except Exception as e:
-            self.fail(f"Config() raised exception: {e}!")
+            self.fail(f"ConfigHandler() raised exception: {e}!")
 
     def test_empty_config_init(self):
         """Test passing no parameters to config init"""
         with self.assertRaises(ValueError):
-            cfg = Config()
+            cfg = ConfigHandler()
 
     def test_incorrect_dir(self):
         """Test passing dir without model definition"""
@@ -89,7 +89,7 @@ class ConfigDictTestCases(unittest.TestCase):
             }
         }
         with self.assertRaises(KeyError):
-            cfg = Config(user_cfg_dict)
+            cfg = ConfigHandler(user_cfg_dict)
 
 
 class ConfigValuesTestCases(unittest.TestCase):
@@ -117,9 +117,9 @@ class ConfigValuesTestCases(unittest.TestCase):
                     },
                 }
                 try:
-                    cfg = Config(user_cfg_dict)
+                    cfg = ConfigHandler(user_cfg_dict)
                 except Exception as e:
-                    self.fail(f"Config() raised exception: {e}!")
+                    self.fail(f"ConfigHandler() raised exception: {e}!")
 
     def test_incorrect_type(self):
         """Test setting inccorect model type"""
@@ -141,7 +141,7 @@ class ConfigValuesTestCases(unittest.TestCase):
                     },
                 }
                 with self.assertRaises(ValueError):
-                    cfg = Config(user_cfg_dict)
+                    cfg = ConfigHandler(user_cfg_dict)
 
     # def test_incorrect_dataset(self):
     #     """ Test providing incorrect dataset path"""
@@ -160,7 +160,7 @@ class ConfigValuesTestCases(unittest.TestCase):
     #         }
     #     }
     #     with self.assertRaises(ValueError):
-    #         cfg = Config(user_cfg_dict)
+    #         cfg = ConfigHandler(user_cfg_dict)
 
     def test_incorrect_n_classes(self):
         """Test setting incorrect n_classes"""
@@ -178,7 +178,7 @@ class ConfigValuesTestCases(unittest.TestCase):
             },
         }
         with self.assertRaises(KeyError):
-            cfg = Config(user_cfg_dict)
+            cfg = ConfigHandler(user_cfg_dict)
 
     def test_new_keyvalue_pair(self):
         """Test creating new key-value pair in config"""
@@ -199,13 +199,13 @@ class ConfigValuesTestCases(unittest.TestCase):
             },
         }
         with self.assertWarns(Warning):
-            cfg = Config(user_cfg_dict)
+            cfg = ConfigHandler(user_cfg_dict)
             self.assertEqual(
                 cfg.get("train.optimizers.scheduler.params.new_key"), "new_value"
             )
 
     def test_get_value(self):
-        """Test Config get() method on different types and different depths"""
+        """Test ConfigHandler get() method on different types and different depths"""
         user_cfg_dict = {
             "model": {
                 "name": "TestModel",
@@ -219,7 +219,7 @@ class ConfigValuesTestCases(unittest.TestCase):
                 "bucket_type": BUCKET_TYPE,
             },
         }
-        cfg = Config(user_cfg_dict)
+        cfg = ConfigHandler(user_cfg_dict)
         self.assertEqual(cfg.get("trainer.num_sanity_val_steps"), 2)  # one level deep
         self.assertEqual(cfg.get("dataset.dataset_id"), DATASET_ID)  # one level deep
         self.assertEqual(cfg.get("dataset.train_view"), "train")  # get string
@@ -248,7 +248,7 @@ class ConfigValuesTestCases(unittest.TestCase):
                 "bucket_type": BUCKET_TYPE,
             },
         }
-        cfg = Config(user_cfg_dict)
+        cfg = ConfigHandler(user_cfg_dict)
         keys = [
             "trainer.key1",  # key doesn't exist in dict  (one level deep)
             "train.preprocessing.augmentations.0.key2",  # key doesn't exist in dict
@@ -292,7 +292,7 @@ class ConfigValuesTestCases(unittest.TestCase):
                 "bucket_type": BUCKET_TYPE,
             },
         }
-        cfg = Config(user_cfg_dict)
+        cfg = ConfigHandler(user_cfg_dict)
 
     def test_no_loss(self):
         """Test if no loss is defined for a head or additional_head"""
@@ -319,7 +319,7 @@ class ConfigValuesTestCases(unittest.TestCase):
         }
         with self.subTest(i=0):
             with self.assertRaises(KeyError):
-                cfg = Config(user_cfg_dict)
+                cfg = ConfigHandler(user_cfg_dict)
 
         reset_env()
         user_cfg_dict2 = {
@@ -341,7 +341,7 @@ class ConfigValuesTestCases(unittest.TestCase):
         }
         with self.subTest(i=1):
             with self.assertRaises(KeyError):
-                cfg = Config(user_cfg_dict2)
+                cfg = ConfigHandler(user_cfg_dict2)
 
     def test_freeze_modules(self):
         """Test sending incorrect number of freeze heads"""
@@ -371,7 +371,7 @@ class ConfigValuesTestCases(unittest.TestCase):
             "train": {"freeze_modules": {"heads": [True, True]}},
         }
         with self.assertRaises(KeyError):
-            cfg = Config(user_cfg_dict)
+            cfg = ConfigHandler(user_cfg_dict)
 
     def test_loss_weights(self):
         """Test sending incorrect number of loss weights"""
@@ -401,7 +401,7 @@ class ConfigValuesTestCases(unittest.TestCase):
             "train": {"losses": {"weights": [1, 1]}},
         }
         with self.assertRaises(KeyError):
-            cfg = Config(user_cfg_dict)
+            cfg = ConfigHandler(user_cfg_dict)
 
     def test_override(self):
         """Test config override with a string"""
@@ -465,7 +465,7 @@ class ConfigValuesTestCases(unittest.TestCase):
         ):
             reset_env()
             with self.subTest(i=i):
-                cfg = Config(user_cfg_dict)
+                cfg = ConfigHandler(user_cfg_dict)
                 initial_cfg = cfg.get_data()
                 cfg.override_config(override_str)
                 current_val = cfg.get(key)

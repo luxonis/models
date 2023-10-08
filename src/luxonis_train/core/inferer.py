@@ -11,7 +11,7 @@ from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_ml.loader import LuxonisLoader
 from luxonis_ml.loader import TrainAugmentations, ValAugmentations, Augmentations
 
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
@@ -28,7 +28,7 @@ class Inferer(pl.LightningModule):
         """
         super().__init__()
 
-        self.cfg = Config(cfg)
+        self.cfg = ConfigHandler(cfg)
         if args and args["override"]:
             self.cfg.override_config(args["override"])
         load_dotenv()

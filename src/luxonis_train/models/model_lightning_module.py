@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_train.models import Model
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.registry import LOSSES, CALLBACKS, OPTIMIZERS, SCHEDULERS
 from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
@@ -23,7 +23,7 @@ class ModelLightningModule(pl.LightningModule):
         """Main class used to build and train the model using Pytorch Lightning"""
         super().__init__()
 
-        self.cfg = Config()
+        self.cfg = ConfigHandler()
         self.save_dir = save_dir
         self.model_name = self.cfg.get("model.name")
 

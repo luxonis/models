@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
 from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.visualization import draw_labels
 
 if __name__ == "__main__":
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    cfg = Config(args.config)
+    cfg = ConfigHandler(args.config)
     if args.override:
         cfg.override_config(args.override)
 

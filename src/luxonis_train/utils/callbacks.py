@@ -6,7 +6,7 @@ from rich.table import Table
 from torch import Tensor
 from torch.optim.optimizer import Optimizer
 
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
@@ -135,12 +135,12 @@ class TestOnTrainEnd(pl.Callback):
     """Callback that performs test on pl_module when train ends"""
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        from luxonis_train.utils.config import Config
+        from luxonis_train.utils.config import ConfigHandler
         from torch.utils.data import DataLoader
         from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
         from luxonis_ml.loader import LuxonisLoader, ValAugmentations
 
-        cfg = Config()
+        cfg = ConfigHandler()
         with LuxonisDataset(
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
@@ -182,10 +182,10 @@ class ExportOnTrainEnd(pl.Callback):
         self.override_upload_directory = override_upload_directory
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        from luxonis_train.utils.config import Config
+        from luxonis_train.utils.config import ConfigHandler
         from luxonis_train.core import Exporter
 
-        cfg = Config()
+        cfg = ConfigHandler()
 
         model_checkpoint_callbacks = [
             c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)

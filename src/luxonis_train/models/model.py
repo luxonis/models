@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch
 
 from luxonis_train.utils.registry import BACKBONES, NECKS, HEADS
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.general import dummy_input_run
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 
@@ -17,9 +17,12 @@ class Model(nn.Module):
 
     def build_model(self):
         """Builds the model from defined config"""
-        cfg = Config()
+        cfg = ConfigHandler()
         modules_cfg = cfg.get("model")
-        dummy_input_shape = [1, 3,] + cfg.get(
+        dummy_input_shape = [
+            1,
+            3,
+        ] + cfg.get(
             "train.preprocessing.train_image_size"
         )  # NOTE: we assume 3 dimensional input shape
 

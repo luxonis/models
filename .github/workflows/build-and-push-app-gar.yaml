@@ -44,5 +44,5 @@ jobs:
             
       - name: 'Build Inventory Image'
         run: |
-          docker build --build-arg GITHUB_TOKEN=${{secrets.GHCR_PAT}} -f docker/Dockerfile . --tag $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/models/models:latest --tag $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/models/models:${{ steps.extract_branch.outputs.branch }}.${{ steps.commit.outputs.sha_short }}
-          docker push $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/models/models --all-tags
+          docker build --build-arg GITHUB_TOKEN=${{secrets.GHCR_PAT}} -f docker/Dockerfile . --tag $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/internal/models:latest --tag $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/internal/models:${{ steps.extract_branch.outputs.branch }}.${{ steps.commit.outputs.sha_short }}
+          docker push $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/internal/models --all-tags

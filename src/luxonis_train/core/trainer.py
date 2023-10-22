@@ -34,7 +34,6 @@ class Trainer:
         self.rank = rank_zero_only.rank
 
         cfg_logger = self.cfg.get("logger")
-        hparams = {key: self.cfg.get(key) for key in cfg_logger["logged_hyperparams"]}
 
         load_dotenv()  # loads env variables for mlflow logging
         logger_params = deepcopy(cfg_logger.copy())
@@ -46,7 +45,6 @@ class Trainer:
             ),  # read separately from env vars
             **logger_params,
         )
-        logger.log_hyperparams(hparams)
 
         self.run_save_dir = os.path.join(cfg_logger["save_directory"], logger.run_name)
 

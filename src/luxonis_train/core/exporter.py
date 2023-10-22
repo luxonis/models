@@ -29,7 +29,6 @@ class Exporter(pl.LightningModule):
         self.cfg = ConfigHandler(cfg)
         if args and args["override"]:
             self.cfg.override_config(args["override"])
-        self.cfg.validate_config_exporter()
 
         # ensure save directory
         Path(self.cfg.get("exporter.export_save_directory")).mkdir(

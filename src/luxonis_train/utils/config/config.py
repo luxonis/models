@@ -1,31 +1,35 @@
 import warnings
-from pydantic import BaseModel, Field, model_validator
+import sys
+from pydantic import BaseModel, Field, model_validator, field_serializer
 from typing import Optional, Dict, Any, List, Tuple, Literal, Union, Annotated
+from luxonis_ml.data import BucketType, BucketStorage
 
 
 # ---- MODEL CONFIG ----
-class ModelModuleConfig(BaseModel):
+class ModelModuleConfig(BaseModel, extra="allow"):
     name: str
     params: Dict[str, Any] = {}
 
 
-class LossModuleConfig(BaseModel):
+class ModelBackboneConfig(ModelModuleConfig):
+    pretrained: Optional[str] = None
+
+
+class LossModuleConfig(BaseModel, extra="allow"):
     name: str
     params: Dict[str, Any] = {}
 
 
-class ModelHeadConfig(BaseModel):
-    name: str
-    params: Dict[str, Any] = {}
+class ModelHeadConfig(ModelModuleConfig):
     loss: LossModuleConfig
 
 
-class ModelConfig(BaseModel):
+class ModelConfig(BaseModel, extra="allow"):
     name: str
     predefined_model: Optional[str] = None
     pretrained: Optional[str] = None
     params: Dict[str, Any] = {}
-    backbone: Optional[ModelModuleConfig] = None
+    backbone: Optional[ModelBackboneConfig] = None
     neck: Optional[ModelModuleConfig] = None
     heads: Optional[Annotated[List[ModelHeadConfig], Field(min_length=1)]] = None
     additional_heads: Optional[List[ModelHeadConfig]] = None
@@ -43,6 +47,8 @@ class ModelConfig(BaseModel):
             self.backbone = backbone
             self.neck = neck
             self.heads = heads
+            if self.additional_heads:
+                self.heads += self.additional_heads
 
         else:
             if not self.backbone:
@@ -112,7 +118,7 @@ class ModelConfig(BaseModel):
             width_mul = 0.5
             iou_type = "giou"
 
-        backbone = ModelModuleConfig(
+        backbone = ModelBackboneConfig(
             name="EfficientRep",
             params={
                 "channels_list": [64, 128, 256, 52, 1024],
@@ -131,10 +137,15 @@ class ModelConfig(BaseModel):
                 "width_mul": self.params.get("width_mul", width_mul),
             },
         )
+
+        head_params = {"num_heads": self.params.get("num_heads", 3)}
+        if self.params.get("n_classes"):
+            head_params["n_classes"] = self.params.get("n_classes")
+
         heads = [
             ModelHeadConfig(
-                name="BboxYoloV6Loss",
-                params={"num_heads": self.params.get("num_heads", 3)},
+                name="BboxYoloV6Head",
+                params=head_params,
                 loss=LossModuleConfig(
                     name="BboxYoloV6Loss", params={"iou_type": iou_type}
                 ),
@@ -145,17 +156,17 @@ class ModelConfig(BaseModel):
 
 
 # ----- TRAINER CONFIG ----
-class TrainerConfig(BaseModel):
+class TrainerConfig(BaseModel, extra="allow"):
     accelerator: Literal["auto", "cpu", "gpu"] = "auto"
     devices: Union[int, List[int], str] = "auto"
     strategy: Literal["auto", "ddp"] = "auto"
     num_sanity_val_steps: int = 2
     profiler: Union[None, Literal["simple", "advanced"]] = None
-    verbose: bool = False
+    verbose: bool = True
 
 
 # ----- LOGGER CONFIG ----
-class LoggerConfig(BaseModel):
+class LoggerConfig(BaseModel, extra="allow"):
     project_name: Optional[str] = None
     project_id: Optional[str] = None
     run_name: Optional[str] = None
@@ -165,26 +176,19 @@ class LoggerConfig(BaseModel):
     is_wandb: bool = False
     wandb_entity: Optional[str] = None
     is_mlflow: bool = False
-    logger_hyperparams: List[str] = ["train.epochs", "train.batch_size"]
+    logged_hyperparams: List[str] = ["train.epochs", "train.batch_size"]
 
     # Can also add extra validation based on Tracker class
 
 
 # ----- DATASET CONFIG ----
-class DatasetConfig(BaseModel):
+class DatasetConfig(BaseModel, extra="allow"):
     dataset_name: Optional[str] = None
     dataset_id: Optional[str] = None
     team_name: Optional[str] = None
     team_id: Optional[str] = None
-    bucket_type: Literal[
-        "BucketType.INTERNAL", "BucketType.EXTERNAL"
-    ] = "BucketType.INTERNAL"
-    bucket_storage: Literal[
-        "BucketStorage.LOCAL",
-        "BucketStorage.S3",
-        "BucketStorage.GCS",
-        "BucketStorage.AZURE_BLOB",
-    ] = "BucketStorage.LOCAL"
+    bucket_type: BucketType = BucketType.INTERNAL
+    bucket_storage: BucketStorage = BucketStorage.LOCAL
     json_mode: bool = False
     train_view: str = "train"
     val_view: str = "val"
@@ -195,6 +199,10 @@ class DatasetConfig(BaseModel):
         if not self.dataset_name and not self.dataset_id:
             raise ValueError("Must provide either `dataset_name` or `dataset_id`.")
         return self
+
+    @field_serializer("bucket_storage", "bucket_type")
+    def get_eunm_value(self, v, info) -> str:
+        return str(v.value)
 
     model_config = {
         "json_schema_extra": {
@@ -212,22 +220,22 @@ class DatasetConfig(BaseModel):
                     ]
                 },
             ]
-        }
+        },
     }
 
 
 # ----- TRAIN CONFIG ----
-class NormalizeAugmentationConfig(BaseModel):
+class NormalizeAugmentationConfig(BaseModel, extra="allow"):
     active: bool = True
     params: Dict[str, Any] = {}
 
 
-class AugmentationConfig(BaseModel):
+class AugmentationConfig(BaseModel, extra="allow"):
     name: str
     params: Dict[str, Any] = {}
 
 
-class PreprocessingConfig(BaseModel):
+class PreprocessingConfig(BaseModel, extra="allow"):
     train_image_size: Annotated[
         List[int], Field(default=[256, 256], min_length=2, max_length=2)
     ]
@@ -245,16 +253,16 @@ class PreprocessingConfig(BaseModel):
         return self
 
 
-class ExportOnFinishConfig(BaseModel):
+class ExportOnFinishConfig(BaseModel, extra="allow"):
     active: bool = False
     override_upload_directory: bool = True
 
 
-class CheckpointConfig(BaseModel):
+class CheckpointConfig(BaseModel, extra="allow"):
     save_top_k: int = 3
 
 
-class UploadCheckpointOnFinishConfig(BaseModel):
+class UploadCheckpointOnFinishConfig(BaseModel, extra="allow"):
     active: bool = False
     upload_directory: Optional[str] = None
 
@@ -281,7 +289,7 @@ class UploadCheckpointOnFinishConfig(BaseModel):
     }
 
 
-class EarlyStoppingConfig(BaseModel):
+class EarlyStoppingConfig(BaseModel, extra="allow"):
     active: bool = True
     monitor: str = "val_loss/loss"
     mode: Literal["min", "max"] = "min"
@@ -289,12 +297,12 @@ class EarlyStoppingConfig(BaseModel):
     verbose: bool = True
 
 
-class CustomCallbackConfig(BaseModel):
+class CustomCallbackConfig(BaseModel, extra="allow"):
     name: str
     params: Dict[str, Any] = {}
 
 
-class CallbacksConfig(BaseModel):
+class CallbacksConfig(BaseModel, extra="allow"):
     test_on_finish: bool = False
     use_device_stats_monitor: bool = False
     export_on_finish: ExportOnFinishConfig = ExportOnFinishConfig()
@@ -306,33 +314,33 @@ class CallbacksConfig(BaseModel):
     custom_callbacks: List[CustomCallbackConfig] = []
 
 
-class OptimizerConfig(BaseModel):
+class OptimizerConfig(BaseModel, extra="allow"):
     name: str = "Adam"
     params: Dict[str, Any] = {}
 
 
-class SchedulerConfig(BaseModel):
+class SchedulerConfig(BaseModel, extra="allow"):
     name: str = "ConstantLR"
     params: Dict[str, Any] = {}
 
 
-class OptimizersConfig(BaseModel):
+class OptimizersConfig(BaseModel, extra="allow"):
     optimizer: OptimizerConfig = OptimizerConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
 
 
-class FreezeModulesConfig(BaseModel):
+class FreezeModulesConfig(BaseModel, extra="allow"):
     backbone: bool = False
     neck: bool = False
     heads: List[bool] = [False]  # can also add validators but need ModelConfig context
 
 
-class LossesConfig(BaseModel):
+class LossesConfig(BaseModel, extra="allow"):
     log_sub_losses: bool = False
     weights: List[float] = [1]  # can also add validators but need ModelConfig context
 
 
-class TrainConfig(BaseModel):
+class TrainConfig(BaseModel, extra="allow"):
     preprocessing: PreprocessingConfig = PreprocessingConfig()
 
     batch_size: int = 32
@@ -355,30 +363,41 @@ class TrainConfig(BaseModel):
 
     losses: LossesConfig = LossesConfig()
 
+    @model_validator(mode="after")
+    def check_num_workes_platform(self) -> "TrainConfig":
+        if (
+            sys.platform == "win32" or sys.platform == "darwin"
+        ) and self.num_workes != 0:
+            self.num_workers = 0
+            warnings.warn(
+                "Setting `num_workers` to 0 because of platform compatibility."
+            )
+        return self
+
 
 # ----- INFERER CONFIG ----
-class InfererConfig(BaseModel):
+class InfererConfig(BaseModel, extra="allow"):
     dataset_view: str = "val"
     display: bool = True
     infer_save_directory: Optional[str] = None
 
 
 # ----- EXPORTER CONFIG ----
-class OnnxExportConfig(BaseModel):
+class OnnxExportConfig(BaseModel, extra="allow"):
     opset_version: int = 12
     dynamic_axes: Optional[Dict[str, Any]] = None
 
 
-class OpenvinoExportConfig(BaseModel):
+class OpenvinoExportConfig(BaseModel, extra="allow"):
     active: bool = False
 
 
-class BlobconverterExportConfig(BaseModel):
+class BlobconverterExportConfig(BaseModel, extra="allow"):
     active: bool = False
     shaves: int = 6
 
 
-class UploadExportConfig(BaseModel):
+class UploadExportConfig(BaseModel, extra="allow"):
     active: bool = False
     upload_directory: Optional[str] = None
 
@@ -405,7 +424,7 @@ class UploadExportConfig(BaseModel):
     }
 
 
-class ExporterConfig(BaseModel):
+class ExporterConfig(BaseModel, extra="allow"):
     export_weights: Optional[str] = None
     export_save_directory: str = "output_export"
     export_image_size: Annotated[
@@ -423,22 +442,26 @@ class ExporterConfig(BaseModel):
 
 
 # ----- TUNER CONFIG ----
-class StorageConfig(BaseModel):
+class StorageConfig(BaseModel, extra="allow"):
     active: bool = True
-    type: Literal["local", "remote"] = "local"
+    storage_type: Literal["local", "remote"] = "local"
 
 
-class TunerConfig(BaseModel):
+class TunerConfig(BaseModel, extra="allow"):
     study_name: str = "test-study"
     use_pruner: bool = True
     n_trials: int = 3
     timeout: Optional[int] = None
     storage: StorageConfig = StorageConfig()
-    params: Dict[str, List[str | int | float | bool]] = {}
+    params: Annotated[
+        Dict[str, List[str | int | float | bool]], Field(default={}, min_length=1)
+    ]
+
+    model_config = {"json_schema_extra": {"required": ["params"]}}
 
 
 # ---- BASE CONFIG ----
-class Config(BaseModel):
+class Config(BaseModel, extra="allow"):
     model: ModelConfig
     trainer: TrainerConfig = TrainerConfig()
     logger: LoggerConfig = LoggerConfig()
@@ -448,20 +471,13 @@ class Config(BaseModel):
     exporter: ExporterConfig = ExporterConfig()
     tuner: TunerConfig = TunerConfig()
 
-
-# import yaml
-# with open("test.yaml", "r") as f:
-#     cfg = yaml.load(f, Loader=yaml.SafeLoader)
-
-# # print(cfg["dataset"])
-# config = Config(**cfg)
-# print(config.model)
-
-# print(config.model_dump_json(indent=2))
-
-# import json
-# schema = json.dumps(Config.model_json_schema(), indent=2)
-# print(schema)
-
-# import jsonschema
-# jsonschema.validate(config.model_dump_json(), schema)
+    @model_validator(mode="before")
+    @classmethod
+    def check_tuner_init(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if data.get("tuner") and not data.get("tuner").get("params"):
+                del data["tuner"]
+                warnings.warn(
+                    "`tuner` block specified but no `tuner.params`. If tyring to tune values you have to specify at least one parameter"
+                )
+        return data

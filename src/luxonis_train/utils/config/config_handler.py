@@ -1,22 +1,27 @@
-import os
 import yaml
 import warnings
-import json
-import re
-import sys
-from typing import Union, Optional, Dict, Any, List, Tuple
-from copy import deepcopy
+from typing import (
+    Optional,
+    Union,
+    Dict,
+    Any,
+    Tuple,
+    List,
+    get_type_hints,
+    get_args,
+    get_origin,
+)
+from pydantic import BaseModel, TypeAdapter
 
-from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
-from luxonis_ml.loader import LabelType
+from .config import *
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 from luxonis_train.utils.registry import HEADS
+from luxonis_ml.data import LuxonisDataset
+from luxonis_ml.loader import LabelType
 
 
 class ConfigHandler:
     """Singleton class which checks and merges user config with default one and provides access to its values"""
-
-    _db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../config_db"))
 
     def __new__(cls, cfg: Optional[Union[str, Dict[str, Any]]] = None):
         if not hasattr(cls, "instance"):
@@ -29,7 +34,7 @@ class ConfigHandler:
         return cls.instance
 
     def __repr__(self) -> str:
-        return json.dumps(self._data, indent=4)
+        return self._data.model_dump_json(indent=4)
 
     @classmethod
     def clear_instance(cls) -> None:
@@ -38,73 +43,144 @@ class ConfigHandler:
             del cls.instance
 
     def get_data(self) -> Dict[str, Any]:
-        """Returns a deepcopy of current data dict"""
-        return deepcopy(self._data)
+        """Returns dict reperesentation of the config"""
+        return self._data.model_dump()
+
+    def get_json_schema(self) -> Dict[str, Any]:
+        """Retuns dict representation of config json schema"""
+        return self._data.model_json_schema(model="validation")
 
     def save_data(self, path: str) -> None:
-        """Saves data dict to yaml file"""
-        with open(path, "w+") as f:
-            yaml.dump(self._data, f, default_flow_style=False)
+        """Saves config to yaml file
 
-    def override_config(self, args: str) -> None:
-        """Overrides config values with ones specifid by --override string.
-        If last key is not matched to config, creates a new (key, value) pair.
+        Args:
+            path (str): Path to output yaml file
         """
+        with open(path, "w+") as f:
+            yaml.dump(self._data.model_dump(), f, default_flow_style=False)
+
+    def get(self, key_merged: str, default: Any = None) -> Any:
+        """Returns value from Config based on key
+
+        Args:
+            key_merged (str): Merged key in format key1.key2.key3 where each key
+            goes one level deeper
+            default (Any, optional): Default returned value if key doesn't exist. Defaults to None.
+
+        Returns:
+            Any: Value of the key
+        """
+        last_obj, last_key = self._iterate_config(key_merged.split("."), obj=self._data)
+
+        if last_obj is None:
+            warnings.warn(
+                f"Itaration for key `{key_merged}` failed, returning default."
+            )
+            return default
+
+        if isinstance(last_obj, list):
+            if 0 <= last_key < len(last_obj):
+                return last_obj[last_key]
+            else:
+                warnings.warn(
+                    f"Last key of `{key_merged}` out of range, returning default."
+                )
+                return default
+        elif isinstance(last_obj, dict):
+            if last_key not in last_obj:
+                warnings.warn(
+                    f"Last key of `{key_merged}` not present, returning default."
+                )
+            return last_obj.get(last_key, default)
+        else:
+            if not hasattr(last_obj, last_key):
+                warnings.warn(
+                    f"Last key of `{key_merged}` not present, returning default."
+                )
+            return getattr(last_obj, last_key, default)
+
+    def override_config(self, args: Dict[str, Any]) -> None:
+        """Performs config override based on input dict key-value pairs. Keys in
+        form: key1.key2.key3 where each key refers to one layer deeper. If last key
+        doesn't exist then add it (Note: adding new keys this way is not encouraged, rather
+        specify them in the config itself)
+
+        Args:
+            args (Dict[str, Any]): Dict of key-value pairs for override
+        """
+        for key_merged, value in args.items():
+            keys = key_merged.split(".")
+            last_obj, last_key = self._iterate_config(keys, obj=self._data)
+
+            # iterate failed
+            if last_obj is None:
+                warnings.warn(f"Can't override key `{'.'.join(keys)}`, skipping.")
+                continue
+
+            # transform value into correct type
+            if isinstance(last_obj, list):
+                if 0 <= last_key < len(last_obj):
+                    target_type = type(last_obj[last_key])
+                    value_typed = TypeAdapter(target_type).validate_python(value)
+                else:
+                    warnings.warn(
+                        f"Last key of `{'.'.join(keys)}` out of range, "
+                        f"adding element to the end of the list."
+                    )
+                    # infer correct type
+                    types = self._trace_types(keys[:-1], self._data)
+                    type_hint = get_type_hints(types[-1]).get(keys[-2])
+                    type_args = get_args(type_hint)
+                    if get_origin(type_hint) == Union:  # if it's Optional or Union
+                        type_args = get_args(type_args[0])
+                    target_type = type_args[0]
+                    value_typed = TypeAdapter(target_type).validate_python(value)
+                    last_obj.append(value_typed)
+                    continue
+            elif isinstance(last_obj, dict):
+                attr = last_obj.get(last_key, None)
+                if attr != None:
+                    value_typed = TypeAdapter(type(attr)).validate_python(value)
+                else:
+                    # infer correct type
+                    warnings.warn(
+                        f"Last key of `{'.'.join(keys)}` not in dict, "
+                        f"adding new key-value pair."
+                    )
+                    types = self._trace_types(keys[:-1], self._data)
+                    type_hint = get_type_hints(types[-1]).get(keys[-2])
+                    type_args = get_args(type_hint)
+                    if get_origin(type_hint) == Union:  # if it's Optional or Union
+                        type_args = get_args(type_args[0])
+                    key_type, target_type = type_args
+                    value_typed = TypeAdapter(target_type).validate_python(value)
+            else:
+                attr = getattr(last_obj, last_key, None)
+                all_types = get_type_hints(last_obj)
+                target_type = all_types.get(last_key, None)
+                if target_type != None:
+                    value_typed = TypeAdapter(target_type).validate_python(value)
+                else:
+                    warnings.warn(
+                        f"Last key of `{'.'.join(keys)}` not present, "
+                        f"adding new class attribute."
+                    )
+                    value_typed = value  # if new attribute leave type as is
+
+            if isinstance(last_obj, list) or isinstance(last_obj, dict):
+                last_obj[last_key] = value_typed
+            else:
+                setattr(last_obj, last_key, value_typed)
+
         if len(args) == 0:
             return
 
-        args = remove_chars_inside_brackets(
-            args
-        )  # remove characters that are not needed
-        items = args.split(" ")
-
-        if len(items) % 2 != 0:
-            raise ValueError(
-                "Parameters passed by --override should be in 'key value' shape but one value is missing."
-            )
-
-        for i in range(0, len(items), 2):
-            key_merged = items[i]
-            value = items[i + 1]
-            last_key, last_sub_dict = self._config_iterate(key_merged, only_warn=True)
-
-            # should skip if _config_iterate returns None
-            if last_key is None and last_sub_dict is None:
-                continue
-            # check if value represents something other than string
-            value = parse_string_to_types(value)
-            last_sub_dict[last_key] = value
-
-    def get(self, key_merged: str) -> Any:
-        """Returns value from config based on the key"""
-        last_key, last_sub_dict = self._config_iterate(key_merged, only_warn=False)
-        return last_sub_dict[last_key]
-
-    def validate_config_exporter(self) -> None:
-        """Validates 'exporter' block in config"""
-        if not self._data["exporter"]:
-            raise ValueError("No 'exporter' section in config specified.")
-
-        if not self._data["exporter"]["export_weights"]:
-            warnings.warn(
-                "No 'export_weights' speficied in config file, using random weights instead."
-            )
-
-    def validate_config_tuner(self) -> None:
-        """Validates 'tuner' block in config"""
-        if not self._data["tuner"]:
-            raise ValueError("No 'tuner' section in config specified.")
-        if not ("params" in self._data["tuner"] and self._data["tuner"]["params"]):
-            raise ValueError(
-                "Nothing to tune as no tuner params specified in the config."
-            )
-        # TODO: and more checks if needed
-
     def _load(self, cfg: Union[str, Dict[str, Any]]) -> None:
-        """Performs complete loading and validation of the config"""
-        with open(os.path.join(self._db_path, "config_all.yaml"), "r") as f:
-            base_cfg = yaml.load(f, Loader=yaml.SafeLoader)
+        """Loads cfg data into Config object
 
+        Args:
+            cfg (Union[str, Dict[str, Any]]): Path to cfg or cfg data
+        """
         if isinstance(cfg, str):
             from dotenv import load_dotenv
 
@@ -112,373 +188,205 @@ class ConfigHandler:
 
             fs = LuxonisFileSystem(cfg)
             buffer = fs.read_to_byte_buffer()
-            user_cfg = yaml.load(buffer, Loader=yaml.SafeLoader)
+            cfg_data = yaml.load(buffer, Loader=yaml.SafeLoader)
+            self._data = Config(**cfg_data)
+
             if fs.is_mlflow:
                 warnings.warn(
                     "Setting `project_id` and `run_id` to config's MLFlow run"
                 )
                 # set logger parameters to continue run
-                if "logger" in user_cfg:
-                    user_cfg["logger"]["project_id"] = fs.experiment_id
-                    user_cfg["logger"]["run_id"] = fs.run_id
-                else:
-                    base_cfg["logger"]["project_id"] = fs.experiment_id
-                    base_cfg["logger"]["run_id"] = fs.experiment_id
+                self._data.logger.project_id = fs.experiment_id
+                self._data.logger.run_id = fs.run_id
 
         elif isinstance(cfg, dict):
-            user_cfg = cfg
+            self._data = Config(**cfg)
         else:
             raise ValueError("Provided cfg is neither path(string) or dictionary.")
 
-        self._user_cfg = user_cfg
-        self._data = self._merge_configs(base_cfg, user_cfg)
-        self._load_model_config(user_cfg)
-        self._validate_dataset_classes()
-        self._validate_config()
-        print("Config loaded.")
+        # perform validation on config object
+        self._validate()
 
-    def _merge_configs(
-        self, base_cfg: Dict[str, Any], user_cfg: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Merges user config with base config"""
-        if base_cfg is None:
-            base_cfg = {}
+    def _iterate_config(
+        self, keys: List[str], obj: Any
+    ) -> Tuple[Optional[BaseModel | List[Any] | Dict[str, Any]], Optional[str | int]]:
+        """Iterates over config object and returns last object and key encoutered.
+        If a key in between isn't matched then it returns (None, None)
 
-        for key, value in user_cfg.items():
-            # Load model config after merge
-            if key == "model":
-                continue
-            if isinstance(value, dict):
-                # If the value is a dictionary, recurse
-                base_cfg[key] = self._merge_configs(base_cfg.get(key, {}), value)
-            else:
-                # Otherwise, overwrite the value in the base dictionary
-                if key not in base_cfg:
-                    warnings.warn(
-                        f"New (key,value) pair added to config: ({key},{value})"
-                    )
-                base_cfg[key] = value
+        Args:
+            keys (List[str]): List of keys for current level and all levels below
+            obj (Any): Object at current level
 
-        return base_cfg
-
-    def _load_model_config(self, cfg: Dict[str, Any]) -> None:
-        """Loads model config from user config"""
-        model_cfg = cfg.get("model")
-        if model_cfg is None:
-            raise KeyError("Model config must be present in config file.")
-        # check if we should load predefined model
-        if model_cfg.get("type"):
-            warnings.warn(
-                "Loading predefined model overrides local config of backbone, neck and head."
-            )
-            model_cfg = self._load_predefined_model(model_cfg)
-        else:
-            if model_cfg.get("additional_heads"):
-                warnings.warn(
-                    "Additional heads won't be taken into account if you don't specify model type."
-                    + "Move them to 'heads' if you want to use them."
-                )
-                model_cfg.pop("additional_heads")
-
-        self._data["model"] = model_cfg
-
-    def _load_predefined_model(self, model_cfg: Dict[str, Any]) -> Dict[str, Any]:
-        """Loads predefined model config from db"""
-        model_type = model_cfg["type"].lower()
-        if model_type.startswith("yolov6"):
-            return self._load_yolov6_cfg(model_cfg)
-        else:
-            raise ValueError(f"{model_type} not supported")
-
-    def _load_yolov6_cfg(self, model_cfg: Dict[str, Any]) -> Dict[str, Any]:
-        """Loads predefined YoloV6 config from db"""
-        predefined_cfg_path = model_cfg["type"].lower() + ".yaml"
-        full_path = os.path.join(self._db_path, predefined_cfg_path)
-        if not os.path.isfile(full_path):
-            raise ValueError(
-                f"There is no predefined config for this {model_cfg['type']} type."
-            )
-
-        with open(full_path, "r") as f:
-            predefined_cfg = yaml.load(f, Loader=yaml.SafeLoader)
-
-        model_cfg["backbone"] = predefined_cfg["backbone"]
-        model_cfg["neck"] = predefined_cfg["neck"]
-        model_cfg["heads"] = predefined_cfg["heads"]
-
-        model_params = (
-            model_cfg["params"]
-            if "params" in model_cfg and model_cfg["params"] is not None
-            else {}
-        )
-        for key, value in model_params.items():
-            if value is None:
-                continue
-            if key == "n_classes":
-                model_cfg["heads"][0]["params"]["n_classes"] = value
-                model_cfg["heads"][0]["loss"]["params"]["n_classes"] = value
-            # refactored in further PRs
-            if key == "num_heads":
-                model_cfg["neck"]["params"]["num_heads"] = value
-                model_cfg["heads"][0]["params"]["num_heads"] = value
-
-        if "additional_heads" in model_cfg and isinstance(
-            model_cfg["additional_heads"], list
-        ):
-            model_cfg["heads"].extend(model_cfg["additional_heads"])
-            model_cfg.pop("additional_heads")
-
-        return model_cfg
-
-    def _config_iterate(
-        self, key_merged: str, only_warn: bool = False
-    ) -> Tuple[Union[str, int, None], Union[Dict[str, Any], List[Any], None]]:
-        """Iterates over config based on key_merged and returns last key and
-        sub dict if it matches structure
+        Returns:
+            Tuple[Optional[BaseModel | List[Any] | Dict[str, Any]], Optional[str | int]]:
+                Last matched object and last key. If it fails before that than Tuple[None, None]
         """
-        sub_keys = key_merged.split(".")
-        sub_dict = self._data
-        success = True
-        key = sub_keys[0]  # needed if search only one level deep
-        for key in sub_keys[:-1]:
-            if isinstance(sub_dict, list):  # check if key should be list index
-                if key.isdigit():
-                    key = int(key)
-                    # list index out of bounds
-                    if key >= len(sub_dict) or key < 0:
-                        success = False
-                else:
-                    success = False
-            elif key not in sub_dict:
-                # key not present in sub_dict
-                success = False
-
-            if not success:
-                if only_warn:
+        if len(keys) == 1:
+            # try to convert last key to int if obj is list
+            if isinstance(obj, list):
+                try:
+                    keys[0] = int(keys[0])
+                except (ValueError, IndexError):
                     warnings.warn(
-                        f"Key '{key_merged}' not matched to config (at level '{key}'). Skipping."
+                        f"Key `{keys[0]}` can't be converted to list index, skipping."
                     )
                     return None, None
-                else:
-                    raise KeyError(
-                        f"Key '{key_merged}' not matched to config (at level '{key}')"
-                    )
-
-            sub_dict = sub_dict[key]
-
-        # return last_key in correct format (int or string)
-        success = True
-        if isinstance(sub_dict, dict):
-            last_key = sub_keys[-1]
-            if last_key not in sub_dict:
-                key = last_key
-                success = False
-        elif isinstance(sub_dict, list):
-            if sub_keys[-1].isdigit():
-                last_key = int(sub_keys[-1])
-                # list index out of bounds
-                if last_key >= len(sub_dict) or last_key < 0:
-                    success = False
-            else:
-                key = sub_keys[-1]
-                success = False
+            return obj, keys[0]
         else:
-            key = sub_keys[-1]
-            success = False
+            curr_key, *rest_keys = keys
 
-        if not success and not only_warn:
-            raise KeyError(
-                f"Key '{key_merged}' not matched to config (at level '{key}')"
-            )
+            if isinstance(obj, list):
+                try:
+                    index = int(curr_key)
+                except (ValueError, IndexError):
+                    warnings.warn(
+                        f"Key `{curr_key}` can't be converted to list index, skipping."
+                    )
+                    return None, None
+                if len(rest_keys) == 0:
+                    return obj, index
+                try:
+                    return self._iterate_config(rest_keys, obj[index])
+                except IndexError:
+                    warnings.warn(f"Index `{index}` out of range, skipping.")
+                    return None, None
+            elif isinstance(obj, dict):
+                try:
+                    if len(rest_keys) == 0:
+                        return obj, curr_key
 
-        return last_key, sub_dict
+                    return self._iterate_config(rest_keys, obj[curr_key])
+                except KeyError:
+                    warnings.warn(f"Key {curr_key} not matched, skipping.")
+                    return None, None
+            elif isinstance(obj, BaseModel):
+                return self._iterate_config(rest_keys, getattr(obj, curr_key, None))
+            else:
+                warnings.warn(f"Key `{curr_key}` not matched, skipping.")
+                return None, None
+
+    def _trace_types(self, keys: List[str], obj: Any) -> List[Any]:
+        """Iterates over base object and returns all object types along the way.
+        Note that this function assumes that all keys match base object.
+
+        Args:
+            keys (List[str]): List of keys for current level and all levels below
+            obj (Any): Object at current level
+
+        Returns:
+            List[Any]: List of object types from every level
+        """
+        types = []
+        curr_obj = obj
+        for key in keys:
+            types.append(type(curr_obj))
+            if isinstance(curr_obj, list):
+                curr_obj = curr_obj[int(key)]
+            elif isinstance(curr_obj, dict):
+                curr_obj = curr_obj[key]
+            else:
+                curr_obj = getattr(curr_obj, key)
+        return types
+
+    def _validate(self) -> None:
+        """Performs custom validation of the config"""
+        self._validate_dataset_classes()
+        self._validate_after()
 
     def _validate_dataset_classes(self) -> None:
         """Validates config to used datasets, overrides n_classes if needed"""
-
         with LuxonisDataset(
-            dataset_name=self._data["dataset"]["dataset_name"],
-            team_id=self._data["dataset"]["team_id"],
-            dataset_id=self._data["dataset"]["dataset_id"],
-            bucket_type=eval(self._data["dataset"]["bucket_type"]),
-            bucket_storage=eval(self._data["dataset"]["bucket_storage"]),
+            dataset_name=self.get("dataset.dataset_name"),
+            team_id=self.get("dataset.team_id"),
+            dataset_id=self.get("dataset.dataset_id"),
+            bucket_type=self.get("dataset.bucket_type"),
+            bucket_storage=self.get("dataset.bucket_storage"),
         ) as dataset:
             classes, classes_by_task = dataset.get_classes()
 
             if not classes:
                 raise ValueError("Provided dataset doesn't have any classes.")
 
-            model_cfg = self._data["model"]
-            for head in model_cfg["heads"]:
-                if not ("params" in head and head["params"]):
-                    head["params"] = {}
-
-                curr_n_classes = head["params"].get("n_classes", None)
-                label_type = get_head_label_types(head["name"])[0]
+            for head in self.get("model.heads"):
+                label_type = get_head_label_types(head.name)[0]
                 dataset_n_classes = len(classes_by_task[label_type.value])
-                if curr_n_classes is None:
+
+                if "n_classes" in head.params:
+                    if head.params.get("n_classes") != dataset_n_classes:
+                        raise ValueError(
+                            f"Number of classes in config ({head.params.get('n_classes')}) doesn't match number of "
+                            f"classes in dataset ({dataset_n_classes}) for `{head.name}`."
+                        )
+                else:
                     warnings.warn(
-                        f"Inheriting 'n_classes' parameter for `{head['name']}` from dataset. Setting it to {dataset_n_classes}."
+                        f"Inheriting 'n_classes' parameter for `{head.name}` from dataset. Setting it to {dataset_n_classes}."
                     )
-                elif curr_n_classes != dataset_n_classes:
-                    raise KeyError(
-                        f"Number of classes in config ({curr_n_classes}) doesn't match number of "
-                        f"classes in dataset ({dataset_n_classes}) for `{head['name']}`."
-                    )
-                head["params"]["n_classes"] = dataset_n_classes
+                    head.params["n_classes"] = dataset_n_classes
 
-    def _validate_config(self) -> None:
-        """Validates whole config based on specified rules"""
-        model_cfg = self._data["model"]
-        model_predefined = model_cfg.get("type") != None
-        backbone_specified = "backbone" in model_cfg and model_cfg["backbone"]
-        neck_specified = "neck" in model_cfg and model_cfg["neck"]
-        heads_specified = "heads" in model_cfg and isinstance(model_cfg["heads"], list)
+    def _validate_after(self) -> None:
+        """Performs any additional validation on the top level after the fact"""
+        # validate KeypointHead anchors
+        for head in self.get("model.heads"):
+            if head.name == "KeypointBboxHead" and head.params.get("anchors") == None:
+                warnings.warn("Generating")
+                anchors = self._autogenerate_anchors(head)
+                head.params["anchors"] = anchors
 
-        if not model_predefined:
-            if not (backbone_specified and heads_specified):
-                raise KeyError("Backbone and at least 1 head must be specified.")
-
-            if "params" in model_cfg and model_cfg["params"]:
-                warnings.warn(
-                    "Model-wise parameters won't be taken into account if you don't specify model type."
-                )
-
-        if model_cfg.get("pretrained") and model_cfg["backbone"].get("pretrained"):
-            warnings.warn(
-                "Weights of the backbone will be overridden by whole model weights."
+        n_heads = len(self.get("model.heads"))
+        # validate freeze_modules
+        if len(self.get("train.freeze_modules.heads")) != n_heads:
+            self._data.train.freeze_modules.heads = clip_or_fill_list(
+                self.get("train.freeze_modules.heads"), n_heads, False
+            )
+        # validate loss weights
+        if len(self.get("train.losses.weights")) != n_heads:
+            self._data.train.losses.weights = clip_or_fill_list(
+                self.get("train.losses.weights"), n_heads, 1
             )
 
-        n_heads = len(model_cfg["heads"])
+    def _autogenerate_anchors(self, head: ModelHeadConfig) -> List[List[float]]:
+        """Automatically generates anchors for the provided dataset
 
-        # loss definition should be present in every head
-        for head in self._data["model"]["heads"]:
-            if not ("loss" in head and head["loss"]):
-                raise KeyError("Loss must be defined for every head.")
+        Args:
+            head (ModelHeadConfig): Config of the head where anchors will be used
 
-        # handle main_head_index
-        if not (0 <= self._data["train"]["main_head_index"] < n_heads):
-            raise KeyError(
-                "Specified index of main head ('main_head_index') is out of range."
+        Returns:
+            List[List[float]]: List of anchors in [-1,6] format
+        """
+        from torch.utils.data import DataLoader
+        from luxonis_ml.loader import ValAugmentations, LuxonisLoader
+        from luxonis_train.utils.boxutils import anchors_from_dataset
+
+        with LuxonisDataset(
+            dataset_name=self.get("dataset.dataset_name"),
+            team_id=self.get("dataset.team_id"),
+            dataset_id=self.get("dataset.dataset_id"),
+            bucket_type=self.get("dataset.bucket_type"),
+            bucket_storage=self.get("dataset.bucket_storage"),
+        ) as dataset:
+            val_augmentations = ValAugmentations(
+                image_size=self.get("train.preprocessing.train_image_size"),
+                augmentations=[{"name": "Normalize", "params": {}}],
+                train_rgb=self.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.get("train.preprocessing.keep_aspect_ratio"),
             )
-
-        # handle freeze_modules and losses sections
-        if "train" in self._user_cfg and self._user_cfg["train"]:
-            # if freeze_modules used in user cfg than 'heads' must match number of heads
-            if (
-                "freeze_modules" in self._user_cfg["train"]
-                and self._user_cfg["train"]["freeze_modules"]
-            ):
-                if len(self._user_cfg["train"]["freeze_modules"]["heads"]) != n_heads:
-                    raise KeyError(
-                        "Number of heads in the model doesn't match number of heads in 'freeze_modules.heads'."
-                    )
-            # handle loss weights (similar as freeze_modules)
-            if (
-                "losses" in self._user_cfg["train"]
-                and self._user_cfg["train"]["losses"]
-            ):
-                if len(self._user_cfg["train"]["losses"]["weights"]) != n_heads:
-                    raise KeyError(
-                        "Number of losses in the model doesn't match number of losses in 'losses.weights'."
-                    )
-
-        # check if heads in freeze_modules and losses matches number of heads of the model
-        if len(self._data["train"]["freeze_modules"]["heads"]) != n_heads:
-            self._data["train"]["freeze_modules"]["heads"] = [False] * n_heads
-
-        if len(self._data["train"]["losses"]["weights"]) != n_heads:
-            self._data["train"]["losses"]["weights"] = [1] * n_heads
-
-        # handle normalize augmentation - append to other augmentations
-        if not (
-            "augmentations" in self._data["train"]["preprocessing"]
-            and self._data["train"]["preprocessing"]["augmentations"]
-        ):
-            self._data["train"]["preprocessing"]["augmentations"] = []
-        if self._data["train"]["preprocessing"]["normalize"]["active"]:
-            normalize_present = any(
-                filter(
-                    lambda x: x["name"] == "Normalize",
-                    self._data["train"]["preprocessing"]["augmentations"],
-                )
+            loader = LuxonisLoader(
+                dataset,
+                view=self.get("dataset.train_view"),
+                augmentations=val_augmentations,
+                mode="json" if self.get("dataset.json_mode") else "fiftyone",
             )
-            if not normalize_present:
-                self._data["train"]["preprocessing"]["augmentations"].append(
-                    {
-                        "name": "Normalize",
-                        "params": self._data["train"]["preprocessing"]["normalize"][
-                            "params"
-                        ]
-                        if "params" in self._data["train"]["preprocessing"]["normalize"]
-                        and self._data["train"]["preprocessing"]["normalize"]["params"]
-                        else {},
-                    }
-                )
-
-        # handle optimizer and scheduler params - set to empty dict if None
-        if not self._data["train"]["optimizers"]["optimizer"]["params"]:
-            self._data["train"]["optimizers"]["optimizer"]["params"] = {}
-        if not self._data["train"]["optimizers"]["scheduler"]["params"]:
-            self._data["train"]["optimizers"]["scheduler"]["params"] = {}
-
-        # handle setting num_workers to 0 for Mac and Windows
-        if sys.platform == "win32" or sys.platform == "darwin":
-            self._data["train"]["num_workers"] = 0
-
-        # handle IKeypointHead with anchors=None by generating them from dataset
-        ikeypoint_head_indices = [
-            i
-            for i, head in enumerate(self._data["model"]["heads"])
-            if head["name"] == "IKeypointHead"
-        ]
-        if len(ikeypoint_head_indices):
-            from torch.utils.data import DataLoader
-            from luxonis_ml.loader import ValAugmentations, LuxonisLoader
-            from luxonis_train.utils.boxutils import anchors_from_dataset
-
-            for i in ikeypoint_head_indices:
-                head = self._data["model"]["heads"][i]
-                anchors = head["params"].get("anchors", -1)
-                if anchors is None:
-                    with LuxonisDataset(
-                        dataset_name=self._data["dataset"]["dataset_name"],
-                        team_id=self._data["dataset"]["team_id"],
-                        dataset_id=self._data["dataset"]["dataset_id"],
-                        bucket_type=eval(self._data["dataset"]["bucket_type"]),
-                        bucket_storage=eval(self._data["dataset"]["bucket_storage"]),
-                    ) as dataset:
-                        val_augmentations = ValAugmentations(
-                            image_size=self._data["train"]["preprocessing"][
-                                "train_image_size"
-                            ],
-                            augmentations=[{"name": "Normalize", "params": {}}],
-                            train_rgb=self._data["train"]["preprocessing"]["train_rgb"],
-                            keep_aspect_ratio=self._data["train"]["preprocessing"][
-                                "keep_aspect_ratio"
-                            ],
-                        )
-                        loader = LuxonisLoader(
-                            dataset,
-                            view=self._data["dataset"]["train_view"],
-                            augmentations=val_augmentations,
-                            mode="json"
-                            if self._data["dataset"]["json_mode"]
-                            else "fiftyone",
-                        )
-                        pytorch_loader = DataLoader(
-                            loader,
-                            batch_size=self._data["train"]["batch_size"],
-                            num_workers=self._data["train"]["num_workers"],
-                            collate_fn=loader.collate_fn,
-                        )
-                        num_heads = head["params"].get("num_heads", 3)
-                        proposed_anchors = anchors_from_dataset(
-                            pytorch_loader, n_anchors=num_heads * 3
-                        )
-                        head["params"]["anchors"] = proposed_anchors.reshape(
-                            -1, 6
-                        ).tolist()
+            pytorch_loader = DataLoader(
+                loader,
+                batch_size=self.get("train.batch_size"),
+                num_workers=self.get("train.num_workers"),
+                collate_fn=loader.collate_fn,
+            )
+            num_heads = head.params.get("num_heads", 3)
+            proposed_anchors = anchors_from_dataset(
+                pytorch_loader, n_anchors=num_heads * 3
+            )
+            return proposed_anchors.reshape(-1, 6).tolist()
 
 
 def get_head_label_types(head_str: str) -> List[LabelType]:
@@ -486,39 +394,21 @@ def get_head_label_types(head_str: str) -> List[LabelType]:
     return HEADS.get(head_str).label_types
 
 
-def remove_chars_inside_brackets(string: str) -> str:
-    """Find and remove all spaces, single and double quotes inside substring which starts
-    with [ and ends with ] character
+def clip_or_fill_list(
+    input_list: List[Any], target_len: int, fill_value: Any
+) -> List[Any]:
+    """Clips of fills the list inplace so its length is target_len
+
+    Args:
+        input_list (List[Any]): List to clip or fill
+        target_len (int): Desired target length of the list
+        fill_value (Any): Value used for fill
+
+    Returns:
+        List[Any]: List of length target_len
     """
-    # Find substrings enclosed in square brackets
-    pattern = r"\[(.*?)\]"
-    matches = re.findall(pattern, string)
-    # Remove spaces, single quotes, and double quotes within each substring
-    for match in matches:
-        updated_match = re.sub(r'[\s\'"]', "", match)
-        string = string.replace(match, updated_match)
-    return string
-
-
-def parse_string_to_types(
-    input_str: str,
-) -> Union[str, int, bool, List[str | int | bool]]:
-    """Parse input strings to different data type if it matches some rule"""
-    if input_str.lstrip("-").isdigit():  # check if is digit
-        out = int(input_str)
-    elif input_str.lstrip("-").replace(".", "", 1).isdigit():
-        out = float(input_str)
-    elif input_str.lower() in ["none", "null"]:  # check if None
-        out = None
-    elif input_str.lower() == "true":  # check for bool values
-        out = True
-    elif input_str.lower() == "false":
-        out = False
-    elif input_str.startswith("[") and input_str.endswith("]"):  # check if list
-        sub_inputs = input_str[1:-1].split(",")
-        out = []
-        for sub_input in sub_inputs:
-            out.append(parse_string_to_types(sub_input))  # parse every sub-item
-    else:
-        out = input_str  # if nothing matches then it's a string
-    return out
+    if len(input_list) > target_len:
+        input_list = input_list[:target_len]
+    elif len(input_list) < target_len:
+        input_list.extend([fill_value] * (target_len - len(input_list)))
+    return input_list

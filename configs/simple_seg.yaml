@@ -6,8 +6,6 @@ model:
 
   heads:
     - name: BiSeNetHead #SegmentationHead
-      params:
-        n_classes: null
       loss: 
         name: SigmoidFocalLoss
 

@@ -3,12 +3,11 @@ import torch
 import pytorch_lightning as pl
 import threading
 import warnings
-from copy import deepcopy
 from typing import Union, Optional
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
 from luxonis_ml.tracker import LuxonisTrackerPL
-from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
+from luxonis_ml.data import LuxonisDataset
 from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
 from luxonis_train.utils.callbacks import LuxonisProgressBar
@@ -34,10 +33,10 @@ class Trainer:
         self.rank = rank_zero_only.rank
 
         cfg_logger = self.cfg.get("logger")
-        hparams = {key: self.cfg.get(key) for key in cfg_logger["logged_hyperparams"]}
+        hparams = {key: self.cfg.get(key) for key in cfg_logger.logged_hyperparams}
 
         load_dotenv()  # loads env variables for mlflow logging
-        logger_params = deepcopy(cfg_logger.copy())
+        logger_params = cfg_logger.model_dump()
         logger_params.pop("logged_hyperparams")
         logger = LuxonisTrackerPL(
             rank=self.rank,
@@ -48,7 +47,7 @@ class Trainer:
         )
         logger.log_hyperparams(hparams)
 
-        self.run_save_dir = os.path.join(cfg_logger["save_directory"], logger.run_name)
+        self.run_save_dir = os.path.join(cfg_logger.save_directory, logger.run_name)
 
         self.train_augmentations = None
         self.val_augmentations = None
@@ -85,13 +84,16 @@ class Trainer:
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
-            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            bucket_storage=self.cfg.get("dataset.bucket_storage"),
         ) as dataset:
             if self.train_augmentations == None:
                 self.train_augmentations = TrainAugmentations(
                     image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    augmentations=[
+                        i.model_dump()
+                        for i in self.cfg.get("train.preprocessing.augmentations")
+                    ],
                     train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
                     keep_aspect_ratio=self.cfg.get(
                         "train.preprocessing.keep_aspect_ratio"
@@ -132,7 +134,10 @@ class Trainer:
             if self.val_augmentations == None:
                 self.val_augmentations = ValAugmentations(
                     image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    augmentations=[
+                        i.model_dump()
+                        for i in self.cfg.get("train.preprocessing.augmentations")
+                    ],
                     train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
                     keep_aspect_ratio=self.cfg.get(
                         "train.preprocessing.keep_aspect_ratio"
@@ -185,13 +190,16 @@ class Trainer:
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
-            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            bucket_storage=self.cfg.get("dataset.bucket_storage"),
         ) as dataset:
             if self.test_augmentations == None:
                 self.test_augmentations = ValAugmentations(
                     image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    augmentations=[
+                        i.model_dump()
+                        for i in self.cfg.get("train.preprocessing.augmentations")
+                    ],
                     train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
                     keep_aspect_ratio=self.cfg.get(
                         "train.preprocessing.keep_aspect_ratio"

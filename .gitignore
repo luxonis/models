@@ -141,3 +141,6 @@ cifar_small_ldf/*
 
 # Venv
 models_venv/*
+
+# vscode settings
+.vscode

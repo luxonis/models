@@ -1,13 +1,9 @@
 model:
   name: AdvancedDetectionSegmentation
-  type: yolov6-n
-  params:
-    n_classes: null
+  predefined_model: yolov6-n
 
   additional_heads:
     - name: SegmentationHead
-      params:
-        n_classes: null
       loss: 
         name: SigmoidFocalLoss
 

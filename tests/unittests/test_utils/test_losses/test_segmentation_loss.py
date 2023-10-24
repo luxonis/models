@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 from luxonis_train.utils.losses.common import SegmentationLoss
 
-pytest.skip(allow_module_level=True)
+# pytest.skip(allow_module_level=True)
 
 
 # TODO: move to sep file as it may be useful

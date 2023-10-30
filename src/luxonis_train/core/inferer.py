@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 from typing import Union, Optional
 from dotenv import load_dotenv
 from tqdm import tqdm
-from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
+from luxonis_ml.data import LuxonisDataset
 from luxonis_ml.loader import LuxonisLoader
 from luxonis_ml.loader import TrainAugmentations, ValAugmentations, Augmentations
 
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
@@ -28,7 +28,7 @@ class Inferer(pl.LightningModule):
         """
         super().__init__()
 
-        self.cfg = Config(cfg)
+        self.cfg = ConfigHandler(cfg)
         if args and args["override"]:
             self.cfg.override_config(args["override"])
         load_dotenv()
@@ -74,8 +74,8 @@ class Inferer(pl.LightningModule):
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
-            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            bucket_storage=self.cfg.get("dataset.bucket_storage"),
         ) as dataset:
             view = self.cfg.get("inferer.dataset_view")
 
@@ -83,7 +83,10 @@ class Inferer(pl.LightningModule):
                 if view == "train":
                     self.augmentations = TrainAugmentations(
                         image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                        augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                        augmentations=[
+                            i.model_dump()
+                            for i in self.cfg.get("train.preprocessing.augmentations")
+                        ],
                         train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
                         keep_aspect_ratio=self.cfg.get(
                             "train.preprocessing.keep_aspect_ratio"
@@ -92,7 +95,10 @@ class Inferer(pl.LightningModule):
                 else:
                     self.augmentations = ValAugmentations(
                         image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                        augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                        augmentations=[
+                            i.model_dump()
+                            for i in self.cfg.get("train.preprocessing.augmentations")
+                        ],
                         train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
                         keep_aspect_ratio=self.cfg.get(
                             "train.preprocessing.keep_aspect_ratio"
@@ -120,6 +126,7 @@ class Inferer(pl.LightningModule):
                 os.makedirs(save_dir, exist_ok=True)
 
             unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+            normalize_params = self.cfg.get("train.preprocessing.normalize.params")
             cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
             counter = 0
             with torch.no_grad():
@@ -139,6 +146,7 @@ class Inferer(pl.LightningModule):
                             unnormalize_img=unnormalize_img,
                             cvt_color=cvt_color,
                             overlay=True,
+                            normalize_params=normalize_params,
                         )
                         output_imgs = draw_outputs(
                             imgs=inputs,
@@ -146,6 +154,7 @@ class Inferer(pl.LightningModule):
                             head=curr_head,
                             unnormalize_img=unnormalize_img,
                             cvt_color=cvt_color,
+                            normalize_params=normalize_params,
                         )
                         merged_imgs = [
                             cv2.hconcat([l_img, o_img])
@@ -182,7 +191,10 @@ class Inferer(pl.LightningModule):
         if augmentations == None:
             augmentations = ValAugmentations(
                 image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                augmentations=[
+                    i.model_dump()
+                    for i in self.cfg.get("train.preprocessing.augmentations")
+                ],
                 train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
                 keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio"),
             )

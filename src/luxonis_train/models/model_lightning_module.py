@@ -1,16 +1,14 @@
 import pytorch_lightning as pl
 import torch
-import warnings
 import cv2
 import torch.nn as nn
 import numpy as np
-from copy import deepcopy
 from pprint import pprint
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_train.models import Model
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.registry import LOSSES, CALLBACKS, OPTIMIZERS, SCHEDULERS
 from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
@@ -27,7 +25,7 @@ class ModelLightningModule(pl.LightningModule):
         """Main class used to build and train the model using Pytorch Lightning"""
         super().__init__()
 
-        self.cfg = Config()
+        self.cfg = ConfigHandler()
         self.save_dir = save_dir
         self.model_name = self.cfg.get("model.name")
 
@@ -39,10 +37,10 @@ class ModelLightningModule(pl.LightningModule):
         for i, head in enumerate(self.cfg.get("model.heads")):
             # pass config params + head instance attributes
             params = {
-                **head["loss"].get("params", {}),
+                **head.loss.params,
                 "head_attributes": self.model.heads[i].__dict__,
             }
-            self.losses.append(LOSSES.get(head["loss"]["name"])(**params))
+            self.losses.append(LOSSES.get(head.loss.name)(**params))
 
         # for each head initialize its metrics
         self.metrics = nn.ModuleDict()
@@ -50,7 +48,7 @@ class ModelLightningModule(pl.LightningModule):
             self.metrics[curr_head.get_name(i)] = init_metrics(curr_head)
 
         # load pretrained weights if defined
-        if self.cfg.get("model").get("pretrained"):
+        if self.cfg.get("model.pretrained"):
             self.load_checkpoint(self.cfg.get("model.pretrained"))
 
         # lists for storing intermediate step outputs
@@ -74,7 +72,7 @@ class ModelLightningModule(pl.LightningModule):
             + ":.4f}_{epoch:02d}_"
             + self.model_name,
             auto_insert_metric_name=False,
-            save_top_k=self.cfg.get("train.callbacks.model_checkpoint.save_top_k"),
+            save_top_k=self.cfg.get("train.callbacks.checkpoint.save_top_k"),
             mode="min",
         )
 
@@ -87,13 +85,15 @@ class ModelLightningModule(pl.LightningModule):
             + ":.4f}_loss={val_loss/loss:.4f}_{epoch:02d}_"
             + self.model_name,
             auto_insert_metric_name=False,
-            save_top_k=self.cfg.get("train.callbacks.model_checkpoint.save_top_k"),
+            save_top_k=self.cfg.get("train.callbacks.checkpoint.save_top_k"),
             mode="max",
         )
 
         lr_monitor = LearningRateMonitor(logging_interval="step")
         annotation_checker = AnnotationChecker()
-        module_freezer = ModuleFreezer(freeze_info=self.cfg.get("train.freeze_modules"))
+        module_freezer = ModuleFreezer(
+            freeze_info=self.cfg.get("train.freeze_modules").model_dump()
+        )
         metadata_logger = MetadataLogger()
 
         callbacks = [
@@ -115,9 +115,10 @@ class ModelLightningModule(pl.LightningModule):
         if self.cfg.get("train.callbacks.early_stopping.active"):
             from pytorch_lightning.callbacks import EarlyStopping
 
-            cfg_early_stopping = deepcopy(
-                self.cfg.get("train.callbacks.early_stopping")
-            )
+            cfg_early_stopping = self.cfg.get(
+                "train.callbacks.early_stopping"
+            ).model_dump()
+
             cfg_early_stopping.pop("active")
             early_stopping = EarlyStopping(**cfg_early_stopping)
             callbacks.append(early_stopping)
@@ -158,32 +159,27 @@ class ModelLightningModule(pl.LightningModule):
         if custom_callbacks:
             for custom_callback in custom_callbacks:
                 callbacks.append(
-                    CALLBACKS.get(custom_callback["name"])(
-                        **custom_callback.get("params", {})
-                    )
+                    CALLBACKS.get(custom_callback.name)(**custom_callback.params)
                 )
 
         return callbacks
 
     def configure_optimizers(self):
         """Configures model optimizers and schedulers"""
-        cfg_optimizer = self.cfg.get("train.optimizers")
-
+        cfg_optimizers = self.cfg.get("train.optimizers")
         # config params + model parameters
         optim_params = {
-            **cfg_optimizer["optimizer"].get("params", {}),
+            **cfg_optimizers.optimizer.params,
             "params": filter(lambda p: p.requires_grad, self.model.parameters()),
         }
-        optimizer = OPTIMIZERS.get(cfg_optimizer["optimizer"]["name"])(**optim_params)
+        optimizer = OPTIMIZERS.get(cfg_optimizers.optimizer.name)(**optim_params)
 
         # config params + optimizer
         scheduler_params = {
-            **cfg_optimizer["scheduler"]["params"],
+            **cfg_optimizers.scheduler.params,
             "optimizer": optimizer,
         }
-        scheduler = SCHEDULERS.get(cfg_optimizer["scheduler"]["name"])(
-            **scheduler_params
-        )
+        scheduler = SCHEDULERS.get(cfg_optimizers.scheduler.name)(**scheduler_params)
 
         return [optimizer], [scheduler]
 

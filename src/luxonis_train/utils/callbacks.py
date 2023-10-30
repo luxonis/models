@@ -10,7 +10,6 @@ from rich.table import Table
 from torch import Tensor
 from torch.optim.optimizer import Optimizer
 
-from luxonis_train.utils.config import Config
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
@@ -140,9 +139,9 @@ class MetadataLogger(pl.Callback):
     packages. Also stores this information locally."""
 
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        from luxonis_train.utils.config import Config
+        from luxonis_train.utils.config import ConfigHandler
 
-        cfg = Config()
+        cfg = ConfigHandler()
         hparams = {key: cfg.get(key) for key in cfg.get("logger.logged_hyperparams")}
 
         # try to get luxonis-ml and luxonis-train git commit hashes (if installed as editable)
@@ -192,25 +191,28 @@ class TestOnTrainEnd(pl.Callback):
     """Callback that performs test on pl_module when train ends"""
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        from luxonis_train.utils.config import Config
+        from luxonis_train.utils.config import ConfigHandler
         from torch.utils.data import DataLoader
-        from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
+        from luxonis_ml.data import LuxonisDataset
         from luxonis_ml.loader import LuxonisLoader, ValAugmentations
 
-        cfg = Config()
+        cfg = ConfigHandler()
         with LuxonisDataset(
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
-            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            bucket_storage=self.cfg.get("dataset.bucket_storage"),
         ) as dataset:
             loader_test = LuxonisLoader(
                 dataset,
                 view=cfg.get("dataset.test_view"),
                 augmentations=ValAugmentations(
                     image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
+                    augmentations=[
+                        i.model_dump()
+                        for i in self.cfg.get("train.preprocessing.augmentations")
+                    ],
                     train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
                     keep_aspect_ratio=self.cfg.get(
                         "train.preprocessing.keep_aspect_ratio"
@@ -239,10 +241,10 @@ class ExportOnTrainEnd(pl.Callback):
         self.override_upload_directory = override_upload_directory
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        from luxonis_train.utils.config import Config
+        from luxonis_train.utils.config import ConfigHandler
         from luxonis_train.core import Exporter
 
-        cfg = Config()
+        cfg = ConfigHandler()
 
         model_checkpoint_callbacks = [
             c for c in trainer.callbacks if isinstance(c, pl.callbacks.ModelCheckpoint)
@@ -260,9 +262,8 @@ class ExportOnTrainEnd(pl.Callback):
 
         # override normalization
         norm_cfg = cfg.get("train.preprocessing.normalize")
-        if norm_cfg.get("active") and norm_cfg.get("params", {}) != None:
-            norm_params = norm_cfg.get("params", {})
-            scale_values = norm_params.get("std")
+        if norm_cfg.active:
+            scale_values = norm_cfg.params.get("std")
             if scale_values != None:
                 # for augmentation these values are [0,1], for export they should be [0,255]
                 scale_values = (
@@ -273,7 +274,7 @@ class ExportOnTrainEnd(pl.Callback):
             else:
                 scale_values = [58.395, 57.120, 57.375]
 
-            mean_values = norm_params.get("mean")
+            mean_values = norm_cfg.params.get("mean")
             if mean_values != None:
                 # for augmentation these values are [0,1], for export they should be [0,255]
                 mean_values = (

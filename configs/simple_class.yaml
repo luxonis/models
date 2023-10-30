@@ -6,8 +6,6 @@ model:
 
   heads:
     - name: ClassificationHead
-      params:
-        n_classes: null
       loss: 
         name: CrossEntropyLoss
 

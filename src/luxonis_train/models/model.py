@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch
 
 from luxonis_train.utils.registry import BACKBONES, NECKS, HEADS
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.general import dummy_input_run
 from luxonis_train.utils.filesystem import LuxonisFileSystem
 
@@ -17,18 +17,21 @@ class Model(nn.Module):
 
     def build_model(self):
         """Builds the model from defined config"""
-        cfg = Config()
+        cfg = ConfigHandler()
         modules_cfg = cfg.get("model")
-        dummy_input_shape = [1, 3,] + cfg.get(
+        dummy_input_shape = [
+            1,
+            3,
+        ] + cfg.get(
             "train.preprocessing.train_image_size"
         )  # NOTE: we assume 3 dimensional input shape
 
-        self.backbone = BACKBONES.get(modules_cfg["backbone"]["name"])(
-            **modules_cfg["backbone"].get("params", {})
+        self.backbone = BACKBONES.get(modules_cfg.backbone.name)(
+            **modules_cfg.backbone.params
         )
         # load backbone weights if avaliable
-        if modules_cfg["backbone"].get("pretrained"):
-            path = modules_cfg["backbone"]["pretrained"]
+        if modules_cfg.backbone.pretrained:
+            path = modules_cfg.backbone.pretrained
             print(f"Loading backbone weights from: {path}")
             fs = LuxonisFileSystem(path)
             checkpoint = torch.load(fs.read_to_byte_buffer())
@@ -37,22 +40,22 @@ class Model(nn.Module):
 
         self.backbone_out_shapes = dummy_input_run(self.backbone, dummy_input_shape)
 
-        if "neck" in modules_cfg and modules_cfg["neck"]:
-            self.neck = NECKS.get(modules_cfg["neck"]["name"])(
+        if modules_cfg.neck:
+            self.neck = NECKS.get(modules_cfg.neck.name)(
                 input_channels_shapes=self.backbone_out_shapes,
-                **modules_cfg["neck"].get("params", {}),
+                **modules_cfg.neck.params,
             )
             self.neck_out_shapes = dummy_input_run(
                 self.neck, self.backbone_out_shapes, multi_input=True
             )
 
-        for head in modules_cfg["heads"]:
-            curr_head = HEADS.get(head["name"])(
+        for head in modules_cfg.heads:
+            curr_head = HEADS.get(head.name)(
                 input_channels_shapes=self.neck_out_shapes
                 if self.neck
                 else self.backbone_out_shapes,
                 original_in_shape=dummy_input_shape,
-                **head["params"],
+                **head.params,
             )
             self.heads.append(curr_head)
 

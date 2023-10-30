@@ -1,4 +1,5 @@
 import argparse
+import json
 from luxonis_train.core import Inferer
 
 if __name__ == "__main__":
@@ -7,7 +8,9 @@ if __name__ == "__main__":
         "-cfg", "--config", type=str, required=True, help="Configuration file to use"
     )
     parser.add_argument(
-        "--override", default=None, type=str, help="Manually override config parameter"
+        "--override",
+        type=json.loads,
+        help="Manually override config parameter, input in json format",
     )
     args = parser.parse_args()
     args_dict = vars(args)

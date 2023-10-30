@@ -8,7 +8,7 @@ from typing import Union, Optional
 from pathlib import Path
 from dotenv import load_dotenv
 
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.filesystem import LuxonisFileSystem
@@ -26,10 +26,9 @@ class Exporter(pl.LightningModule):
 
         load_dotenv()
 
-        self.cfg = Config(cfg)
+        self.cfg = ConfigHandler(cfg)
         if args and args["override"]:
             self.cfg.override_config(args["override"])
-        self.cfg.validate_config_exporter()
 
         # ensure save directory
         Path(self.cfg.get("exporter.export_save_directory")).mkdir(

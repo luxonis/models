@@ -13,7 +13,11 @@ from luxonis_train.utils.registry import LOSSES, CALLBACKS, OPTIMIZERS, SCHEDULE
 from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
 from luxonis_train.utils.filesystem import LuxonisFileSystem
-from luxonis_train.utils.callbacks import AnnotationChecker, ModuleFreezer
+from luxonis_train.utils.callbacks import (
+    AnnotationChecker,
+    ModuleFreezer,
+    MetadataLogger,
+)
 
 
 class ModelLightningModule(pl.LightningModule):
@@ -90,12 +94,15 @@ class ModelLightningModule(pl.LightningModule):
         module_freezer = ModuleFreezer(
             freeze_info=self.cfg.get("train.freeze_modules").model_dump()
         )
+        metadata_logger = MetadataLogger()
+
         callbacks = [
             loss_checkpoint,
             metric_checkpoint,
             lr_monitor,
             annotation_checker,
             module_freezer,
+            metadata_logger,
         ]
 
         # used if we want to perform fine-grained debugging

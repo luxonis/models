@@ -127,80 +127,72 @@ class Tuner:
             ],
         )
 
-        with LuxonisDataset(
+        dataset = LuxonisDataset(
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
             bucket_type=self.cfg.get("dataset.bucket_type"),
             bucket_storage=self.cfg.get("dataset.bucket_storage"),
-        ) as dataset:
-            loader_train = LuxonisLoader(
-                dataset,
-                view=self.cfg.get("dataset.train_view"),
-                augmentations=TrainAugmentations(
-                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=[
-                        i.model_dump()
-                        for i in self.cfg.get("train.preprocessing.augmentations")
-                    ],
-                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                    keep_aspect_ratio=self.cfg.get(
-                        "train.preprocessing.keep_aspect_ratio"
-                    ),
-                ),
-                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
-            )
+        )
+        loader_train = LuxonisLoader(
+            dataset,
+            view=self.cfg.get("dataset.train_view"),
+            augmentations=TrainAugmentations(
+                image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                augmentations=[
+                    i.model_dump()
+                    for i in self.cfg.get("train.preprocessing.augmentations")
+                ],
+                train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio"),
+            ),
+        )
 
-            sampler = None
-            if self.cfg.get("train.use_weighted_sampler"):
-                classes_count = dataset.get_classes_count()
-                if len(classes_count) == 0:
-                    warnings.warn(
-                        "WeightedRandomSampler only available for classification tasks. Using default sampler instead."
-                    )
-                else:
-                    weights = [1 / i for i in classes_count.values()]
-                    num_samples = sum(classes_count.values())
-                    sampler = torch.utils.data.WeightedRandomSampler(
-                        weights, num_samples
-                    )
+        sampler = None
+        if self.cfg.get("train.use_weighted_sampler"):
+            classes_count = dataset.get_classes_count()
+            if len(classes_count) == 0:
+                warnings.warn(
+                    "WeightedRandomSampler only available for classification tasks. Using default sampler instead."
+                )
+            else:
+                weights = [1 / i for i in classes_count.values()]
+                num_samples = sum(classes_count.values())
+                sampler = torch.utils.data.WeightedRandomSampler(weights, num_samples)
 
-            pytorch_loader_train = torch.utils.data.DataLoader(
-                loader_train,
-                batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=loader_train.collate_fn,
-                drop_last=self.cfg.get("train.skip_last_batch"),
-                sampler=sampler,
-            )
+        pytorch_loader_train = torch.utils.data.DataLoader(
+            loader_train,
+            batch_size=self.cfg.get("train.batch_size"),
+            num_workers=self.cfg.get("train.num_workers"),
+            collate_fn=loader_train.collate_fn,
+            drop_last=self.cfg.get("train.skip_last_batch"),
+            sampler=sampler,
+        )
 
-            loader_val = LuxonisLoader(
-                dataset,
-                view=self.cfg.get("dataset.val_view"),
-                augmentations=ValAugmentations(
-                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=[
-                        i.model_dump()
-                        for i in self.cfg.get("train.preprocessing.augmentations")
-                    ],
-                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                    keep_aspect_ratio=self.cfg.get(
-                        "train.preprocessing.keep_aspect_ratio"
-                    ),
-                ),
-                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
-            )
-            pytorch_loader_val = torch.utils.data.DataLoader(
-                loader_val,
-                batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=loader_val.collate_fn,
-            )
+        loader_val = LuxonisLoader(
+            dataset,
+            view=self.cfg.get("dataset.val_view"),
+            augmentations=ValAugmentations(
+                image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                augmentations=[
+                    i.model_dump()
+                    for i in self.cfg.get("train.preprocessing.augmentations")
+                ],
+                train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio"),
+            ),
+        )
+        pytorch_loader_val = torch.utils.data.DataLoader(
+            loader_val,
+            batch_size=self.cfg.get("train.batch_size"),
+            num_workers=self.cfg.get("train.num_workers"),
+            collate_fn=loader_val.collate_fn,
+        )
 
-            pl_trainer.fit(lightning_module, pytorch_loader_train, pytorch_loader_val)
-            pruner_callback.check_pruned()
+        pl_trainer.fit(lightning_module, pytorch_loader_train, pytorch_loader_val)
+        pruner_callback.check_pruned()
 
-            return pl_trainer.callback_metrics["val_loss/loss"].item()
+        return pl_trainer.callback_metrics["val_loss/loss"].item()
 
     def _get_trial_params(self, trial: optuna.trial.Trial):
         """Get trial params based on specified config"""

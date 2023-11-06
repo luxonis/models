@@ -6,10 +6,11 @@ import warnings
 from typing import Union, Optional
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
-from luxonis_ml.tracker import LuxonisTrackerPL
+
 from luxonis_ml.data import LuxonisDataset
 from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
+from luxonis_train.utils.tracker import LuxonisTrackerPL
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
 from luxonis_train.utils.config import ConfigHandler

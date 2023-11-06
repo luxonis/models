@@ -6,13 +6,13 @@ import numpy as np
 from pprint import pprint
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.utilities import rank_zero_only
+from luxonis_ml.utils import LuxonisFileSystem
 
 from luxonis_train.models import Model
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.registry import LOSSES, CALLBACKS, OPTIMIZERS, SCHEDULERS
 from luxonis_train.utils.metrics import init_metrics
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
-from luxonis_train.utils.filesystem import LuxonisFileSystem
 from luxonis_train.utils.callbacks import (
     AnnotationChecker,
     ModuleFreezer,

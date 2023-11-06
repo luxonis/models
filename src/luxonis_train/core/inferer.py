@@ -10,12 +10,12 @@ from tqdm import tqdm
 from luxonis_ml.data import LuxonisDataset
 from luxonis_ml.loader import LuxonisLoader
 from luxonis_ml.loader import TrainAugmentations, ValAugmentations, Augmentations
+from luxonis_ml.utils import LuxonisFileSystem
 
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
-from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
 class Inferer(pl.LightningModule):

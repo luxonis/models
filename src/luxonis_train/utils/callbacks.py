@@ -9,8 +9,7 @@ from pytorch_lightning.callbacks import RichProgressBar, BaseFinetuning
 from rich.table import Table
 from torch import Tensor
 from torch.optim.optimizer import Optimizer
-
-from luxonis_train.utils.filesystem import LuxonisFileSystem
+from luxonis_ml.utils import LuxonisFileSystem
 
 
 class LuxonisProgressBar(RichProgressBar):

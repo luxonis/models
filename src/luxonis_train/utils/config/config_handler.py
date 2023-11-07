@@ -3,8 +3,7 @@ from typing import Any, Dict, List
 
 from .config import *
 from luxonis_train.utils.registry import HEADS
-from luxonis_ml.data import LuxonisDataset
-from luxonis_ml.loader import LabelType
+from luxonis_ml.data import LuxonisDataset, LabelType
 from luxonis_ml.utils import ConfigHandler as BaseConfigHandler
 
 
@@ -79,9 +78,10 @@ class ConfigHandler(BaseConfigHandler):
         Returns:
             List[List[float]]: List of anchors in [-1,6] format
         """
-        from torch.utils.data import DataLoader
-        from luxonis_ml.loader import ValAugmentations, LuxonisLoader
+        from torch.utils.data import DataLoader, ValAugmentations, LuxonisLoader
+
         from luxonis_train.utils.boxutils import anchors_from_dataset
+        from luxonis_train.utils.loader import collate_fn
 
         with LuxonisDataset(
             dataset_name=self.get("dataset.dataset_name"),
@@ -106,7 +106,7 @@ class ConfigHandler(BaseConfigHandler):
                 loader,
                 batch_size=self.get("train.batch_size"),
                 num_workers=self.get("train.num_workers"),
-                collate_fn=loader.collate_fn,
+                collate_fn=collate_fn,
             )
             num_heads = head.params.get("num_heads", 3)
             proposed_anchors = anchors_from_dataset(

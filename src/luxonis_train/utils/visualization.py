@@ -10,8 +10,7 @@ from torchvision.utils import (
     draw_keypoints,
 )
 from torchvision.ops import box_convert
-
-from luxonis_ml.loader import LabelType
+from luxonis_ml.data import LabelType
 
 
 def draw_outputs(

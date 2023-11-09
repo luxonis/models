@@ -1,10 +1,10 @@
 import torch.nn as nn
 import torch
+from luxonis_ml.utils import LuxonisFileSystem
 
 from luxonis_train.utils.registry import BACKBONES, NECKS, HEADS
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.general import dummy_input_run
-from luxonis_train.utils.filesystem import LuxonisFileSystem
 
 
 class Model(nn.Module):

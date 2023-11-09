@@ -366,7 +366,7 @@ def anchors_from_dataset(
     Returns:
         Tensor: Proposed anchors
     """
-    from luxonis_ml.loader import LabelType
+    from luxonis_ml.data import LabelType
     from scipy.cluster.vq import kmeans
 
     print("Generating anchors...")

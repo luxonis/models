@@ -6,13 +6,19 @@ import warnings
 from typing import Union, Optional
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
-from luxonis_ml.tracker import LuxonisTrackerPL
-from luxonis_ml.data import LuxonisDataset
-from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
+from luxonis_ml.data import (
+    LuxonisDataset,
+    LuxonisLoader,
+    TrainAugmentations,
+    ValAugmentations,
+)
+
+from luxonis_train.utils.tracker import LuxonisTrackerPL
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
 from luxonis_train.utils.config import ConfigHandler
+from luxonis_train.utils.loader import collate_fn
 
 
 class Trainer:
@@ -119,7 +125,7 @@ class Trainer:
             shuffle=True,
             batch_size=self.cfg.get("train.batch_size"),
             num_workers=self.cfg.get("train.num_workers"),
-            collate_fn=loader_train.collate_fn,
+            collate_fn=collate_fn,
             drop_last=self.cfg.get("train.skip_last_batch"),
             sampler=sampler,
         )
@@ -144,7 +150,7 @@ class Trainer:
             loader_val,
             batch_size=self.cfg.get("train.batch_size"),
             num_workers=self.cfg.get("train.num_workers"),
-            collate_fn=loader_val.collate_fn,
+            collate_fn=collate_fn,
         )
 
         if not new_thread:
@@ -203,7 +209,7 @@ class Trainer:
             loader_test,
             batch_size=self.cfg.get("train.batch_size"),
             num_workers=self.cfg.get("train.num_workers"),
-            collate_fn=loader_test.collate_fn,
+            collate_fn=collate_fn,
         )
 
         if not new_thread:

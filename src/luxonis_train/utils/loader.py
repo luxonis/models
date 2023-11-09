@@ -1,13 +1,13 @@
 import torch
 from typing import Tuple, Dict, List
-from luxonis_ml.data import LabelType, LDF
+from luxonis_ml.data import LabelType, LuxonisLoaderOutput
 
 
-def collate_fn(batch: List[LDF]) -> Tuple[torch.tensor, Dict]:
+def collate_fn(batch: List[LuxonisLoaderOutput]) -> Tuple[torch.tensor, Dict]:
     """Default collate function used for training
 
     Args:
-        batch (list): List of images and their annotations in LDF format
+        batch (list): List of images and their annotations in LuxonisLoaderOutput format
 
     Returns:
         Tuple[torch.FloatTensor, Dict]:

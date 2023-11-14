@@ -81,7 +81,7 @@ class ConfigHandler(BaseConfigHandler):
         from torch.utils.data import DataLoader, ValAugmentations
 
         from luxonis_train.utils.boxutils import anchors_from_dataset
-        from luxonis_train.utils.loader import LuxonisLoaderTorch, collate_fn
+        from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
         with LuxonisDataset(
             dataset_name=self.get("dataset.dataset_name"),

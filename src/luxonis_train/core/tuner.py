@@ -18,7 +18,7 @@ from luxonis_train.utils.tracker import LuxonisTrackerPL
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
-from luxonis_train.utils.loader import LuxonisLoaderTorch, collate_fn
+from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
 
 class Tuner:

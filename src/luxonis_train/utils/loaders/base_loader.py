@@ -1,10 +1,8 @@
 import torch
-import numpy as np
-from torch import Tensor
-from typing import Tuple, Dict, List, Optional
-from luxonis_ml.data import LabelType
 from abc import ABC, abstractmethod
-from luxonis_ml.data import LuxonisLoader
+from torch import Tensor, FloatTensor
+from typing import Dict, Tuple, List
+from luxonis_ml.data import LabelType
 
 
 Labels = Dict[LabelType, Tensor]
@@ -17,6 +15,7 @@ class BaseLoaderTorch(ABC):
     @abstractmethod
     def __len__(self) -> int:
         """Returns length of the dataset"""
+        pass
 
     @abstractmethod
     def __getitem__(self, idx: int) -> LuxonisLoaderTorchOutput:
@@ -31,46 +30,14 @@ class BaseLoaderTorch(ABC):
         pass
 
 
-class LuxonisLoaderTorch(BaseLoaderTorch):
-    def __init__(
-        self,
-        dataset: "luxonis_ml.data.LuxonisDataset",
-        view: str = "train",
-        stream: bool = False,
-        augmentations: Optional["luxonis_ml.data.Augmentations"] = None,
-        mode: str = "fiftyone",
-    ):
-        self.base_loader = LuxonisLoader(
-            dataset=dataset,
-            view=view,
-            stream=stream,
-            augmentations=augmentations,
-            mode=mode,
-        )
-
-    def __len__(self) -> int:
-        return len(self.base_loader)
-
-    def __getitem__(self, idx: int) -> LuxonisLoaderTorchOutput:
-        img, annotations = self.base_loader[idx]
-
-        # convert img and annotations to torch tensors
-        img = np.transpose(img, (2, 0, 1))  # HWC to CHW
-        img = torch.tensor(img)
-        for key in annotations:
-            annotations[key] = torch.tensor(annotations[key])
-
-        return img, annotations
-
-
-def collate_fn(batch: List[LuxonisLoaderTorchOutput]) -> Tuple[torch.tensor, Dict]:
+def collate_fn(batch: List[LuxonisLoaderTorchOutput]) -> Tuple[FloatTensor, Dict]:
     """Default collate function used for training
 
     Args:
         batch (list): List of images and their annotations in LuxonisLoaderOutput format
 
     Returns:
-        Tuple[torch.FloatTensor, Dict]:
+        Tuple[FloatTensor, Dict]:
             imgs: Tensor of images (torch.float32) of shape [N, 3, H, W]
             out_annotations: Dictionary with annotations
                 {

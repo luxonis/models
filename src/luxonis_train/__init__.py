@@ -11,3 +11,6 @@ from luxonis_train.utils.optimizers import *
 
 # to register all scheduler modules
 from luxonis_train.utils.schedulers import *
+
+# to register all loader modules
+from luxonis_train.utils.loaders import *

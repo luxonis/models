@@ -11,3 +11,5 @@ CALLBACKS = Registry(name="callbacks")
 OPTIMIZERS = Registry(name="optimizers")
 
 SCHEDULERS = Registry(name="schedulers")
+
+LOADERS = Registry(name="loaders")

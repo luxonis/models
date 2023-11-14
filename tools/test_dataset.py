@@ -12,7 +12,7 @@ from luxonis_ml.data import (
 
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.visualization import draw_labels
-from luxonis_train.utils.loader import LuxonisLoaderTorch, collate_fn
+from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -9,8 +9,7 @@ from pytorch_lightning.callbacks import RichProgressBar, BaseFinetuning
 from rich.table import Table
 from torch import Tensor
 from torch.optim.optimizer import Optimizer
-
-from luxonis_train.utils.filesystem import LuxonisFileSystem
+from luxonis_ml.utils import LuxonisFileSystem
 
 
 class LuxonisProgressBar(RichProgressBar):
@@ -191,10 +190,11 @@ class TestOnTrainEnd(pl.Callback):
     """Callback that performs test on pl_module when train ends"""
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        from luxonis_train.utils.config import ConfigHandler
         from torch.utils.data import DataLoader
-        from luxonis_ml.data import LuxonisDataset
-        from luxonis_ml.loader import LuxonisLoader, ValAugmentations
+        from luxonis_ml.data import LuxonisDataset, ValAugmentations
+
+        from luxonis_train.utils.config import ConfigHandler
+        from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
         cfg = ConfigHandler()
         with LuxonisDataset(
@@ -204,7 +204,7 @@ class TestOnTrainEnd(pl.Callback):
             bucket_type=self.cfg.get("dataset.bucket_type"),
             bucket_storage=self.cfg.get("dataset.bucket_storage"),
         ) as dataset:
-            loader_test = LuxonisLoader(
+            loader_test = LuxonisLoaderTorch(
                 dataset,
                 view=cfg.get("dataset.test_view"),
                 augmentations=ValAugmentations(
@@ -224,7 +224,7 @@ class TestOnTrainEnd(pl.Callback):
                 loader_test,
                 batch_size=cfg.get("train.batch_size"),
                 num_workers=cfg.get("train.num_workers"),
-                collate_fn=loader_test.collate_fn,
+                collate_fn=collate_fn,
             )
             trainer.test(pl_module, pytorch_loader_test)
 

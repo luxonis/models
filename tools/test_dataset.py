@@ -4,11 +4,15 @@ import os
 import json
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
-from luxonis_ml.data import LuxonisDataset
-from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
+from luxonis_ml.data import (
+    LuxonisDataset,
+    TrainAugmentations,
+    ValAugmentations,
+)
 
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.visualization import draw_labels
+from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -67,7 +71,7 @@ if __name__ == "__main__":
             )
         )
 
-        loader_train = LuxonisLoader(
+        loader_train = LuxonisLoaderTorch(
             dataset,
             view=args.view,
             augmentations=augmentations,
@@ -77,7 +81,7 @@ if __name__ == "__main__":
             loader_train,
             batch_size=4,
             num_workers=1,
-            collate_fn=loader_train.collate_fn,
+            collate_fn=collate_fn,
         )
 
         save_dir = args.save_dir

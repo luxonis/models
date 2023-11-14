@@ -7,15 +7,19 @@ import matplotlib.pyplot as plt
 from typing import Union, Optional
 from dotenv import load_dotenv
 from tqdm import tqdm
-from luxonis_ml.data import LuxonisDataset
-from luxonis_ml.loader import LuxonisLoader
-from luxonis_ml.loader import TrainAugmentations, ValAugmentations, Augmentations
+from luxonis_ml.data import (
+    LuxonisDataset,
+    TrainAugmentations,
+    ValAugmentations,
+    Augmentations,
+)
+from luxonis_ml.utils import LuxonisFileSystem
 
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
-from luxonis_train.utils.filesystem import LuxonisFileSystem
+from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
 
 class Inferer(pl.LightningModule):
@@ -105,7 +109,7 @@ class Inferer(pl.LightningModule):
                         ),
                     )
 
-            loader_val = LuxonisLoader(
+            loader_val = LuxonisLoaderTorch(
                 dataset,
                 view=view,
                 augmentations=self.augmentations,
@@ -116,7 +120,7 @@ class Inferer(pl.LightningModule):
                 loader_val,
                 batch_size=self.cfg.get("train.batch_size"),
                 num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=loader_val.collate_fn,
+                collate_fn=collate_fn,
             )
 
             display = self.cfg.get("inferer.display")

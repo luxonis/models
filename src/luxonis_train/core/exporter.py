@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
-from luxonis_train.utils.filesystem import LuxonisFileSystem
+from luxonis_ml.utils import LuxonisFileSystem
 
 
 class Exporter(pl.LightningModule):

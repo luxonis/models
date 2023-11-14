@@ -6,7 +6,7 @@ from typing import List, Union, Optional
 from torchvision.utils import draw_segmentation_masks
 import warnings
 
-from luxonis_ml.loader import LabelType
+from luxonis_ml.data import LabelType
 from luxonis_train.utils.visualization import (
     torch_img_to_numpy,
     numpy_to_torch_img,

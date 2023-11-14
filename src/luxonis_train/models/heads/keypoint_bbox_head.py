@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple, cast
 from torch import Tensor, nn
 from torchvision.ops import box_convert
 from torchvision.utils import draw_bounding_boxes, draw_keypoints
+from luxonis_ml.data import LabelType
 
 from luxonis_train.models.heads.base_heads import BaseHead
 from luxonis_train.models.modules import (
@@ -23,7 +24,6 @@ from luxonis_train.utils.boxutils import (
 )
 from luxonis_train.utils.constants import HeadType
 from luxonis_train.utils.registry import HEADS
-from luxonis_ml.loader import LabelType
 
 
 @HEADS.register_module()

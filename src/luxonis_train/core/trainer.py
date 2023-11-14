@@ -9,7 +9,6 @@ from pytorch_lightning.utilities import rank_zero_only
 
 from luxonis_ml.data import (
     LuxonisDataset,
-    LuxonisLoader,
     TrainAugmentations,
     ValAugmentations,
 )
@@ -18,7 +17,7 @@ from luxonis_train.utils.tracker import LuxonisTrackerPL
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
 from luxonis_train.utils.config import ConfigHandler
-from luxonis_train.utils.loader import collate_fn
+from luxonis_train.utils.loader import LuxonisLoaderTorch, collate_fn
 
 
 class Trainer:
@@ -104,7 +103,7 @@ class Trainer:
                     ),
                 )
 
-            loader_train = LuxonisLoader(
+            loader_train = LuxonisLoaderTorch(
                 dataset,
                 view=self.cfg.get("dataset.train_view"),
                 augmentations=self.train_augmentations,
@@ -148,7 +147,7 @@ class Trainer:
                     ),
                 )
 
-            loader_val = LuxonisLoader(
+            loader_val = LuxonisLoaderTorch(
                 dataset,
                 view=self.cfg.get("dataset.val_view"),
                 augmentations=self.val_augmentations,
@@ -210,7 +209,7 @@ class Trainer:
                     ),
                 )
 
-            loader_test = LuxonisLoader(
+            loader_test = LuxonisLoaderTorch(
                 dataset,
                 view=self.cfg.get("dataset.test_view"),
                 augmentations=self.test_augmentations,

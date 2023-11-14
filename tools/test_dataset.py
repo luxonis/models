@@ -6,14 +6,13 @@ import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 from luxonis_ml.data import (
     LuxonisDataset,
-    LuxonisLoader,
     TrainAugmentations,
     ValAugmentations,
 )
 
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.visualization import draw_labels
-from luxonis_train.utils.loader import collate_fn
+from luxonis_train.utils.loader import LuxonisLoaderTorch, collate_fn
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -72,7 +71,7 @@ if __name__ == "__main__":
             )
         )
 
-        loader_train = LuxonisLoader(
+        loader_train = LuxonisLoaderTorch(
             dataset,
             view=args.view,
             augmentations=augmentations,

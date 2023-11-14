@@ -1,9 +1,69 @@
 import torch
-from typing import Tuple, Dict, List
-from luxonis_ml.data import LabelType, LuxonisLoaderOutput
+import numpy as np
+from torch import Tensor
+from typing import Tuple, Dict, List, Optional
+from luxonis_ml.data import LabelType
+from abc import ABC, abstractmethod
+from luxonis_ml.data import LuxonisLoader
 
 
-def collate_fn(batch: List[LuxonisLoaderOutput]) -> Tuple[torch.tensor, Dict]:
+Labels = Dict[LabelType, Tensor]
+LuxonisLoaderTorchOutput = Tuple[Tensor, Labels]
+
+
+class BaseLoaderTorch(ABC):
+    """Base abstract loader class that enforces LuxonisLoaderTorchOutput output label structure."""
+
+    @abstractmethod
+    def __len__(self) -> int:
+        """Returns length of the dataset"""
+
+    @abstractmethod
+    def __getitem__(self, idx: int) -> LuxonisLoaderTorchOutput:
+        """Loads sample from dataset
+
+        Args:
+            idx (int): Sample index
+
+        Returns:
+            LuxonisLoaderTorchOutput: Sample's data in LuxonisLoaderTorchOutput format
+        """
+        pass
+
+
+class LuxonisLoaderTorch(BaseLoaderTorch):
+    def __init__(
+        self,
+        dataset: "luxonis_ml.data.LuxonisDataset",
+        view: str = "train",
+        stream: bool = False,
+        augmentations: Optional["luxonis_ml.data.Augmentations"] = None,
+        mode: str = "fiftyone",
+    ):
+        self.base_loader = LuxonisLoader(
+            dataset=dataset,
+            view=view,
+            stream=stream,
+            augmentations=augmentations,
+            mode=mode,
+        )
+
+    def __len__(self) -> int:
+        return len(self.base_loader)
+
+    def __getitem__(self, idx: int) -> LuxonisLoaderTorchOutput:
+        img, annotations = self.base_loader[idx]
+
+        # convert img and annotations to torch tensors
+        img = np.transpose(img, (2, 0, 1))  # HWC to CHW
+        img = torch.tensor(img)
+        for key in annotations:
+            annotations[key] = torch.tensor(annotations[key])
+
+        return img, annotations
+
+
+def collate_fn(batch: List[LuxonisLoaderTorchOutput]) -> Tuple[torch.tensor, Dict]:
     """Default collate function used for training
 
     Args:
@@ -23,15 +83,7 @@ def collate_fn(batch: List[LuxonisLoaderOutput]) -> Tuple[torch.tensor, Dict]:
 
     zipped = zip(*batch)
     imgs, anno_dicts = zipped
-    imgs = [torch.from_numpy(img) for img in imgs]  # numpy to tensor
-    imgs = torch.stack(
-        [img.permute(2, 0, 1) for img in imgs], 0
-    )  # HWC to CHW and stacked together
-
-    # convert annotations to torch tensors
-    for anno_dict in anno_dicts:
-        for key in anno_dict:
-            anno_dict[key] = torch.tensor(anno_dict[key])
+    imgs = torch.stack(imgs, 0)
 
     present_annotations = anno_dicts[0].keys()
     out_annotations = {anno: None for anno in present_annotations}

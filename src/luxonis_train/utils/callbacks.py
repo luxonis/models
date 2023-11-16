@@ -191,10 +191,10 @@ class TestOnTrainEnd(pl.Callback):
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         from torch.utils.data import DataLoader
-        from luxonis_ml.data import LuxonisDataset, LuxonisLoader, ValAugmentations
+        from luxonis_ml.data import LuxonisDataset, ValAugmentations
 
         from luxonis_train.utils.config import ConfigHandler
-        from luxonis_train.utils.loader import collate_fn
+        from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
         cfg = ConfigHandler()
         dataset = LuxonisDataset(
@@ -204,7 +204,7 @@ class TestOnTrainEnd(pl.Callback):
             bucket_type=self.cfg.get("dataset.bucket_type"),
             bucket_storage=self.cfg.get("dataset.bucket_storage"),
         )
-        loader_test = LuxonisLoader(
+        loader_test = LuxonisLoaderTorch(
             dataset,
             view=cfg.get("dataset.test_view"),
             augmentations=ValAugmentations(

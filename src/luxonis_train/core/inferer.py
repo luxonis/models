@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 from luxonis_ml.data import (
     LuxonisDataset,
-    LuxonisLoader,
     TrainAugmentations,
     ValAugmentations,
     Augmentations,
@@ -20,7 +19,7 @@ from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.models import Model
 from luxonis_train.models.heads import *
 from luxonis_train.utils.visualization import draw_outputs, draw_labels
-from luxonis_train.utils.loader import collate_fn
+from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
 
 class Inferer(pl.LightningModule):
@@ -110,7 +109,7 @@ class Inferer(pl.LightningModule):
                     ),
                 )
 
-        loader_val = LuxonisLoader(
+        loader_val = LuxonisLoaderTorch(
             dataset,
             view=view,
             augmentations=self.augmentations,

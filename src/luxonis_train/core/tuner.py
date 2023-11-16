@@ -10,7 +10,6 @@ from pytorch_lightning.utilities import rank_zero_only
 from optuna.integration import PyTorchLightningPruningCallback
 from luxonis_ml.data import (
     LuxonisDataset,
-    LuxonisLoader,
     TrainAugmentations,
     ValAugmentations,
 )
@@ -19,7 +18,7 @@ from luxonis_train.utils.tracker import LuxonisTrackerPL
 from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
-from luxonis_train.utils.loader import collate_fn
+from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
 
 class Tuner:
@@ -139,7 +138,7 @@ class Tuner:
             bucket_type=self.cfg.get("dataset.bucket_type"),
             bucket_storage=self.cfg.get("dataset.bucket_storage"),
         )
-        loader_train = LuxonisLoader(
+        loader_train = LuxonisLoaderTorch(
             dataset,
             view=self.cfg.get("dataset.train_view"),
             augmentations=TrainAugmentations(
@@ -174,7 +173,7 @@ class Tuner:
             sampler=sampler,
         )
 
-        loader_val = LuxonisLoader(
+        loader_val = LuxonisLoaderTorch(
             dataset,
             view=self.cfg.get("dataset.val_view"),
             augmentations=ValAugmentations(

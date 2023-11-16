@@ -1,16 +1,43 @@
 import torch
-from typing import Tuple, Dict, List
-from luxonis_ml.data import LabelType, LuxonisLoaderOutput
+from abc import ABC, abstractmethod
+from torch import Tensor, FloatTensor
+from typing import Dict, Tuple, List
+from luxonis_ml.data import LabelType
 
 
-def collate_fn(batch: List[LuxonisLoaderOutput]) -> Tuple[torch.tensor, Dict]:
+Labels = Dict[LabelType, Tensor]
+LuxonisLoaderTorchOutput = Tuple[Tensor, Labels]
+
+
+class BaseLoaderTorch(ABC):
+    """Base abstract loader class that enforces LuxonisLoaderTorchOutput output label structure."""
+
+    @abstractmethod
+    def __len__(self) -> int:
+        """Returns length of the dataset"""
+        pass
+
+    @abstractmethod
+    def __getitem__(self, idx: int) -> LuxonisLoaderTorchOutput:
+        """Loads sample from dataset
+
+        Args:
+            idx (int): Sample index
+
+        Returns:
+            LuxonisLoaderTorchOutput: Sample's data in LuxonisLoaderTorchOutput format
+        """
+        pass
+
+
+def collate_fn(batch: List[LuxonisLoaderTorchOutput]) -> Tuple[FloatTensor, Dict]:
     """Default collate function used for training
 
     Args:
         batch (list): List of images and their annotations in LuxonisLoaderOutput format
 
     Returns:
-        Tuple[torch.FloatTensor, Dict]:
+        Tuple[FloatTensor, Dict]:
             imgs: Tensor of images (torch.float32) of shape [N, 3, H, W]
             out_annotations: Dictionary with annotations
                 {
@@ -23,15 +50,7 @@ def collate_fn(batch: List[LuxonisLoaderOutput]) -> Tuple[torch.tensor, Dict]:
 
     zipped = zip(*batch)
     imgs, anno_dicts = zipped
-    imgs = [torch.from_numpy(img) for img in imgs]  # numpy to tensor
-    imgs = torch.stack(
-        [img.permute(2, 0, 1) for img in imgs], 0
-    )  # HWC to CHW and stacked together
-
-    # convert annotations to torch tensors
-    for anno_dict in anno_dicts:
-        for key in anno_dict:
-            anno_dict[key] = torch.tensor(anno_dict[key])
+    imgs = torch.stack(imgs, 0)
 
     present_annotations = anno_dicts[0].keys()
     out_annotations = {anno: None for anno in present_annotations}

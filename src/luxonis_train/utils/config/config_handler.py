@@ -78,10 +78,10 @@ class ConfigHandler(BaseConfigHandler):
         Returns:
             List[List[float]]: List of anchors in [-1,6] format
         """
-        from torch.utils.data import DataLoader, ValAugmentations, LuxonisLoader
+        from torch.utils.data import DataLoader, ValAugmentations
 
         from luxonis_train.utils.boxutils import anchors_from_dataset
-        from luxonis_train.utils.loader import collate_fn
+        from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
         dataset = LuxonisDataset(
             dataset_name=self.get("dataset.dataset_name"),
@@ -96,7 +96,7 @@ class ConfigHandler(BaseConfigHandler):
             train_rgb=self.get("train.preprocessing.train_rgb"),
             keep_aspect_ratio=self.get("train.preprocessing.keep_aspect_ratio"),
         )
-        loader = LuxonisLoader(
+        loader = LuxonisLoaderTorch(
             dataset,
             view=self.get("dataset.train_view"),
             augmentations=val_augmentations,

@@ -7,10 +7,11 @@ torch>=1.12.1
 torchmetrics>=1.0.0
 torchvision>=0.13.1
 tensorboard>=2.10.1
+pycocotools>=2.0.7
 rich
 s3fs
-luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@a573a792608ba6f11aba7c99ff25e005ccd55bbc
-# tuning related packages
+luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@00b31c7
+# tunning related packages
 optuna>=3.2.0
 psycopg2-binary
 # export related packages (only base ones)

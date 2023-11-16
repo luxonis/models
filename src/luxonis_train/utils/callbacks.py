@@ -197,36 +197,33 @@ class TestOnTrainEnd(pl.Callback):
         from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
         cfg = ConfigHandler()
-        with LuxonisDataset(
+        dataset = LuxonisDataset(
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
             bucket_type=self.cfg.get("dataset.bucket_type"),
             bucket_storage=self.cfg.get("dataset.bucket_storage"),
-        ) as dataset:
-            loader_test = LuxonisLoaderTorch(
-                dataset,
-                view=cfg.get("dataset.test_view"),
-                augmentations=ValAugmentations(
-                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=[
-                        i.model_dump()
-                        for i in self.cfg.get("train.preprocessing.augmentations")
-                    ],
-                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                    keep_aspect_ratio=self.cfg.get(
-                        "train.preprocessing.keep_aspect_ratio"
-                    ),
-                ),
-                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
-            )
-            pytorch_loader_test = DataLoader(
-                loader_test,
-                batch_size=cfg.get("train.batch_size"),
-                num_workers=cfg.get("train.num_workers"),
-                collate_fn=collate_fn,
-            )
-            trainer.test(pl_module, pytorch_loader_test)
+        )
+        loader_test = LuxonisLoaderTorch(
+            dataset,
+            view=cfg.get("dataset.test_view"),
+            augmentations=ValAugmentations(
+                image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                augmentations=[
+                    i.model_dump()
+                    for i in self.cfg.get("train.preprocessing.augmentations")
+                ],
+                train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio"),
+            ),
+        )
+        pytorch_loader_test = DataLoader(
+            loader_test,
+            batch_size=cfg.get("train.batch_size"),
+            num_workers=cfg.get("train.num_workers"),
+            collate_fn=collate_fn,
+        )
+        trainer.test(pl_module, pytorch_loader_test)
 
 
 class ExportOnTrainEnd(pl.Callback):

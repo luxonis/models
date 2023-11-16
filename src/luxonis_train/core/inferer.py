@@ -74,107 +74,104 @@ class Inferer(pl.LightningModule):
     def infer(self):
         """Runs inference on all images in the dataset"""
 
-        with LuxonisDataset(
+        dataset = LuxonisDataset(
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
             bucket_type=self.cfg.get("dataset.bucket_type"),
             bucket_storage=self.cfg.get("dataset.bucket_storage"),
-        ) as dataset:
-            view = self.cfg.get("inferer.dataset_view")
+        )
+        view = self.cfg.get("inferer.dataset_view")
 
-            if self.augmentations == None:
-                if view == "train":
-                    self.augmentations = TrainAugmentations(
-                        image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                        augmentations=[
-                            i.model_dump()
-                            for i in self.cfg.get("train.preprocessing.augmentations")
-                        ],
-                        train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                        keep_aspect_ratio=self.cfg.get(
-                            "train.preprocessing.keep_aspect_ratio"
-                        ),
+        if self.augmentations == None:
+            if view == "train":
+                self.augmentations = TrainAugmentations(
+                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                    augmentations=[
+                        i.model_dump()
+                        for i in self.cfg.get("train.preprocessing.augmentations")
+                    ],
+                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                    keep_aspect_ratio=self.cfg.get(
+                        "train.preprocessing.keep_aspect_ratio"
+                    ),
+                )
+            else:
+                self.augmentations = ValAugmentations(
+                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                    augmentations=[
+                        i.model_dump()
+                        for i in self.cfg.get("train.preprocessing.augmentations")
+                    ],
+                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                    keep_aspect_ratio=self.cfg.get(
+                        "train.preprocessing.keep_aspect_ratio"
+                    ),
+                )
+
+        loader_val = LuxonisLoaderTorch(
+            dataset,
+            view=view,
+            augmentations=self.augmentations,
+        )
+
+        pytorch_loader_val = torch.utils.data.DataLoader(
+            loader_val,
+            batch_size=self.cfg.get("train.batch_size"),
+            num_workers=self.cfg.get("train.num_workers"),
+            collate_fn=collate_fn,
+        )
+
+        display = self.cfg.get("inferer.display")
+        save_dir = self.cfg.get("inferer.infer_save_directory")
+
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True)
+
+        unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
+        normalize_params = self.cfg.get("train.preprocessing.normalize.params")
+        cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
+        counter = 0
+        with torch.no_grad():
+            for data in tqdm(pytorch_loader_val):
+                inputs = data[0]
+                label_dict = data[1]
+                outputs = self.forward(inputs)
+
+                for i, output in enumerate(outputs):
+                    curr_head = self.model.heads[i]
+                    curr_head_name = curr_head.get_name(i)
+
+                    label_imgs = draw_labels(
+                        imgs=inputs,
+                        label_dict=label_dict,
+                        label_keys=curr_head.label_types,
+                        unnormalize_img=unnormalize_img,
+                        cvt_color=cvt_color,
+                        overlay=True,
+                        normalize_params=normalize_params,
                     )
-                else:
-                    self.augmentations = ValAugmentations(
-                        image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                        augmentations=[
-                            i.model_dump()
-                            for i in self.cfg.get("train.preprocessing.augmentations")
-                        ],
-                        train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                        keep_aspect_ratio=self.cfg.get(
-                            "train.preprocessing.keep_aspect_ratio"
-                        ),
+                    output_imgs = draw_outputs(
+                        imgs=inputs,
+                        output=output,
+                        head=curr_head,
+                        unnormalize_img=unnormalize_img,
+                        cvt_color=cvt_color,
+                        normalize_params=normalize_params,
                     )
+                    merged_imgs = [
+                        cv2.hconcat([l_img, o_img])
+                        for l_img, o_img in zip(label_imgs, output_imgs)
+                    ]
 
-            loader_val = LuxonisLoaderTorch(
-                dataset,
-                view=view,
-                augmentations=self.augmentations,
-                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
-            )
-
-            pytorch_loader_val = torch.utils.data.DataLoader(
-                loader_val,
-                batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=collate_fn,
-            )
-
-            display = self.cfg.get("inferer.display")
-            save_dir = self.cfg.get("inferer.infer_save_directory")
-
-            if save_dir is not None:
-                os.makedirs(save_dir, exist_ok=True)
-
-            unnormalize_img = self.cfg.get("train.preprocessing.normalize.active")
-            normalize_params = self.cfg.get("train.preprocessing.normalize.params")
-            cvt_color = not self.cfg.get("train.preprocessing.train_rgb")
-            counter = 0
-            with torch.no_grad():
-                for data in tqdm(pytorch_loader_val):
-                    inputs = data[0]
-                    label_dict = data[1]
-                    outputs = self.forward(inputs)
-
-                    for i, output in enumerate(outputs):
-                        curr_head = self.model.heads[i]
-                        curr_head_name = curr_head.get_name(i)
-
-                        label_imgs = draw_labels(
-                            imgs=inputs,
-                            label_dict=label_dict,
-                            label_keys=curr_head.label_types,
-                            unnormalize_img=unnormalize_img,
-                            cvt_color=cvt_color,
-                            overlay=True,
-                            normalize_params=normalize_params,
-                        )
-                        output_imgs = draw_outputs(
-                            imgs=inputs,
-                            output=output,
-                            head=curr_head,
-                            unnormalize_img=unnormalize_img,
-                            cvt_color=cvt_color,
-                            normalize_params=normalize_params,
-                        )
-                        merged_imgs = [
-                            cv2.hconcat([l_img, o_img])
-                            for l_img, o_img in zip(label_imgs, output_imgs)
-                        ]
-
-                        for img in merged_imgs:
-                            counter += 1
-                            plt.imshow(img)
-                            plt.title(
-                                curr_head_name + f"\n(labels left, outputs right)"
-                            )
-                            if save_dir is not None:
-                                plt.savefig(os.path.join(save_dir, f"{counter}.png"))
-                            if display:
-                                plt.show()
+                    for img in merged_imgs:
+                        counter += 1
+                        plt.imshow(img)
+                        plt.title(curr_head_name + f"\n(labels left, outputs right)")
+                        if save_dir is not None:
+                            plt.savefig(os.path.join(save_dir, f"{counter}.png"))
+                        if display:
+                            plt.show()
 
     def infer_image(
         self,

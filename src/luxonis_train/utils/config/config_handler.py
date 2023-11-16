@@ -20,33 +20,33 @@ class ConfigHandler(BaseConfigHandler):
 
     def _validate_dataset_classes(self) -> None:
         """Validates config to used datasets, overrides n_classes if needed"""
-        with LuxonisDataset(
+        dataset = LuxonisDataset(
             dataset_name=self.get("dataset.dataset_name"),
             team_id=self.get("dataset.team_id"),
             dataset_id=self.get("dataset.dataset_id"),
             bucket_type=self.get("dataset.bucket_type"),
             bucket_storage=self.get("dataset.bucket_storage"),
-        ) as dataset:
-            classes, classes_by_task = dataset.get_classes()
+        )
+        classes, classes_by_task = dataset.get_classes()
 
-            if not classes:
-                raise ValueError("Provided dataset doesn't have any classes.")
+        if not classes:
+            raise ValueError("Provided dataset doesn't have any classes.")
 
-            for head in self.get("model.heads"):
-                label_type = get_head_label_types(head.name)[0]
-                dataset_n_classes = len(classes_by_task[label_type.value])
+        for head in self.get("model.heads"):
+            label_type = get_head_label_types(head.name)[0]
+            dataset_n_classes = len(classes_by_task[label_type.value])
 
-                if "n_classes" in head.params:
-                    if head.params.get("n_classes") != dataset_n_classes:
-                        raise ValueError(
-                            f"Number of classes in config ({head.params.get('n_classes')}) doesn't match number of "
-                            f"classes in dataset ({dataset_n_classes}) for `{head.name}`."
-                        )
-                else:
-                    warnings.warn(
-                        f"Inheriting 'n_classes' parameter for `{head.name}` from dataset. Setting it to {dataset_n_classes}."
+            if "n_classes" in head.params:
+                if head.params.get("n_classes") != dataset_n_classes:
+                    raise ValueError(
+                        f"Number of classes in config ({head.params.get('n_classes')}) doesn't match number of "
+                        f"classes in dataset ({dataset_n_classes}) for `{head.name}`."
                     )
-                    head.params["n_classes"] = dataset_n_classes
+            else:
+                warnings.warn(
+                    f"Inheriting 'n_classes' parameter for `{head.name}` from dataset. Setting it to {dataset_n_classes}."
+                )
+                head.params["n_classes"] = dataset_n_classes
 
     def _validate_after(self) -> None:
         """Performs any additional validation on the top level after the fact"""
@@ -83,36 +83,33 @@ class ConfigHandler(BaseConfigHandler):
         from luxonis_train.utils.boxutils import anchors_from_dataset
         from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
-        with LuxonisDataset(
+        dataset = LuxonisDataset(
             dataset_name=self.get("dataset.dataset_name"),
             team_id=self.get("dataset.team_id"),
             dataset_id=self.get("dataset.dataset_id"),
             bucket_type=self.get("dataset.bucket_type"),
             bucket_storage=self.get("dataset.bucket_storage"),
-        ) as dataset:
-            val_augmentations = ValAugmentations(
-                image_size=self.get("train.preprocessing.train_image_size"),
-                augmentations=[{"name": "Normalize", "params": {}}],
-                train_rgb=self.get("train.preprocessing.train_rgb"),
-                keep_aspect_ratio=self.get("train.preprocessing.keep_aspect_ratio"),
-            )
-            loader = LuxonisLoaderTorch(
-                dataset,
-                view=self.get("dataset.train_view"),
-                augmentations=val_augmentations,
-                mode="json" if self.get("dataset.json_mode") else "fiftyone",
-            )
-            pytorch_loader = DataLoader(
-                loader,
-                batch_size=self.get("train.batch_size"),
-                num_workers=self.get("train.num_workers"),
-                collate_fn=collate_fn,
-            )
-            num_heads = head.params.get("num_heads", 3)
-            proposed_anchors = anchors_from_dataset(
-                pytorch_loader, n_anchors=num_heads * 3
-            )
-            return proposed_anchors.reshape(-1, 6).tolist()
+        )
+        val_augmentations = ValAugmentations(
+            image_size=self.get("train.preprocessing.train_image_size"),
+            augmentations=[{"name": "Normalize", "params": {}}],
+            train_rgb=self.get("train.preprocessing.train_rgb"),
+            keep_aspect_ratio=self.get("train.preprocessing.keep_aspect_ratio"),
+        )
+        loader = LuxonisLoaderTorch(
+            dataset,
+            view=self.get("dataset.train_view"),
+            augmentations=val_augmentations,
+        )
+        pytorch_loader = DataLoader(
+            loader,
+            batch_size=self.get("train.batch_size"),
+            num_workers=self.get("train.num_workers"),
+            collate_fn=collate_fn,
+        )
+        num_heads = head.params.get("num_heads", 3)
+        proposed_anchors = anchors_from_dataset(pytorch_loader, n_anchors=num_heads * 3)
+        return proposed_anchors.reshape(-1, 6).tolist()
 
 
 def get_head_label_types(head_str: str) -> List[LabelType]:

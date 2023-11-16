@@ -15,14 +15,12 @@ class LuxonisLoaderTorch(BaseLoaderTorch):
         view: str = "train",
         stream: bool = False,
         augmentations: Optional["luxonis_ml.data.Augmentations"] = None,
-        mode: str = "fiftyone",
     ):
         self.base_loader = LuxonisLoader(
             dataset=dataset,
             view=view,
             stream=stream,
             augmentations=augmentations,
-            mode=mode,
         )
 
     def __len__(self) -> int:

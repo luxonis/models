@@ -27,7 +27,8 @@ class ConfigHandler(BaseConfigHandler):
             bucket_type=self.get("dataset.bucket_type"),
             bucket_storage=self.get("dataset.bucket_storage"),
         )
-        classes, classes_by_task = dataset.get_classes()
+        sync_mode = True if dataset.bucket_storage != BucketStorage.LOCAL else False
+        classes, classes_by_task = dataset.get_classes(sync_mode=sync_mode)
 
         if not classes:
             raise ValueError("Provided dataset doesn't have any classes.")

@@ -10,7 +10,7 @@ tensorboard>=2.10.1
 pycocotools>=2.0.7
 rich
 s3fs
-luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@265e98e
+luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@2182934
 # tunning related packages
 optuna>=3.2.0
 psycopg2-binary

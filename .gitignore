@@ -1,6 +1,7 @@
 demo/*
-output/*
-output_export/*
+output
+output_export
+.ruff_cache
 
 # database
 *.db

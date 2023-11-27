@@ -1,4 +1,5 @@
 # The dependecies are primarily listed in pyproject.toml.
+# TODO: autogenerate this file from pyproject.toml
 
 blobconverter>=1.4.2
 luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@bc127fe

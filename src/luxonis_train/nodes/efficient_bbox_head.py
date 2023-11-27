@@ -50,7 +50,6 @@ class EfficientBBoxHead(
         """
         super().__init__(**kwargs)
 
-        # TODO: could this be derived from the attach index?
         self.n_heads = n_heads
 
         self.n_classes = n_classes or self.dataset_metadata.n_classes

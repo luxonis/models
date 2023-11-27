@@ -76,9 +76,19 @@ class ImplicitKeypointBBoxHead(LuxonisNode):
         self.conf_thres = conf_thres
         self.iou_thres = iou_thres
 
-        # TODO: check whether set
         self.n_keypoints = n_keypoints or self.dataset_metadata.n_keypoints
         self.n_classes = n_classes or self.dataset_metadata.n_classes
+
+        if self.n_keypoints == 0:
+            raise ValueError(
+                "Number of keypoints must be specified either in the constructor or "
+                "in the dataset metadata."
+            )
+        if self.n_classes == 0:
+            raise ValueError(
+                "Number of classes must be specified either in the constructor or "
+                "in the dataset metadata."
+            )
         self.num_heads = num_heads
 
         self.box_offset = 5

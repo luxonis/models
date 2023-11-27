@@ -11,8 +11,10 @@ from luxonis_train.utils.assigners import (
     TaskAlignedAssigner,
 )
 from luxonis_train.utils.boxutils import anchors_for_fpn_features, dist2bbox, bbox_iou
+from luxonis_train.utils.registry import LOSSES
 
 
+@LOSSES.register_module()
 class BboxYoloV6Loss(BaseLoss):
     def __init__(
         self,

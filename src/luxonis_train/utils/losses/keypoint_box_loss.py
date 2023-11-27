@@ -7,8 +7,10 @@ from .base_loss import BaseLoss
 from .box_loss import BoxLoss
 from .common import BCEWithLogitsLoss, SmoothBCEWithLogitsLoss
 from .keypoint_loss import KeypointLoss
+from luxonis_train.utils.registry import LOSSES
 
 
+@LOSSES.register_module()
 class KeypointBoxLoss(BaseLoss):
     """Joint loss for keypoint and box predictions for cases where the keypoints and boxes are inherently linked.
     Based on `YOLO-Pose: Enhancing YOLO for Multi Person Pose Estimation Using Object Keypoint Similarity Loss`,

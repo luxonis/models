@@ -7,8 +7,10 @@
 import torch
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
+from luxonis_train.utils.registry import BACKBONES
 
 
+@BACKBONES.register_module()
 class EfficientNet(BaseBackbone):
     def __init__(self, download_weights: bool = False, **kwargs):
         """EfficientNet backbone

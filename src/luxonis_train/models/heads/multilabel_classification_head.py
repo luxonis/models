@@ -1,8 +1,10 @@
 import torch.nn as nn
 
 from luxonis_train.models.heads.base_heads import BaseMultiLabelClassificationHead
+from luxonis_train.utils.registry import HEADS
 
 
+@HEADS.register_module()
 class MultiLabelClassificationHead(BaseMultiLabelClassificationHead):
     def __init__(
         self,

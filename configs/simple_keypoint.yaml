@@ -9,8 +9,6 @@ model:
 
   heads:
     - name: KeypointBboxHead
-      params:
-        n_classes: null
       loss:
         name: KeypointBoxLoss
 

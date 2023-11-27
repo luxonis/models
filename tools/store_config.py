@@ -1,10 +1,11 @@
-from luxonis_train.utils.config import Config
 import mlflow
 import argparse
 from dotenv import load_dotenv
 import boto3
 import os
 import json
+
+from luxonis_train.utils.config import ConfigHandler
 
 if __name__ == "__main__":
     """
@@ -19,7 +20,9 @@ if __name__ == "__main__":
         "-cfg", "--config", type=str, required=True, help="Configuration file to use"
     )
     parser.add_argument(
-        "--override", default=None, type=str, help="Manually override config parameter"
+        "--override",
+        type=json.loads,
+        help="Manually override config parameter, input in json format",
     )
     parser.add_argument(
         "--bucket",
@@ -32,13 +35,13 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    cfg = Config(args.config)
+    cfg = ConfigHandler(args.config)
     if args.override:
         cfg.override_config(args.override)
 
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
     if cfg.get("logger.project_id") is not None:
-        cfg.override_config("logger.project_name null")
+        cfg.override_config('{"logger.project_name": null}')
     project_id = cfg.get("logger.project_id")
     mlflow.set_experiment(
         experiment_name=cfg.get("logger.project_name"),

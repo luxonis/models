@@ -11,11 +11,15 @@ from torchvision.utils import draw_bounding_boxes
 
 from luxonis_train.models.heads.base_heads import BaseObjectDetection
 from luxonis_train.models.modules import ConvModule
+from luxonis_train.utils.registry import HEADS
+from luxonis_train.utils.boxutils import (
+    anchors_for_fpn_features,
+    dist2bbox,
+    non_max_suppression,
+)
 
-from luxonis_train.utils.boxutils import anchors_for_fpn_features
-from luxonis_train.utils.boxutils import dist2bbox, non_max_suppression
 
-
+@HEADS.register_module()
 class BboxYoloV6Head(BaseObjectDetection):
     def __init__(
         self,

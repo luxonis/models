@@ -3,17 +3,21 @@ import torch
 import pytorch_lightning as pl
 import threading
 import warnings
-from copy import deepcopy
 from typing import Union, Optional
 from dotenv import load_dotenv
 from pytorch_lightning.utilities import rank_zero_only
-from luxonis_ml.tracker import LuxonisTrackerPL
-from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
-from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
 
+from luxonis_ml.data import (
+    LuxonisDataset,
+    TrainAugmentations,
+    ValAugmentations,
+)
+
+from luxonis_train.utils.tracker import LuxonisTrackerPL
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.config import ConfigHandler
+from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
 
 class Trainer:
@@ -26,7 +30,7 @@ class Trainer:
             args (Optional[dict]): argument dict provided through command line, used for config overriding
         """
 
-        self.cfg = Config(cfg)
+        self.cfg = ConfigHandler(cfg)
 
         if args and args["override"]:
             self.cfg.override_config(args["override"])
@@ -34,10 +38,9 @@ class Trainer:
         self.rank = rank_zero_only.rank
 
         cfg_logger = self.cfg.get("logger")
-        hparams = {key: self.cfg.get(key) for key in cfg_logger["logged_hyperparams"]}
 
         load_dotenv()  # loads env variables for mlflow logging
-        logger_params = deepcopy(cfg_logger.copy())
+        logger_params = cfg_logger.model_dump()
         logger_params.pop("logged_hyperparams")
         logger = LuxonisTrackerPL(
             rank=self.rank,
@@ -46,9 +49,8 @@ class Trainer:
             ),  # read separately from env vars
             **logger_params,
         )
-        logger.log_hyperparams(hparams)
 
-        self.run_save_dir = os.path.join(cfg_logger["save_directory"], logger.run_name)
+        self.run_save_dir = os.path.join(cfg_logger.save_directory, logger.run_name)
 
         self.train_augmentations = None
         self.val_augmentations = None
@@ -81,99 +83,97 @@ class Trainer:
             new_thread (bool, optional): Runs training in new thread if set to True. Defaults to False.
         """
 
-        with LuxonisDataset(
+        dataset = LuxonisDataset(
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
-            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
-        ) as dataset:
-            if self.train_augmentations == None:
-                self.train_augmentations = TrainAugmentations(
-                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
-                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                    keep_aspect_ratio=self.cfg.get(
-                        "train.preprocessing.keep_aspect_ratio"
-                    ),
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            bucket_storage=self.cfg.get("dataset.bucket_storage"),
+        )
+        if self.train_augmentations == None:
+            self.train_augmentations = TrainAugmentations(
+                image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                augmentations=[
+                    i.model_dump()
+                    for i in self.cfg.get("train.preprocessing.augmentations")
+                ],
+                train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio"),
+            )
+
+        loader_train = LuxonisLoaderTorch(
+            dataset,
+            view=self.cfg.get("dataset.train_view"),
+            augmentations=self.train_augmentations,
+        )
+
+        sampler = None
+        if self.cfg.get("train.use_weighted_sampler"):
+            classes_count = dataset.get_classes_count()
+            if len(classes_count) == 0:
+                warnings.warn(
+                    "WeightedRandomSampler only available for classification tasks. Using default sampler instead."
                 )
-
-            loader_train = LuxonisLoader(
-                dataset,
-                view=self.cfg.get("dataset.train_view"),
-                augmentations=self.train_augmentations,
-                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
-            )
-
-            sampler = None
-            if self.cfg.get("train.use_weighted_sampler"):
-                classes_count = dataset.get_classes_count()
-                if len(classes_count) == 0:
-                    warnings.warn(
-                        "WeightedRandomSampler only available for classification tasks. Using default sampler instead."
-                    )
-                else:
-                    weights = [1 / i for i in classes_count.values()]
-                    num_samples = sum(classes_count.values())
-                    sampler = torch.utils.data.WeightedRandomSampler(
-                        weights, num_samples
-                    )
-
-            pytorch_loader_train = torch.utils.data.DataLoader(
-                loader_train,
-                shuffle=True,
-                batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=loader_train.collate_fn,
-                drop_last=self.cfg.get("train.skip_last_batch"),
-                sampler=sampler,
-            )
-
-            if self.val_augmentations == None:
-                self.val_augmentations = ValAugmentations(
-                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
-                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                    keep_aspect_ratio=self.cfg.get(
-                        "train.preprocessing.keep_aspect_ratio"
-                    ),
-                )
-
-            loader_val = LuxonisLoader(
-                dataset,
-                view=self.cfg.get("dataset.val_view"),
-                augmentations=self.val_augmentations,
-                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
-            )
-            pytorch_loader_val = torch.utils.data.DataLoader(
-                loader_val,
-                batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=loader_val.collate_fn,
-            )
-
-            if not new_thread:
-                self.pl_trainer.fit(
-                    self.lightning_module, pytorch_loader_train, pytorch_loader_val
-                )
-                print(f"Checkpoints saved in: {self.get_save_dir()}")
             else:
-                # Every time exception happens in the Thread, this hook will activate
-                def thread_exception_hook(args):
-                    self.error_message = str(args.exc_value)
+                weights = [1 / i for i in classes_count.values()]
+                num_samples = sum(classes_count.values())
+                sampler = torch.utils.data.WeightedRandomSampler(weights, num_samples)
 
-                threading.excepthook = thread_exception_hook
+        pytorch_loader_train = torch.utils.data.DataLoader(
+            loader_train,
+            shuffle=True,
+            batch_size=self.cfg.get("train.batch_size"),
+            num_workers=self.cfg.get("train.num_workers"),
+            collate_fn=collate_fn,
+            drop_last=self.cfg.get("train.skip_last_batch"),
+            sampler=sampler,
+        )
 
-                self.thread = threading.Thread(
-                    target=self.pl_trainer.fit,
-                    args=(
-                        self.lightning_module,
-                        pytorch_loader_train,
-                        pytorch_loader_val,
-                    ),
-                    daemon=True,
-                )
-                self.thread.start()
+        if self.val_augmentations == None:
+            self.val_augmentations = ValAugmentations(
+                image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                augmentations=[
+                    i.model_dump()
+                    for i in self.cfg.get("train.preprocessing.augmentations")
+                ],
+                train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio"),
+            )
+
+        loader_val = LuxonisLoaderTorch(
+            dataset,
+            view=self.cfg.get("dataset.val_view"),
+            augmentations=self.val_augmentations,
+        )
+        pytorch_loader_val = torch.utils.data.DataLoader(
+            loader_val,
+            batch_size=self.cfg.get("train.batch_size"),
+            num_workers=self.cfg.get("train.num_workers"),
+            collate_fn=collate_fn,
+        )
+
+        if not new_thread:
+            self.pl_trainer.fit(
+                self.lightning_module, pytorch_loader_train, pytorch_loader_val
+            )
+            print(f"Checkpoints saved in: {self.get_save_dir()}")
+        else:
+            # Every time exception happens in the Thread, this hook will activate
+            def thread_exception_hook(args):
+                self.error_message = str(args.exc_value)
+
+            threading.excepthook = thread_exception_hook
+
+            self.thread = threading.Thread(
+                target=self.pl_trainer.fit,
+                args=(
+                    self.lightning_module,
+                    pytorch_loader_train,
+                    pytorch_loader_val,
+                ),
+                daemon=True,
+            )
+            self.thread.start()
 
     def test(self, new_thread: bool = False):
         """Runs testing
@@ -181,51 +181,45 @@ class Trainer:
             new_thread (bool, optional): Runs training in new thread if set to True. Defaults to False.
         """
 
-        with LuxonisDataset(
+        dataset = LuxonisDataset(
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
-            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
-        ) as dataset:
-            if self.test_augmentations == None:
-                self.test_augmentations = ValAugmentations(
-                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
-                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                    keep_aspect_ratio=self.cfg.get(
-                        "train.preprocessing.keep_aspect_ratio"
-                    ),
-                )
-
-            loader_test = LuxonisLoader(
-                dataset,
-                view=self.cfg.get("dataset.test_view"),
-                augmentations=self.test_augmentations,
-                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
-            )
-            pytorch_loader_test = torch.utils.data.DataLoader(
-                loader_test,
-                batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=loader_test.collate_fn,
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            bucket_storage=self.cfg.get("dataset.bucket_storage"),
+        )
+        if self.test_augmentations == None:
+            self.test_augmentations = ValAugmentations(
+                image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                augmentations=[
+                    i.model_dump()
+                    for i in self.cfg.get("train.preprocessing.augmentations")
+                ],
+                train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio"),
             )
 
-            if not new_thread:
-                self.pl_trainer.test(self.lightning_module, pytorch_loader_test)
-            else:
-                self.thread = threading.Thread(
-                    target=self.pl_trainer.test,
-                    args=(self.lightning_module, pytorch_loader_test),
-                    daemon=True,
-                )
-                self.thread.start()
+        loader_test = LuxonisLoaderTorch(
+            dataset,
+            view=self.cfg.get("dataset.test_view"),
+            augmentations=self.test_augmentations,
+        )
+        pytorch_loader_test = torch.utils.data.DataLoader(
+            loader_test,
+            batch_size=self.cfg.get("train.batch_size"),
+            num_workers=self.cfg.get("train.num_workers"),
+            collate_fn=collate_fn,
+        )
 
-    def override_loss(self, custom_loss: object, head_id: int):
-        """Overrides loss function for specific head_id with custom loss"""
-        if not 0 <= head_id < len(self.lightning_module.model.heads):
-            raise ValueError("Provided 'head_id' outside of range.")
-        self.lightning_module.losses[head_id] = custom_loss
+        if not new_thread:
+            self.pl_trainer.test(self.lightning_module, pytorch_loader_test)
+        else:
+            self.thread = threading.Thread(
+                target=self.pl_trainer.test,
+                args=(self.lightning_module, pytorch_loader_test),
+                daemon=True,
+            )
+            self.thread.start()
 
     def override_train_augmentations(self, aug: object):
         """Overrides augmentations used for training dataset"""

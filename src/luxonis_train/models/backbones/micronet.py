@@ -10,8 +10,10 @@ from typing import Literal, Optional
 
 from luxonis_train.models.backbones.base_backbone import BaseBackbone
 from luxonis_train.models.modules import HSigmoid, HSwish, ConvModule
+from luxonis_train.utils.registry import BACKBONES
 
 
+@BACKBONES.register_module()
 class MicroNet(BaseBackbone):
     def __init__(self, variant: Literal["M1", "M2", "M3"] = "M1", **kwargs):
         """MicroNet backbone

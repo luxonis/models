@@ -8,13 +8,17 @@ from dotenv import load_dotenv
 from copy import deepcopy
 from pytorch_lightning.utilities import rank_zero_only
 from optuna.integration import PyTorchLightningPruningCallback
-from luxonis_ml.tracker import LuxonisTrackerPL
-from luxonis_ml.data import LuxonisDataset, BucketType, BucketStorage
-from luxonis_ml.loader import LuxonisLoader, TrainAugmentations, ValAugmentations
+from luxonis_ml.data import (
+    LuxonisDataset,
+    TrainAugmentations,
+    ValAugmentations,
+)
 
-from luxonis_train.utils.config import Config
+from luxonis_train.utils.tracker import LuxonisTrackerPL
+from luxonis_train.utils.config import ConfigHandler
 from luxonis_train.utils.callbacks import LuxonisProgressBar
 from luxonis_train.models import ModelLightningModule
+from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 
 
 class Tuner:
@@ -31,10 +35,9 @@ class Tuner:
 
     def tune(self):
         """Runs Optuna tunning of hyperparameters"""
-        self.cfg = Config(self.cfg_data)
+        self.cfg = ConfigHandler(self.cfg_data)
         if self.args and self.args["override"]:
             self.cfg.override_config(self.args["override"])
-        self.cfg.validate_config_tuner()
 
         pruner = (
             optuna.pruners.MedianPruner()
@@ -44,9 +47,9 @@ class Tuner:
 
         storage = None
         if self.cfg.get("tuner.storage.active"):
-            if self.cfg.get("tuner.storage.type") == "local":
+            if self.cfg.get("tuner.storage.storage_type") == "local":
                 storage = "sqlite:///study_local.db"
-            elif self.cfg.get("tuner.storage.type") == "remote":
+            elif self.cfg.get("tuner.storage.storage_type") == "remote":
                 storage = "postgresql://{}:{}@{}:{}/{}".format(
                     os.environ["POSTGRES_USER"],
                     os.environ["POSTGRES_PASSWORD"],
@@ -56,7 +59,7 @@ class Tuner:
                 )
             else:
                 raise KeyError(
-                    f"Storage type '{self.cfg.get('tuner.storage.type')}'"
+                    f"Storage type '{self.cfg.get('tuner.storage.storage_type')}'"
                     + "not supported. Choose one of ['local', 'remote']"
                 )
 
@@ -77,15 +80,14 @@ class Tuner:
     def _objective(self, trial: optuna.trial.Trial):
         """Objective function used to optimize Optuna study"""
         # TODO: check if this is even needed needed because config is singleton
-        # Config.clear_instance()
-        self.cfg = Config(self.cfg_data)
+        # ConfigHandler.clear_instance()
+        self.cfg = ConfigHandler(self.cfg_data)
         if self.args and self.args["override"]:
             self.cfg.override_config(self.args["override"])
-        self.cfg.validate_config_tuner()
 
         rank = rank_zero_only.rank
         cfg_logger = self.cfg.get("logger")
-        logger_params = deepcopy(cfg_logger.copy())
+        logger_params = cfg_logger.model_dump()
         logger_params.pop("logged_hyperparams")
         logger = LuxonisTrackerPL(
             rank=rank,
@@ -95,12 +97,12 @@ class Tuner:
             is_sweep=True,
             **logger_params,
         )
-        run_save_dir = os.path.join(cfg_logger["save_directory"], logger.run_name)
+        run_save_dir = os.path.join(cfg_logger.save_directory, logger.run_name)
 
         # get curr trial params and update config
         curr_params = self._get_trial_params(trial)
         for key, value in curr_params.items():
-            self.cfg.override_config(f"{key} {value}")
+            self.cfg.override_config({key: value})
 
         logger.log_hyperparams(curr_params)  # log curr trial params
 
@@ -129,74 +131,72 @@ class Tuner:
             ],
         )
 
-        with LuxonisDataset(
+        dataset = LuxonisDataset(
             dataset_name=self.cfg.get("dataset.dataset_name"),
             team_id=self.cfg.get("dataset.team_id"),
             dataset_id=self.cfg.get("dataset.dataset_id"),
-            bucket_type=eval(self.cfg.get("dataset.bucket_type")),
-            bucket_storage=eval(self.cfg.get("dataset.bucket_storage")),
-        ) as dataset:
-            loader_train = LuxonisLoader(
-                dataset,
-                view=self.cfg.get("dataset.train_view"),
-                augmentations=TrainAugmentations(
-                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
-                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                    keep_aspect_ratio=self.cfg.get(
-                        "train.preprocessing.keep_aspect_ratio"
-                    ),
-                ),
-                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
-            )
+            bucket_type=self.cfg.get("dataset.bucket_type"),
+            bucket_storage=self.cfg.get("dataset.bucket_storage"),
+        )
+        loader_train = LuxonisLoaderTorch(
+            dataset,
+            view=self.cfg.get("dataset.train_view"),
+            augmentations=TrainAugmentations(
+                image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                augmentations=[
+                    i.model_dump()
+                    for i in self.cfg.get("train.preprocessing.augmentations")
+                ],
+                train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio"),
+            ),
+        )
 
-            sampler = None
-            if self.cfg.get("train.use_weighted_sampler"):
-                classes_count = dataset.get_classes_count()
-                if len(classes_count) == 0:
-                    warnings.warn(
-                        "WeightedRandomSampler only available for classification tasks. Using default sampler instead."
-                    )
-                else:
-                    weights = [1 / i for i in classes_count.values()]
-                    num_samples = sum(classes_count.values())
-                    sampler = torch.utils.data.WeightedRandomSampler(
-                        weights, num_samples
-                    )
+        sampler = None
+        if self.cfg.get("train.use_weighted_sampler"):
+            classes_count = dataset.get_classes_count()
+            if len(classes_count) == 0:
+                warnings.warn(
+                    "WeightedRandomSampler only available for classification tasks. Using default sampler instead."
+                )
+            else:
+                weights = [1 / i for i in classes_count.values()]
+                num_samples = sum(classes_count.values())
+                sampler = torch.utils.data.WeightedRandomSampler(weights, num_samples)
 
-            pytorch_loader_train = torch.utils.data.DataLoader(
-                loader_train,
-                batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=loader_train.collate_fn,
-                drop_last=self.cfg.get("train.skip_last_batch"),
-                sampler=sampler,
-            )
+        pytorch_loader_train = torch.utils.data.DataLoader(
+            loader_train,
+            batch_size=self.cfg.get("train.batch_size"),
+            num_workers=self.cfg.get("train.num_workers"),
+            collate_fn=collate_fn,
+            drop_last=self.cfg.get("train.skip_last_batch"),
+            sampler=sampler,
+        )
 
-            loader_val = LuxonisLoader(
-                dataset,
-                view=self.cfg.get("dataset.val_view"),
-                augmentations=ValAugmentations(
-                    image_size=self.cfg.get("train.preprocessing.train_image_size"),
-                    augmentations=self.cfg.get("train.preprocessing.augmentations"),
-                    train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
-                    keep_aspect_ratio=self.cfg.get(
-                        "train.preprocessing.keep_aspect_ratio"
-                    ),
-                ),
-                mode="json" if self.cfg.get("dataset.json_mode") else "fiftyone",
-            )
-            pytorch_loader_val = torch.utils.data.DataLoader(
-                loader_val,
-                batch_size=self.cfg.get("train.batch_size"),
-                num_workers=self.cfg.get("train.num_workers"),
-                collate_fn=loader_val.collate_fn,
-            )
+        loader_val = LuxonisLoaderTorch(
+            dataset,
+            view=self.cfg.get("dataset.val_view"),
+            augmentations=ValAugmentations(
+                image_size=self.cfg.get("train.preprocessing.train_image_size"),
+                augmentations=[
+                    i.model_dump()
+                    for i in self.cfg.get("train.preprocessing.augmentations")
+                ],
+                train_rgb=self.cfg.get("train.preprocessing.train_rgb"),
+                keep_aspect_ratio=self.cfg.get("train.preprocessing.keep_aspect_ratio"),
+            ),
+        )
+        pytorch_loader_val = torch.utils.data.DataLoader(
+            loader_val,
+            batch_size=self.cfg.get("train.batch_size"),
+            num_workers=self.cfg.get("train.num_workers"),
+            collate_fn=collate_fn,
+        )
 
-            pl_trainer.fit(lightning_module, pytorch_loader_train, pytorch_loader_val)
-            pruner_callback.check_pruned()
+        pl_trainer.fit(lightning_module, pytorch_loader_train, pytorch_loader_val)
+        pruner_callback.check_pruned()
 
-            return pl_trainer.callback_metrics["val_loss/loss"].item()
+        return pl_trainer.callback_metrics["val_loss/loss"].item()
 
     def _get_trial_params(self, trial: optuna.trial.Trial):
         """Get trial params based on specified config"""
@@ -222,4 +222,9 @@ class Tuner:
                 raise KeyError(f"Tunning type '{key_type}' not supported.")
 
             new_params[key_name] = new_value
+
+        if len(new_params) == 0:
+            raise ValueError(
+                "No paramteres to tune. Specify them under `tuner.params`."
+            )
         return new_params

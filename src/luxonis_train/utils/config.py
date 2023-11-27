@@ -352,7 +352,7 @@ class Config(LuxonisConfig):
         """Automatically generates anchors for the provided dataset.
 
         Args:
-            head (ModelHeadConfig): Config of the head where anchors will be used
+            head (ModelNodeConfig): Config of the head where anchors will be used
 
         Returns:
             list[list[float]]: list of anchors in [-1,6] format

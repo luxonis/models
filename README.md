@@ -43,7 +43,7 @@ Most of the work is done through a configuration yaml file, which you must provi
 
 This is the most important block, that **must be always defined by the user**. There are two different ways you can create the model.
 
-In the first one you define the whole architecture using a graph of nodes. You choose each node from a list of supported [nodes](./src/luxonis_train/models/nodes/README.md)).
+In the first one you define the whole architecture using a graph of nodes. You choose each node from a list of supported [nodes](./src/luxonis_train/nodes/README.md)).
 
 
 ```yaml

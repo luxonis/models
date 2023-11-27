@@ -49,7 +49,7 @@ In the first one you define the whole architecture using a graph of nodes. You c
 ```yaml
 model:
   name: test_model
-  pretrained: # path to weights for whole model (overrides backbone weights) (string)
+  weights: # path to weights for whole model (overrides backbone weights) (string)
 
   # Here you define all the nodes in the model.
   nodes:
@@ -76,8 +76,8 @@ The second use case is choosing from a list of predefined model arhitectures ([l
 ```yaml
 model:
   name: predefined_model
-  type: # name of predefined architecture (string)
-  pretrained: # path to weights for whole model (string)
+  predefined_model: # name of predefined architecture (string)
+  weights: # path to weights for whole model (string)
   params: # model-wise params (dict)
 
   # nodes are optional now, will be added to the predefined model
@@ -90,7 +90,7 @@ model:
 
 #### Paths
 
-You can specify `pretrained` path under `model` in one of these formats:
+You can specify `weights` path under `model` in one of these formats:
 
 - `local path` (e.g. `path/to/ckpt` or `file://path/to/ckpt`)
 - `s3 path` (e.g. `s3://<bucket>/path/to/ckpt`)

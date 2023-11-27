@@ -31,7 +31,7 @@ class ExportOnTrainEnd(pl.Callback):
         best_model_path = model_checkpoint_callbacks[0].best_model_path
         exporter = Exporter(
             cfg=pl_module.cfg,
-            opts=["model.pretrained", best_model_path],
+            opts=["model.weights", best_model_path],
         )
         onnx_path = str(Path(best_model_path).parent.with_suffix(".onnx"))
         exporter.export(onnx_path=onnx_path)

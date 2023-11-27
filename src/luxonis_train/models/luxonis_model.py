@@ -172,7 +172,7 @@ class LuxonisModel(pl.LightningModule):
         self.metrics = self._to_module_dict(self.metrics)  # type: ignore
         self.visualizers = self._to_module_dict(self.visualizers)  # type: ignore
 
-        self.load_checkpoint(self.cfg.model.pretrained)
+        self.load_checkpoint(self.cfg.model.weights)
 
     def _initiate_nodes(
         self,
@@ -591,6 +591,7 @@ class LuxonisModel(pl.LightningModule):
         """Configures Pytorch Lightning callbacks."""
         self.min_val_loss_checkpoints_path = f"{self.save_dir}/min_val_loss"
         self.best_val_metric_checkpoints_path = f"{self.save_dir}/best_val_metric"
+        model_name = self.cfg.model.name
 
         callbacks: list[pl.Callback] = []
 
@@ -598,7 +599,7 @@ class LuxonisModel(pl.LightningModule):
             ModelCheckpoint(
                 monitor="val/loss",
                 dirpath=self.min_val_loss_checkpoints_path,
-                filename="loss={val/loss:.4f}_{epoch:02d}",
+                filename=f"{model_name}_loss={{val/loss:.4f}}_{{epoch:02d}}",
                 auto_insert_metric_name=False,
                 save_top_k=self.cfg.train.save_top_k,
                 mode="min",
@@ -611,7 +612,7 @@ class LuxonisModel(pl.LightningModule):
                 ModelCheckpoint(
                     monitor=f"val/metric/{self.main_metric}",
                     dirpath=self.best_val_metric_checkpoints_path,
-                    filename=f"{main_metric}={{val/metric/{self.main_metric}:.4f}}"
+                    filename=f"{model_name}_{main_metric}={{val/metric/{self.main_metric}:.4f}}"
                     f"_loss={{val/loss:.4f}}_{{epoch:02d}}",
                     auto_insert_metric_name=False,
                     save_top_k=self.cfg.train.save_top_k,

@@ -35,11 +35,11 @@ class Exporter(LuxonisCore):
         super().__init__(cfg, opts)
 
         input_shape = self.cfg.export.input_shape
-        if self.cfg.model.pretrained is None:
+        if self.cfg.model.weights is None:
             raise ValueError(
-                "Pretrained model must be specified in config file for export."
+                "Model weights must be specified in config file for export."
             )
-        self.local_path = self.cfg.model.pretrained
+        self.local_path = self.cfg.model.weights
         if input_shape is None:
             self.input_shape = self.loader_val.input_shape
         else:

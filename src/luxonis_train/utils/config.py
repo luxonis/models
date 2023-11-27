@@ -39,7 +39,7 @@ class ModelNodeConfig(BaseModel):
 class ModelConfig(BaseModel):
     name: str
     predefined_model: str | None = None
-    pretrained: str | None = None
+    weights: str | None = None
     params: dict[str, Any] = {}
     nodes: list[ModelNodeConfig] = []
     losses: list[LossModuleConfig] = []

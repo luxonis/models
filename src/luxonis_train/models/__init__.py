@@ -1,4 +1,5 @@
-from .model import Model
-from .model_lightning_module import ModelLightningModule
+from .luxonis_model import LuxonisModel
+from .luxonis_output import LuxonisOutput
+from .predefined import *
 
-__all__ = ["Model", "ModelLightningModule"]
+__all__ = ["LuxonisModel", "LuxonisOutput"]

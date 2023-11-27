@@ -10,12 +10,11 @@ RUN useradd -ms /bin/bash luxonis
 
 WORKDIR /home/luxonis
 
-# Copy the whole library and tool directory
-COPY ./src ./src
-COPY ./tools ./tools
+# Copy the whole library
+COPY src src
 
 # Copy package related files
-COPY ["./requirements.txt", "./setup.py", "./README.md", "./MANIFEST.in", "docker/entrypoint.sh", "./"]
+COPY requirements.txt pyproject.toml README.md docker/entrypoint.sh .
 
 # needed because of _imagingft C module error
 RUN pip install --no-cache-dir pillow
@@ -31,4 +30,4 @@ RUN chown -R luxonis:luxonis /home/luxonis
 RUN chmod +x ./entrypoint.sh
 
 USER luxonis
-ENTRYPOINT ["/home/luxonis/entrypoint.sh"]
+ENTRYPOINT "/home/luxonis/entrypoint.sh"

@@ -1,219 +1,156 @@
-import torch
 import os
+import os.path as osp
+import tempfile
+from pathlib import Path
+from typing import Any
+
 import onnx
 import onnxsim
 import yaml
-import pytorch_lightning as pl
-from typing import Union, Optional
-from pathlib import Path
-from dotenv import load_dotenv
-
-from luxonis_train.utils.config import ConfigHandler
-from luxonis_train.models import Model
-from luxonis_train.models.heads import *
 from luxonis_ml.utils import LuxonisFileSystem
+from torch import Size
+
+from luxonis_train.models import LuxonisModel
+from luxonis_train.utils.config import Config
+
+from .luxonis_core import LuxonisCore
 
 
-class Exporter(pl.LightningModule):
-    def __init__(self, cfg: Union[str, dict], args: Optional[dict] = None):
-        """Main API which is used for exporting models trained with this library to .onnx, openVINO and .blob format.
+class Exporter(LuxonisCore):
+    """Main API which is used to create the model, setup pytorch lightning environment
+    and perform training based on provided arguments and config."""
+
+    def __init__(
+        self,
+        cfg: str | dict[str, Any] | Config,
+        opts: list[str] | tuple[str, ...] | None = None,
+    ):
+        """Constructs a new Exporter instance.
 
         Args:
-            cfg (Union[str, dict]): path to config file or config dict used to setup training
-            args (Optional[dict]): argument dict provided through command line, used for config overriding
+            cfg (str | dict): path to config file or config dict used to setup training
+            args (dict | None): argument dict provided through command line, used for config overriding
         """
-        super().__init__()
 
-        load_dotenv()
+        super().__init__(cfg, opts)
 
-        self.cfg = ConfigHandler(cfg)
-        if args and args["override"]:
-            self.cfg.override_config(args["override"])
-
-        # ensure save directory
-        Path(self.cfg.get("exporter.export_save_directory")).mkdir(
-            parents=True, exist_ok=True
-        )
-
-        self.model = Model()
-        self.model.build_model()
-
-        pretrained_path = self.cfg.get("exporter.export_weights")
-        if pretrained_path:
-            self.load_checkpoint(pretrained_path)
-
-        self.model.eval()
-        self.to_deploy()
-
-        # save current config to output directory
-        self.cfg.save_data(
-            os.path.join(
-                self.cfg.get("exporter.export_save_directory"),
-                f"export_config_{self.cfg.get('exporter.export_model_name')}.yaml",
+        input_shape = self.cfg.export.input_shape
+        if self.cfg.model.pretrained is None:
+            raise ValueError(
+                "Pretrained model must be specified in config file for export."
             )
+        self.local_path = self.cfg.model.pretrained
+        if input_shape is None:
+            self.input_shape = self.loader_val.input_shape
+        else:
+            self.input_shape = Size(input_shape)
+
+        self.export_path = osp.join(
+            self.cfg.export.export_save_directory, self.cfg.export.export_model_name
         )
 
-    def load_checkpoint(self, path: str):
-        """Loads checkpoint weights from provided path"""
-        print(f"Loading weights from: {path}")
-        fs = LuxonisFileSystem(path)
-        checkpoint = torch.load(fs.read_to_byte_buffer())
-        state_dict = checkpoint["state_dict"]
-        # remove weights that are not part of the model
-        removed = []
-        for key in list(state_dict.keys()):
-            if not key.startswith("model"):
-                removed.append(key)
-                state_dict.pop(key)
-        if len(removed):
-            print(f"Following weights weren't loaded: {removed}")
+        normalize_params = self.cfg.train.preprocessing.normalize.params
+        if self.cfg.export.scale_values is not None:
+            self.scale_values = self.cfg.export.scale_values
+        else:
+            self.scale_values = normalize_params.get("std", None)
 
-        self.load_state_dict(state_dict)
+        if self.cfg.export.mean_values is not None:
+            self.mean_values = self.cfg.export.mean_values
+        else:
+            self.mean_values = normalize_params.get("mean", None)
 
-    def to_deploy(self):
-        """Switch modules of the model to deploy"""
-        for module in self.model.modules():
-            if hasattr(module, "to_deploy"):
-                module.to_deploy()
-
-    def forward(self, inputs: torch.Tensor):
-        """Forward function used in export"""
-        outputs = self.model(inputs)
-        return outputs
-
-    def export(self):
-        """Exports model to onnx and optionally to openVINO and .blob format"""
-        dummy_input = torch.rand(1, 3, *self.cfg.get("exporter.export_image_size"))
-        base_path = self.cfg.get("exporter.export_save_directory")
-        output_names = self._get_output_names()
-
-        print("Converting PyTorch model to ONNX")
-        onnx_path = os.path.join(
-            base_path, f"{self.cfg.get('exporter.export_model_name')}.onnx"
+        self.lightning_module = LuxonisModel(
+            cfg=self.cfg,
+            save_dir=self.run_save_dir,
+            input_shape=self.input_shape,
+            dataset_metadata=self.dataset_metadata,
         )
-        self.to_onnx(
-            onnx_path,
-            dummy_input,
-            opset_version=self.cfg.get("exporter.onnx.opset_version"),
-            input_names=["input"],
-            output_names=output_names,
-            dynamic_axes=self.cfg.get("exporter.onnx.dynamic_axes"),
+
+    def _get_modelconverter_config(self, onnx_path: str) -> dict[str, Any]:
+        """Generates export config from input config that is compatible with Luxonis
+        modelconverter tool.
+
+        Args:
+            onnx_path (str): Path to .onnx model
+        """
+        return {
+            "input_model": onnx_path,
+            "scale_values": self.scale_values,
+            "mean_values": self.mean_values,
+            "reverse_input_channels": self.cfg.export.reverse_input_channels,
+            "use_bgr": not self.cfg.train.preprocessing.train_rgb,
+            "input_shape": list(self.input_shape),
+            "data_type": self.cfg.export.data_type,
+            "output": [{"name": name} for name in self.output_names],
+            "meta": {"description": self.cfg.model.name},
+        }
+
+    def export(self, onnx_path: str | None = None):
+        """Runs export."""
+        onnx_path = onnx_path or self.export_path + ".onnx"
+        self.output_names = self.lightning_module.export_onnx(
+            onnx_path, **self.cfg.export.onnx.model_dump()
         )
+
         model_onnx = onnx.load(onnx_path)
         onnx_model, check = onnxsim.simplify(model_onnx)
         if not check:
             raise RuntimeError("Onnx simplify failed.")
         onnx.save(onnx_model, onnx_path)
+        files_to_upload = [self.local_path, onnx_path]
 
-        if self.cfg.get("exporter.openvino.active"):
-            import subprocess
-
-            print("Converting ONNX to openVINO")
-            output_list = ",".join(output_names)
-
-            cmd = (
-                f"mo --input_model {onnx_path} "
-                f"--output_dir {base_path} "
-                f"--model_name {self.cfg.get('exporter.export_model_name')} "
-                f"--data_type {self.cfg.get('exporter.data_type')} "
-                f"--scale_values '{self.cfg.get('exporter.scale_values')}' "
-                f"--mean_values '{self.cfg.get('exporter.mean_values')}' "
-                f"--output {output_list}"
-            )
-
-            if self.cfg.get("exporter.reverse_input_channels"):
-                cmd += " --reverse_input_channels "
-
-            subprocess.check_output(cmd, shell=True)
-
-        if self.cfg.get("exporter.blobconverter.active"):
+        if self.cfg.export.blobconverter.active:
             import blobconverter
 
             print("Converting ONNX to .blob")
 
             optimizer_params = [
-                f"--scale_values={self.cfg.get('exporter.scale_values')}",
-                f"--mean_values={self.cfg.get('exporter.mean_values')}",
+                f"--scale_values={self.scale_values}",
+                f"--mean_values={self.mean_values}",
             ]
-            if self.cfg.get("exporter.reverse_input_channels"):
+            if self.cfg.export.reverse_input_channels:
                 optimizer_params.append("--reverse_input_channels")
 
             blob_path = blobconverter.from_onnx(
                 model=onnx_path,
                 optimizer_params=optimizer_params,
-                data_type=self.cfg.get("exporter.data_type"),
-                shaves=self.cfg.get("exporter.blobconverter.shaves"),
+                data_type=self.cfg.export.data_type,
+                shaves=self.cfg.export.blobconverter.shaves,
                 use_cache=False,
-                output_dir=base_path,
+                output_dir=self.export_path,
             )
+            files_to_upload.append(blob_path)
 
-        print(f"Finished exporting. Files saved in: {base_path}")
+        if self.cfg.export.upload.active:
+            self._upload_to_s3(files_to_upload)
 
-        if self.cfg.get("exporter.upload.active"):
-            self._upload_to_s3(onnx_path)
-
-    def _get_output_names(self):
-        """Gets output names for each head"""
-        output_names = []
-        for i, head in enumerate(self.model.heads):
-            curr_output = head.get_output_names(i)
-            if isinstance(curr_output, str):
-                output_names.append(curr_output)
-            else:
-                output_names.extend(curr_output)
-        return output_names
-
-    def _upload_to_s3(self, onnx_path: str):
-        """Uploads .pt, .onnx and current config.yaml to specified s3 bucket"""
+    def _upload_to_s3(self, files_to_upload: list[str]):
+        """Uploads .pt, .onnx and current config.yaml to specified s3 bucket."""
         fs = LuxonisFileSystem(
-            self.cfg.get("exporter.upload.upload_directory"), allow_local=False
+            self.cfg.export.upload.upload_directory, allow_local=False
         )
         print(f"Started upload to {fs.full_path()}...")
 
-        # upload .ckpt file
-        fs.put_file(
-            local_path=self.cfg.get("exporter.export_weights"),
-            remote_path=f"{self.cfg.get('exporter.export_model_name')}.ckpt",
-        )
-        # upload .onnx file
-        fs.put_file(
-            local_path=onnx_path,
-            remote_path=f"{self.cfg.get('exporter.export_model_name')}.onnx",
-        )
-        # upload config.yaml
-        self.cfg.save_data("config.yaml")  # create temporary file
-        fs.put_file(local_path="config.yaml", remote_path="config.yaml")
-        os.remove("config.yaml")  # delete temporary file
+        for file in files_to_upload:
+            suffix = Path(file).suffix
+            fs.put_file(
+                local_path=file,
+                remote_path=self.cfg.export.export_model_name + suffix,
+            )
 
-        # generate and upload export_config.yaml compatible with modelconverter
+        with tempfile.TemporaryFile() as f:
+            self.cfg.save_data(f.name)
+            fs.put_file(local_path=f.name, remote_path="config.yaml")
+
         full_remote_path = fs.full_path()
         onnx_path = os.path.join(
-            full_remote_path, f"{self.cfg.get('exporter.export_model_name')}.onnx"
+            full_remote_path, f"{self.cfg.export.export_model_name}.onnx"
         )
         modelconverter_config = self._get_modelconverter_config(onnx_path)
-        with open("config_export.yaml", "w+") as f:
+
+        with tempfile.TemporaryFile() as f:
             yaml.dump(modelconverter_config, f, default_flow_style=False)
-        fs.put_file(local_path="config_export.yaml", remote_path="config_export.yaml")
-        os.remove("config_export.yaml")  # delete temporary file
+            fs.put_file(local_path=f.name, remote_path="config_export.yaml")
 
-        print(f"Files upload finished")
-
-    def _get_modelconverter_config(self, onnx_path: str):
-        """Generates export config from input config that is
-            compatible with Luxonis modelconverter tool
-
-        Args:
-            onnx_path (str): Path to .onnx model
-        """
-        out_config = {
-            "input_model": onnx_path,
-            "scale_values": self.cfg.get("exporter.scale_values"),
-            "mean_values": self.cfg.get("exporter.mean_values"),
-            "reverse_input_channels": self.cfg.get("exporter.reverse_input_channels"),
-            "use_bgr": not self.cfg.get("train.preprocessing.train_rgb"),
-            "input_shape": [1, 3] + self.cfg.get("exporter.export_image_size"),
-            "data_type": self.cfg.get("exporter.data_type"),
-            "output": [{"name": name} for name in self._get_output_names()],
-            "meta": {"description": self.cfg.get("exporter.export_model_name")},
-        }
-        return out_config
+        print("Files upload finished")

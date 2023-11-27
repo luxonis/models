@@ -1,20 +1,17 @@
-import torch
 import numpy as np
-from typing import Optional
-from luxonis_ml.data import LuxonisLoader
+from luxonis_ml.data import Augmentations, LuxonisDataset, LuxonisLoader
+from torch import Size, Tensor
 
 from .base_loader import BaseLoaderTorch, LuxonisLoaderTorchOutput
-from luxonis_train.utils.registry import LOADERS
 
 
-@LOADERS.register_module()
 class LuxonisLoaderTorch(BaseLoaderTorch):
     def __init__(
         self,
-        dataset: "luxonis_ml.data.LuxonisDataset",
+        dataset: LuxonisDataset,
         view: str = "train",
         stream: bool = False,
-        augmentations: Optional["luxonis_ml.data.Augmentations"] = None,
+        augmentations: Augmentations | None = None,
     ):
         self.base_loader = LuxonisLoader(
             dataset=dataset,
@@ -26,13 +23,17 @@ class LuxonisLoaderTorch(BaseLoaderTorch):
     def __len__(self) -> int:
         return len(self.base_loader)
 
+    @property
+    def input_shape(self) -> Size:
+        img, _ = self[0]
+        return Size([1, *img.shape])
+
     def __getitem__(self, idx: int) -> LuxonisLoaderTorchOutput:
         img, annotations = self.base_loader[idx]
 
-        # convert img and annotations to torch tensors
         img = np.transpose(img, (2, 0, 1))  # HWC to CHW
-        img = torch.tensor(img)
+        tensor_img = Tensor(img)
         for key in annotations:
-            annotations[key] = torch.tensor(annotations[key])
+            annotations[key] = Tensor(annotations[key])  # type: ignore
 
-        return img, annotations
+        return tensor_img, annotations

@@ -1,0 +1,30 @@
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import BaseFinetuning
+from torch import nn
+from torch.optim.optimizer import Optimizer
+
+from luxonis_train.utils.registry import CALLBACKS
+
+
+@CALLBACKS.register_module()
+class ModuleFreezer(BaseFinetuning):
+    """Callback that freezes parts of the model."""
+
+    def __init__(self, frozen_modules: list[nn.Module]):
+        """Constructs `ModuleFreezer`.
+
+        Args:
+            frozen_modules (list[nn.Module]): List of modules to freeze.
+        """
+        super().__init__()
+        self.frozen_modules = frozen_modules
+
+    def freeze_before_training(self, _: pl.LightningModule) -> None:
+        for module in self.frozen_modules:
+            self.freeze(module, train_bn=False)
+
+    def finetune_function(
+        self, pl_module: pl.LightningModule, epoch: int, optimizer: Optimizer
+    ) -> None:
+        # TODO: document what and why empty
+        ...

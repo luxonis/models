@@ -1,22 +1,21 @@
-numpy>=1.22
-opencv-python>=4.7.0.68
+# The dependecies are primarily listed in pyproject.toml.
+
+blobconverter>=1.4.2
+luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@bc127fe
+onnx>=1.12.0
+onnxruntime>=1.13.1
+onnxsim>=0.4.10
+optuna>=3.2.0
+pre-commit>=3.2.1
+psycopg2-binary
+pycocotools>=2.0.7
+pytest>=7.4.3
 python-dotenv>=0.21.1
 pytorch-lightning>=2.0.0
-PyYAML>=6.0
+rich
+s3fs
+tensorboard>=2.10.1
 torch>=1.12.1
 torchmetrics>=1.0.0
 torchvision>=0.13.1
-tensorboard>=2.10.1
-rich
-s3fs
-luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@bc127fe
-# tunning related packages
-optuna>=3.2.0
-psycopg2-binary
-# export related packages (only base ones)
-onnx>=1.12.0
-onnxsim>=0.4.10
-onnxruntime>=1.13.1
-pycocotools>=2.0.7
-blobconverter>=1.4.2
 typeguard>=4.1.5

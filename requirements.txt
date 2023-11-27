@@ -9,7 +9,7 @@ torchvision>=0.13.1
 tensorboard>=2.10.1
 rich
 s3fs
-luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@babda4b
+luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@bc127fe
 # tunning related packages
 optuna>=3.2.0
 psycopg2-binary
@@ -19,3 +19,4 @@ onnxsim>=0.4.10
 onnxruntime>=1.13.1
 pycocotools>=2.0.7
 blobconverter>=1.4.2
+typeguard>=4.1.5

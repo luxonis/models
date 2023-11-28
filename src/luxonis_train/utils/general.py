@@ -131,7 +131,8 @@ def traverse_graph(
     processed = set()
 
     while unprocessed_nodes:
-        for node_name in unprocessed_nodes.copy():
+        unprocessed_nodes_copy = unprocessed_nodes.copy()
+        for node_name in unprocessed_nodes_copy:
             node_dependencies = graph[node_name]
             if not node_dependencies or all(
                 dependency in processed for dependency in node_dependencies
@@ -139,3 +140,9 @@ def traverse_graph(
                 yield node_name, nodes[node_name], node_dependencies, unprocessed_nodes
                 processed.add(node_name)
                 unprocessed_nodes.remove(node_name)
+
+        if unprocessed_nodes_copy == unprocessed_nodes:
+            raise RuntimeError(
+                "Malformed graph. "
+                "Please check that all nodes are connected in a directed acyclic graph."
+            )

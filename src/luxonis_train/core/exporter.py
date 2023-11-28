@@ -34,7 +34,7 @@ class Exporter(LuxonisCore):
 
         super().__init__(cfg, opts)
 
-        input_shape = self.cfg.export.input_shape
+        input_shape = self.cfg.exporter.input_shape
         if self.cfg.model.weights is None:
             raise ValueError(
                 "Model weights must be specified in config file for export."
@@ -46,17 +46,17 @@ class Exporter(LuxonisCore):
             self.input_shape = Size(input_shape)
 
         self.export_path = osp.join(
-            self.cfg.export.export_save_directory, self.cfg.export.export_model_name
+            self.cfg.exporter.export_save_directory, self.cfg.exporter.export_model_name
         )
 
         normalize_params = self.cfg.train.preprocessing.normalize.params
-        if self.cfg.export.scale_values is not None:
-            self.scale_values = self.cfg.export.scale_values
+        if self.cfg.exporter.scale_values is not None:
+            self.scale_values = self.cfg.exporter.scale_values
         else:
             self.scale_values = normalize_params.get("std", None)
 
-        if self.cfg.export.mean_values is not None:
-            self.mean_values = self.cfg.export.mean_values
+        if self.cfg.exporter.mean_values is not None:
+            self.mean_values = self.cfg.exporter.mean_values
         else:
             self.mean_values = normalize_params.get("mean", None)
 
@@ -78,10 +78,10 @@ class Exporter(LuxonisCore):
             "input_model": onnx_path,
             "scale_values": self.scale_values,
             "mean_values": self.mean_values,
-            "reverse_input_channels": self.cfg.export.reverse_input_channels,
+            "reverse_input_channels": self.cfg.exporter.reverse_input_channels,
             "use_bgr": not self.cfg.train.preprocessing.train_rgb,
             "input_shape": list(self.input_shape),
-            "data_type": self.cfg.export.data_type,
+            "data_type": self.cfg.exporter.data_type,
             "output": [{"name": name} for name in self.output_names],
             "meta": {"description": self.cfg.model.name},
         }
@@ -90,7 +90,7 @@ class Exporter(LuxonisCore):
         """Runs export."""
         onnx_path = onnx_path or self.export_path + ".onnx"
         self.output_names = self.lightning_module.export_onnx(
-            onnx_path, **self.cfg.export.onnx.model_dump()
+            onnx_path, **self.cfg.exporter.onnx.model_dump()
         )
 
         model_onnx = onnx.load(onnx_path)
@@ -100,7 +100,7 @@ class Exporter(LuxonisCore):
         onnx.save(onnx_model, onnx_path)
         files_to_upload = [self.local_path, onnx_path]
 
-        if self.cfg.export.blobconverter.active:
+        if self.cfg.exporter.blobconverter.active:
             import blobconverter
 
             print("Converting ONNX to .blob")
@@ -109,26 +109,26 @@ class Exporter(LuxonisCore):
                 f"--scale_values={self.scale_values}",
                 f"--mean_values={self.mean_values}",
             ]
-            if self.cfg.export.reverse_input_channels:
+            if self.cfg.exporter.reverse_input_channels:
                 optimizer_params.append("--reverse_input_channels")
 
             blob_path = blobconverter.from_onnx(
                 model=onnx_path,
                 optimizer_params=optimizer_params,
-                data_type=self.cfg.export.data_type,
-                shaves=self.cfg.export.blobconverter.shaves,
+                data_type=self.cfg.exporter.data_type,
+                shaves=self.cfg.exporter.blobconverter.shaves,
                 use_cache=False,
                 output_dir=self.export_path,
             )
             files_to_upload.append(blob_path)
 
-        if self.cfg.export.upload.active:
+        if self.cfg.exporter.upload.active:
             self._upload_to_s3(files_to_upload)
 
     def _upload_to_s3(self, files_to_upload: list[str]):
         """Uploads .pt, .onnx and current config.yaml to specified s3 bucket."""
         fs = LuxonisFileSystem(
-            self.cfg.export.upload.upload_directory, allow_local=False
+            self.cfg.exporter.upload.upload_directory, allow_local=False
         )
         print(f"Started upload to {fs.full_path()}...")
 
@@ -136,7 +136,7 @@ class Exporter(LuxonisCore):
             suffix = Path(file).suffix
             fs.put_file(
                 local_path=file,
-                remote_path=self.cfg.export.export_model_name + suffix,
+                remote_path=self.cfg.exporter.export_model_name + suffix,
             )
 
         with tempfile.TemporaryFile() as f:
@@ -145,7 +145,7 @@ class Exporter(LuxonisCore):
 
         full_remote_path = fs.full_path()
         onnx_path = os.path.join(
-            full_remote_path, f"{self.cfg.export.export_model_name}.onnx"
+            full_remote_path, f"{self.cfg.exporter.export_model_name}.onnx"
         )
         modelconverter_config = self._get_modelconverter_config(onnx_path)
 

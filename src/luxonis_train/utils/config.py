@@ -320,7 +320,7 @@ class Config(LuxonisConfig):
     trainer: TrainerConfig = TrainerConfig()
     logger: LoggerConfig = LoggerConfig()
     train: TrainConfig = TrainConfig()
-    export: ExportConfig = ExportConfig()
+    exporter: ExportConfig = ExportConfig()
     tuner: TunerConfig = TunerConfig()
 
     @model_validator(mode="before")

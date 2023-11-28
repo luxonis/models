@@ -26,5 +26,6 @@ class ModuleFreezer(BaseFinetuning):
     def finetune_function(
         self, pl_module: pl.LightningModule, epoch: int, optimizer: Optimizer
     ) -> None:
-        # TODO: document what and why empty
+        # Called on every train epoch start. Used to unfreeze frozen modules.
+        # TODO: Implement unfreezing and support in config.
         ...

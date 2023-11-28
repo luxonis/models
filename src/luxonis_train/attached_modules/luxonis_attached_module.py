@@ -37,12 +37,19 @@ class LuxonisAttachedModule(
         registry (Registry): The registry to which the subclasses should be added.
           For most times should not be specified in concrete classes.
 
+    Attributes:
+        required_labels (list[LabelType]): List of labels required by this model.
+        protocol (type[BaseProtocol]): Schema for validating inputs to the module.
+        node_attributes (NodeAttributes): Attributes of the node that
+          this module is attached to.
+
     Interface:
         prepare(outputs: Packet[Tensor], labels: Labels
         ) -> tuple[Unpack[Ts]]:
           Prepares the outputs and labels before passing them to following methods.
           For example with `forward`, it would allow for the following call:
           `forward(*prepare(outputs, labels))`.
+
     """
 
     class NodeAttributes(BaseProtocol):
@@ -57,6 +64,11 @@ class LuxonisAttachedModule(
         Definition of custom `NodeAttributes` is not required, but if provided,
         the passed node attributes will be validated against the `NodeAttributes`
         schema.
+
+
+        Attributes:
+            original_in_shape (Size): Shape of the input to the entire model.
+            dataset_metadata (DatasetMetadata): Metadata of the dataset.
         """
 
         original_in_shape: Size

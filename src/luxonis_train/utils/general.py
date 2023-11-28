@@ -9,8 +9,10 @@ from torch import Size, Tensor
 from luxonis_train.utils.types import Packet
 
 
-# TODO: could be moved to luxonis-ml
-class DatasetMetadata(BaseModel):
+# TODO: could be moved to luxonis-ml?
+# TODO: support multiclass keypoints
+# TODO: support different number of classes per task
+class DatasetMetadata:
     """Metadata about the dataset.
 
     Attributes:
@@ -20,11 +22,25 @@ class DatasetMetadata(BaseModel):
         connectivity (list[tuple[int, int]]): List of tuples of connected keypoints.
     """
 
-    n_classes: int = 0
-    n_keypoints: int = 0
-    class_names: list[str] = []
-    keypoint_names: list[str] = []
-    connectivity: list[tuple[int, int]] = []
+    def __init__(
+        self,
+        class_names: list[str] | None = None,
+        keypoint_names: list[str] | None = None,
+        connectivity: list[tuple[int, int]] | None = None,
+    ):
+        self.class_names = class_names or []
+        self.keypoint_names = keypoint_names or []
+        self.connectivity = connectivity or []
+
+    @property
+    def n_classes(self) -> int:
+        """Number of classes in the dataset."""
+        return len(self.class_names)
+
+    @property
+    def n_keypoints(self) -> int:
+        """Number of keypoints in the dataset."""
+        return len(self.keypoint_names)
 
     @classmethod
     def from_dataset(cls, dataset: LuxonisDataset) -> "DatasetMetadata":
@@ -36,15 +52,35 @@ class DatasetMetadata(BaseModel):
         Returns:
             DatasetMetadata: Metadata about the dataset.
         """
-        class_names = dataset.get_classes()[0]
+        class_names, classes = dataset.get_classes()
         skeletons = dataset.get_skeletons()
-        # TODO: support for multiclass keypoints
+        for task, task_classes in classes.items():
+            if sorted(task_classes) != sorted(class_names):
+                raise NotImplementedError(
+                    f"Task {task} defines a different set of classes than "
+                    "the other tasks. This is not yet supported. "
+                    f"Task classes: {task_classes}. "
+                    f"Total classes: {class_names}."
+                )
+
+        keypoint_names = None
+        connectivity = None
+
+        if len(skeletons) == 1:
+            name = list(skeletons.keys())[0]
+            keypoint_names = skeletons[name]["labels"]
+            connectivity = skeletons[name]["edges"]
+
+        elif len(skeletons) > 1:
+            raise NotImplementedError(
+                "The dataset defines multiclass keypoint detection. "
+                "This is not yet supported."
+            )
+
         return cls(
-            n_classes=len(class_names),
-            n_keypoints=len(skeletons[class_names[0]]["labels"]),
-            keypoint_names=skeletons[class_names[0]]["labels"],
-            connectivity=skeletons[class_names[0]]["edges"],
             class_names=class_names,
+            keypoint_names=keypoint_names,
+            connectivity=connectivity,
         )
 
 

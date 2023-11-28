@@ -627,7 +627,8 @@ class LuxonisModel(pl.LightningModule):
             callbacks.append(RichModelSummary())
 
         for callback in self.cfg.train.callbacks:
-            callbacks.append(CALLBACKS.get(callback.name)(**callback.params))
+            if callback.active:
+                callbacks.append(CALLBACKS.get(callback.name)(**callback.params))
 
         return callbacks
 

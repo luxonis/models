@@ -1,7 +1,7 @@
 use_rich_text: True
 
 model:
-  name: test
+  name: coco_test
   nodes:
     - name: EfficientRep
       params:
@@ -77,19 +77,14 @@ model:
               nonvisible_color: blue
           - name: BBoxVisualizer
             params:
-              labels:
-                - Fish
               colors:
-                - "#5555FF"
+                person: "#FF5055"
     - name: SegmentationVisualizer
       attached_to: SegmentationHead
+      params:
+        color: "#FF5055"
     - name: BBoxVisualizer
       attached_to: EfficientBBoxHead
-      params:
-        labels:
-          - Fish
-        colors:
-          - "#5555FF"
 
 trainer:
   accelerator: auto
@@ -100,7 +95,7 @@ trainer:
   verbose: True
 
 logger:
-  project_name: test
+  project_name: coco_test
   run_name: &model_name null
   save_directory: output
   is_tensorboard: True
@@ -109,14 +104,14 @@ logger:
   is_mlflow: False
 
 dataset:
-  dataset_name: RW
-  train_view: val
-  val_view: val
+  dataset_name: coco_test
+  train_view: train
+  val_view: train
   test_view: test
 
 train:
   preprocessing:
-    train_image_size: [&height 128, &width 256]
+    train_image_size: [&height 256, &width 256]
     keep_aspect_ratio: False
     train_rgb: True
     normalize:
@@ -126,7 +121,7 @@ train:
         std: 0.2204
     augmentations: []
 
-  batch_size: 8
+  batch_size: 4
   accumulate_grad_batches: 1
   epochs: &epochs 1
   num_workers: 8

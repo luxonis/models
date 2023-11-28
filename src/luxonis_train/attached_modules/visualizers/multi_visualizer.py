@@ -10,6 +10,12 @@ from .luxonis_visualizer import LuxonisVisualizer
 
 
 class MultiVisualizer(LuxonisVisualizer[Packet[Tensor], Labels]):
+    """Special type of visualizer that combines multiple visualizers together.
+
+    All the visualizers are applied in the order they are provided and they all draw on
+    the same canvas.
+    """
+
     def __init__(self, visualizers: list[dict], **kwargs):
         super().__init__(**kwargs)
         self.visualizers = []

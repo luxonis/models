@@ -186,6 +186,7 @@ class PreprocessingConfig(BaseModel):
 
 class CallbackConfig(BaseModel):
     name: str
+    active: bool = True
     params: dict[str, Any] = {}
 
 

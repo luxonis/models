@@ -374,3 +374,15 @@ def combine_visualizations(
                 "two tensors or a tuple of a tensor and a list of tensors."
                 f"Got: `{type(visualization)}`."
             )
+
+
+def get_color(i: int) -> tuple[int, int, int]:
+    """Generates a random color.
+
+    Args:
+        seed (int): Seed to use for the random generator.
+
+    Returns:
+        tuple[int, int, int]: Random color.
+    """
+    return (i * 123457) % 255, (i * 321) % 255, (i * 654) % 255

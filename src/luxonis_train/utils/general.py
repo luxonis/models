@@ -17,11 +17,14 @@ class DatasetMetadata(BaseModel):
         n_classes (int): Number of classes in the dataset.
         n_keypoints (int): Number of keypoints in the dataset.
         class_names (list[str]): Names of the classes in the dataset.
+        connectivity (list[tuple[int, int]]): List of tuples of connected keypoints.
     """
 
     n_classes: int = 0
     n_keypoints: int = 0
     class_names: list[str] = []
+    keypoint_names: list[str] = []
+    connectivity: list[tuple[int, int]] = []
 
     @classmethod
     def from_dataset(cls, dataset: LuxonisDataset) -> "DatasetMetadata":
@@ -34,11 +37,13 @@ class DatasetMetadata(BaseModel):
             DatasetMetadata: Metadata about the dataset.
         """
         class_names = dataset.get_classes()[0]
-        # TODO: this is not optimal
         skeletons = dataset.get_skeletons()
+        # TODO: support for multiclass keypoints
         return cls(
             n_classes=len(class_names),
             n_keypoints=len(skeletons[class_names[0]]["labels"]),
+            keypoint_names=skeletons[class_names[0]]["labels"],
+            connectivity=skeletons[class_names[0]]["edges"],
             class_names=class_names,
         )
 

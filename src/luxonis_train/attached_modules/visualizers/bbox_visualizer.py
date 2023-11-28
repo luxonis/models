@@ -8,6 +8,7 @@ from .luxonis_visualizer import LuxonisVisualizer
 from .utils import (
     draw_bounding_box_labels,
     draw_bounding_boxes,
+    get_color,
 )
 
 
@@ -20,11 +21,12 @@ class BBoxVisualizer(LuxonisVisualizer[Tensor, Tensor]):
     def __init__(
         self,
         labels: dict[int, str] | list[str] | None = None,
-        colors: dict[int, tuple[int, int, int] | str]
+        draw_labels: bool = True,
+        colors: dict[str, tuple[int, int, int] | str]
         | list[tuple[int, int, int] | str]
         | None = None,
         fill: bool = False,
-        width: int = 1,
+        width: int | None = None,
         font: str | None = None,
         font_size: int | None = None,
         **kwargs,
@@ -53,14 +55,21 @@ class BBoxVisualizer(LuxonisVisualizer[Tensor, Tensor]):
         )
         if isinstance(labels, list):
             labels = {i: label for i, label in enumerate(labels)}
+
+        self.labels = labels or {
+            i: label
+            for i, label in enumerate(self.node_attributes.dataset_metadata.class_names)
+        }
+        if colors is None:
+            colors = {label: get_color(i) for i, label in self.labels.items()}
         if isinstance(colors, list):
-            colors = {i: color for i, color in enumerate(colors)}
-        self.labels = labels
+            colors = {self.labels[i]: color for i, color in enumerate(colors)}
         self.colors = colors
         self.fill = fill
         self.width = width
         self.font = font
         self.font_size = font_size
+        self.draw_labels = draw_labels
 
     def forward(
         self,
@@ -89,17 +98,19 @@ class BBoxVisualizer(LuxonisVisualizer[Tensor, Tensor]):
         prediction_classes = prediction[:, 5].int()
 
         target_classes = targets[:, 1].int()
+        *_, H, W = label_canvas.shape
+        width = self.width or max(1, int(min(H, W) / 100))
         labels_viz = draw_bounding_box_labels(
             label_canvas.clone(),
             targets[:, 2:],
             labels=[self.labels[int(c)] for c in target_classes]
-            if self.labels
+            if self.draw_labels and self.labels
             else None,
-            colors=[self.colors[int(c)] for c in target_classes]
+            colors=[self.colors[self.labels[int(c)]] for c in target_classes]
             if self.colors
             else None,
             fill=self.fill,
-            width=self.width,
+            width=width,
             font=self.font,
             font_size=self.font_size,
         ).to(prediction_canvas.device)
@@ -109,13 +120,13 @@ class BBoxVisualizer(LuxonisVisualizer[Tensor, Tensor]):
                 prediction_canvas.clone(),
                 prediction[:, :4],
                 labels=[self.labels[int(c)] for c in prediction_classes]
-                if self.labels
+                if self.draw_labels and self.labels
                 else None,
-                colors=[self.colors[int(c)] for c in prediction_classes]
+                colors=[self.colors[self.labels[int(c)]] for c in prediction_classes]
                 if self.colors
                 else None,
                 fill=self.fill,
-                width=self.width,
+                width=width,
                 font=self.font,
                 font_size=self.font_size,
             )

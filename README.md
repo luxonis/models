@@ -273,13 +273,13 @@ train:
 Once you've configured your `config.yaml` file you can train the model using this command:
 
 ```bash
-python3 -m luxonis_train.tools.tools.train --config config.yaml
+python3 -m luxonis_train train --config config.yaml
 ```
 
 If you wish to manually override some config parameters you can do this by providing the key-value pairs. Example of this is:
 
 ```bash
-python3 -m luxonis_train.tools.train --config config.yaml train.batch_size 8 train.epochs 10
+python3 -m luxonis_train train --config config.yaml train.batch_size 8 train.epochs 10
 ```
 
 where key and value are space separated and sub-keys are dot (`.`) separated. If the configuration field is a list, then key/sub-key should be a number (e.g. `train.preprocessing.augmentations.0.name RotateCustom`).
@@ -356,7 +356,7 @@ tuner:
 When a `tuner` block is specified, you can start tuning like:
 
 ```bash
-python3 -m luxonis_train.tools.tune --config config.yaml
+python3 -m luxonis_train tune --config config.yaml
 ```
 
 ## Exporting
@@ -391,7 +391,7 @@ exporter:
 Once you have the config file ready you can export the model like this:
 
 ```bash
-python3 -m luxonis_train.tools.export --config config.yaml
+python3 -m luxonis_train export --config config.yaml
 ```
 
 ## Credentials

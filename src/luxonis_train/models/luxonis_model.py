@@ -624,7 +624,7 @@ class LuxonisModel(pl.LightningModule):
             callbacks.append(ModuleFreezer(self.frozen_nodes))
 
         if self.cfg.train.use_rich_text:
-            callbacks.append(RichModelSummary())
+            callbacks.append(RichModelSummary(max_depth=2))
 
         for callback in self.cfg.train.callbacks:
             if callback.active:

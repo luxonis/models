@@ -28,7 +28,6 @@ class BiSeNetHead(LuxonisNode[Tensor, Tensor]):
         """Constructor for the BiSeNet segmentation head.
 
         Args:
-            n_classes (int): Number of classes
             intermediate_channels (int, optional): How many intermediate channels to
               use. Defaults to 64.
         """

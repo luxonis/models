@@ -55,7 +55,7 @@ class ObjectKeypointSimilarity(
         )
         if kpt_sigmas is not None and len(kpt_sigmas) != self.n_keypoints:
             raise ValueError("Expected kpt_sigmas to be of shape (num_keypoints).")
-        self.kpt_sigmas = kpt_sigmas or torch.ones(self.n_keypoints)
+        self.kpt_sigmas = kpt_sigmas or torch.ones(self.n_keypoints) / self.n_keypoints
         self.use_cocoeval_oks = use_cocoeval_oks
 
         self.add_state("pred_keypoints", default=[], dist_reduce_fx=None)

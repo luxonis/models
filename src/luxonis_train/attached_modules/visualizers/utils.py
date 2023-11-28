@@ -61,7 +61,7 @@ def numpy_to_torch_img(img: np.ndarray) -> Tensor:
     return torch.from_numpy(img).permute(2, 0, 1)
 
 
-def preprocess_image(
+def preprocess_images(
     imgs: Tensor,
     mean: list[float] | float | None = None,
     std: list[float] | float | None = None,

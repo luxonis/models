@@ -21,7 +21,7 @@ from luxonis_train.attached_modules import (
 )
 from luxonis_train.attached_modules.visualizers import (
     combine_visualizations,
-    preprocess_image,
+    preprocess_images,
 )
 from luxonis_train.callbacks import (
     LuxonisProgressBar,
@@ -534,7 +534,7 @@ class LuxonisModel(pl.LightningModule):
         if self.cfg.train.preprocessing.normalize.active:
             mean = normalize_params.get("mean", [0.485, 0.456, 0.406])
             std = normalize_params.get("std", [0.229, 0.224, 0.225])
-        image = preprocess_image(
+        image = preprocess_images(
             inputs,
             mean=mean,
             std=std,

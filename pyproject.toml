@@ -20,9 +20,7 @@ classifiers = [
 dependencies = [
     "python-dotenv>=0.21.1",
     "pytorch-lightning>=2.0.0",
-    "torch>=1.12.1",
-    "torchmetrics>=1.0.0",
-    "torchvision>=0.13.1",
+    "torchvision>=0.16.0",
     "tensorboard>=2.10.1",
     "typeguard>=4.1.5",
     "rich>=13.0.0",
@@ -39,8 +37,8 @@ export = [
     "blobconverter>=1.4.2",
 ]
 tune = [
-   "optuna>=3.2.0",
-   "psycopg2-binary>=2.9.1",
+    "optuna>=3.2.0",
+    "psycopg2-binary>=2.9.1",
 ]
 all = [
     "luxonis-train[export]",

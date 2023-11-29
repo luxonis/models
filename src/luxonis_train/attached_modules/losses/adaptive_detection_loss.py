@@ -77,9 +77,9 @@ class AdaptiveDetectionLoss(BaseLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Ten
         self.original_img_size = self.node_attributes.original_in_shape[2:]
 
         self.n_warmup_epochs = n_warmup_epochs
-        self.atts_assigner = ATSSAssigner(topk=9, num_classes=self.n_classes)
+        self.atts_assigner = ATSSAssigner(topk=9, n_classes=self.n_classes)
         self.tal_assigner = TaskAlignedAssigner(
-            topk=13, num_classes=self.n_classes, alpha=1.0, beta=6.0
+            topk=13, n_classes=self.n_classes, alpha=1.0, beta=6.0
         )
 
         self.varifocal_loss = VarifocalLoss()

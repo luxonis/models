@@ -17,6 +17,8 @@ from torchvision.utils import (
     draw_segmentation_masks,
 )
 
+from luxonis_train.utils.config import Config
+
 Color = str | tuple[int, int, int]
 
 
@@ -65,7 +67,7 @@ def preprocess_images(
     imgs: Tensor,
     mean: list[float] | float | None = None,
     std: list[float] | float | None = None,
-) -> list[Tensor]:
+) -> Tensor:
     """Performs preprocessing on a batch of images.
 
     Preprocessing includes unnormalizing and converting to uint8.
@@ -78,7 +80,7 @@ def preprocess_images(
           Defaults to None.
 
     Returns:
-        list[Tensor | np.ndarray]: List of preprocessed images.
+        Tensor: Batch of preprocessed images.
     """
     out_imgs = []
     for i in range(imgs.shape[0]):
@@ -90,7 +92,7 @@ def preprocess_images(
 
         out_imgs.append(curr_img)
 
-    return out_imgs
+    return torch.stack(out_imgs)
 
 
 def draw_segmentation_labels(
@@ -202,6 +204,32 @@ def unnormalize(
     if to_uint8:
         out_img = torch.clamp(out_img.mul(255), 0, 255).to(torch.uint8)
     return out_img
+
+
+def get_unnormalized_images(cfg: Config, images: Tensor) -> Tensor:
+    normalize_params = cfg.train.preprocessing.normalize.params
+    mean = std = None
+    if cfg.train.preprocessing.normalize.active:
+        mean = normalize_params.get("mean", [0.485, 0.456, 0.406])
+        std = normalize_params.get("std", [0.229, 0.224, 0.225])
+    return preprocess_images(
+        images,
+        mean=mean,
+        std=std,
+    )
+
+
+def get_color(seed: int = 42) -> tuple[int, int, int]:
+    """Generates a random color from a seed.
+
+    Args:
+        seed (int): Seed to use for the random generator.
+
+    Returns:
+        tuple[int, int, int]: Random color.
+    """
+    seed += 1
+    return (seed * 123457) % 255, (seed * 321) % 255, (seed * 654) % 255
 
 
 # NOTE: :TODO Support native visualizations
@@ -374,15 +402,3 @@ def combine_visualizations(
                 "two tensors or a tuple of a tensor and a list of tensors."
                 f"Got: `{type(visualization)}`."
             )
-
-
-def get_color(i: int) -> tuple[int, int, int]:
-    """Generates a random color.
-
-    Args:
-        seed (int): Seed to use for the random generator.
-
-    Returns:
-        tuple[int, int, int]: Random color.
-    """
-    return (i * 123457) % 255, (i * 321) % 255, (i * 654) % 255

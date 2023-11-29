@@ -21,7 +21,7 @@ from luxonis_train.attached_modules import (
 )
 from luxonis_train.attached_modules.visualizers import (
     combine_visualizations,
-    preprocess_images,
+    get_unnormalized_images,
 )
 from luxonis_train.callbacks import (
     LuxonisProgressBar,
@@ -529,19 +529,11 @@ class LuxonisModel(pl.LightningModule):
         self, mode: Literal["test", "val"], batch: tuple[Tensor, Labels], batch_idx: int
     ) -> dict[str, Tensor]:
         inputs = batch[0]
-        normalize_params = self.cfg.train.preprocessing.normalize.params
-        mean = std = None
-        if self.cfg.train.preprocessing.normalize.active:
-            mean = normalize_params.get("mean", [0.485, 0.456, 0.406])
-            std = normalize_params.get("std", [0.229, 0.224, 0.225])
-        image = preprocess_images(
-            inputs,
-            mean=mean,
-            std=std,
-        )[0]
+        images = get_unnormalized_images(self.cfg, inputs)
         outputs = self.forward(
             *batch,
-            image=image,
+            # TODO: support batch visualization
+            image=images[0],
             compute_metrics=True,
             compute_visualizations=True,
         )

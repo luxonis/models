@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from luxonis_train.core import Exporter, Trainer, Tuner
+from luxonis_train.core import Exporter, Inferer, Trainer, Tuner
 
 
 def add_subparser(
@@ -28,7 +28,19 @@ subparsers = parser.add_subparsers(dest="command", help="commands")
 add_subparser(subparsers, "train", "run the training")
 eval_parser = add_subparser(subparsers, "eval", "run the evaluation")
 eval_parser.add_argument(
-    "--view", type=str, choices=["val", "test"], default="val", help="View mode"
+    "--view",
+    type=str,
+    choices=["train", "val", "test"],
+    default="val",
+    help="View mode",
+)
+infer_parser = add_subparser(subparsers, "infer", "run the inference")
+infer_parser.add_argument(
+    "--view",
+    type=str,
+    choices=["train", "val", "test"],
+    default="val",
+    help="View mode",
 )
 add_subparser(subparsers, "tune", "run hyperparameter tuning")
 add_subparser(subparsers, "export", "export the model")
@@ -38,17 +50,15 @@ def main():
     args = parser.parse_args()
 
     if args.command == "train":
-        trainer = Trainer(str(args.config), args.opts)
-        trainer.train()
+        Trainer(str(args.config), args.opts).train()
     elif args.command == "eval":
-        trainer = Trainer(str(args.config), args.opts)
-        trainer.test(view=args.view)
+        Trainer(str(args.config), args.opts).test(view=args.view)
     elif args.command == "tune":
-        tuner = Tuner(str(args.config), args.opts)
-        tuner.tune()
+        Tuner(str(args.config), args.opts).tune()
     elif args.command == "export":
-        exporter = Exporter(str(args.config), args.opts)
-        exporter.export()
+        Exporter(str(args.config), args.opts).export()
+    elif args.command == "infer":
+        Inferer(str(args.config), args.opts, view=args.view).infer()
     else:
         parser.print_help()
 

@@ -49,7 +49,6 @@ class BaseAttachedModule(
           Prepares the outputs and labels before passing them to following methods.
           For example with `forward`, it would allow for the following call:
           `forward(*prepare(outputs, labels))`.
-
     """
 
     class NodeAttributes(BaseProtocol):

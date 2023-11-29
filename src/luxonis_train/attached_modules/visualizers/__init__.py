@@ -1,7 +1,7 @@
+from .base_visualizer import BaseVisualizer
 from .bbox_visualizer import BBoxVisualizer
 from .classification_visualizer import ClassificationVisualizer
 from .keypoint_visualizer import KeypointVisualizer
-from .luxonis_visualizer import LuxonisVisualizer
 from .multi_visualizer import MultiVisualizer
 from .segmentation_visualizer import SegmentationVisualizer
 from .utils import (
@@ -18,7 +18,7 @@ __all__ = [
     "BBoxVisualizer",
     "ClassificationVisualizer",
     "KeypointVisualizer",
-    "LuxonisVisualizer",
+    "BaseVisualizer",
     "MultiVisualizer",
     "SegmentationVisualizer",
     "combine_visualizations",

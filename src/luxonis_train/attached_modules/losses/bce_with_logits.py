@@ -5,10 +5,10 @@ from typing import Literal
 import torch.nn as nn
 from torch import Tensor
 
-from .luxonis_loss import LuxonisLoss
+from .base_loss import BaseLoss
 
 
-class BCEWithLogitsLoss(LuxonisLoss[Tensor, Tensor]):
+class BCEWithLogitsLoss(BaseLoss[Tensor, Tensor]):
     """Pytorch BCEWithLogitsLoss wrapper.
 
     For attribute definitions check

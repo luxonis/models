@@ -13,10 +13,10 @@ from luxonis_train.nodes.blocks import UpBlock
 from luxonis_train.utils.general import infer_upscale_factor
 from luxonis_train.utils.types import Packet
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class SegmentationHead(LuxonisNode[Tensor, Tensor]):
+class SegmentationHead(BaseNode[Tensor, Tensor]):
     def __init__(
         self,
         n_classes: int | None = None,

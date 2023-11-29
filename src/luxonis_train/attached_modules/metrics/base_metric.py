@@ -4,14 +4,14 @@ from torch import Tensor
 from torchmetrics import Metric
 from typing_extensions import TypeVarTuple, Unpack
 
-from luxonis_train.attached_modules import LuxonisAttachedModule
+from luxonis_train.attached_modules import BaseAttachedModule
 from luxonis_train.utils.registry import METRICS
 
 Ts = TypeVarTuple("Ts")
 
 
-class LuxonisMetric(
-    LuxonisAttachedModule[Unpack[Ts]],
+class BaseMetric(
+    BaseAttachedModule[Unpack[Ts]],
     Metric,
     register=False,
     registry=METRICS,

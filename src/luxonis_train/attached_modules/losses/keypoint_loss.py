@@ -12,15 +12,15 @@ from luxonis_train.utils.types import (
     Packet,
 )
 
+from .base_loss import BaseLoss
 from .bce_with_logits import BCEWithLogitsLoss
-from .luxonis_loss import LuxonisLoss
 
 
 class Protocol(BaseProtocol):
     keypoints: Annotated[list[Tensor], Field(min_length=1, max_length=1)]
 
 
-class KeypointLoss(LuxonisLoss[Tensor, Tensor]):
+class KeypointLoss(BaseLoss[Tensor, Tensor]):
     def __init__(
         self,
         bce_power: float = 1.0,

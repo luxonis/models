@@ -1,11 +1,11 @@
 import torch
 from torch import Tensor
 
+from .base_loss import BaseLoss
 from .bce_with_logits import BCEWithLogitsLoss
-from .luxonis_loss import LuxonisLoss
 
 
-class SmoothBCEWithLogitsLoss(LuxonisLoss[list[Tensor], Tensor]):
+class SmoothBCEWithLogitsLoss(BaseLoss[list[Tensor], Tensor]):
     """BCE with logits loss with label smoothing.
 
     Args:

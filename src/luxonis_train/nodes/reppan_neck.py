@@ -15,10 +15,10 @@ from typeguard import check_type
 from luxonis_train.nodes.blocks import RepDownBlock, RepUpBlock
 from luxonis_train.utils.general import make_divisible
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class RepPANNeck(LuxonisNode[list[Tensor], list[Tensor]]):
+class RepPANNeck(BaseNode[list[Tensor], list[Tensor]]):
     def __init__(
         self,
         num_heads: Literal[2, 3, 4] = 3,

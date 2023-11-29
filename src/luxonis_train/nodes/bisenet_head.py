@@ -11,10 +11,10 @@ from luxonis_train.nodes.blocks import ConvModule
 from luxonis_train.utils.general import infer_upscale_factor
 from luxonis_train.utils.types import Packet
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class BiSeNetHead(LuxonisNode[Tensor, Tensor]):
+class BiSeNetHead(BaseNode[Tensor, Tensor]):
     """Implementation of the BiSeNet segmentation head.
 
     TODO: Add more documentation.

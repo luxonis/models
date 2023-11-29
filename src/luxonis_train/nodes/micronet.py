@@ -6,10 +6,10 @@ from torch import Tensor, nn
 from luxonis_train.nodes.activations import HSigmoid, HSwish
 from luxonis_train.nodes.blocks import ConvModule
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class MicroNet(LuxonisNode[Tensor, list[Tensor]]):
+class MicroNet(BaseNode[Tensor, list[Tensor]]):
     """
 
     TODO: DOCS

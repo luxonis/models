@@ -5,10 +5,10 @@ from pytorch_lightning.utilities import rank_zero_only  # type: ignore
 
 from luxonis_train.models import LuxonisModel
 
-from .luxonis_core import LuxonisCore
+from .core import Core
 
 
-class Trainer(LuxonisCore):
+class Trainer(Core):
     """Main API which is used to create the model, setup pytorch lightning environment
     and perform training based on provided arguments and config."""
 

@@ -6,10 +6,10 @@ TODO: source?
 import torchvision
 from torch import Tensor
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class MobileNetV2(LuxonisNode[Tensor, list[Tensor]]):
+class MobileNetV2(BaseNode[Tensor, list[Tensor]]):
     """Implementation of the MobileNetV2 backbone.
 
     TODO: add more info

@@ -9,10 +9,10 @@ from luxonis_train.utils.types import (
     Packet,
 )
 
-from .luxonis_metric import LuxonisMetric
+from .base_metric import BaseMetric
 
 
-class MeanAveragePrecision(LuxonisMetric, detection.MeanAveragePrecision):
+class MeanAveragePrecision(BaseMetric, detection.MeanAveragePrecision):
     def __init__(self, **kwargs):
         super().__init__(
             protocol=BBoxProtocol, required_labels=[LabelType.BOUNDINGBOX], **kwargs

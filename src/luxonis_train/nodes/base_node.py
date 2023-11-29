@@ -18,7 +18,7 @@ ForwardOutputT = TypeVar("ForwardOutputT")
 ForwardInputT = TypeVar("ForwardInputT")
 
 
-class LuxonisNode(
+class BaseNode(
     nn.Module,
     ABC,
     Generic[ForwardInputT, ForwardOutputT],

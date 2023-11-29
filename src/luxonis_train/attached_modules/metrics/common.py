@@ -1,9 +1,9 @@
 import torchmetrics
 
-from .luxonis_metric import LuxonisMetric
+from .base_metric import BaseMetric
 
 
-class TorchMetricWrapper(LuxonisMetric):
+class TorchMetricWrapper(BaseMetric):
     Metric: type[torchmetrics.Metric]
 
     def __new__(cls, **_):

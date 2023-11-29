@@ -14,10 +14,10 @@ from luxonis_train.nodes.blocks import (
 )
 from luxonis_train.utils.general import make_divisible
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class EfficientRep(LuxonisNode[Tensor, list[Tensor]]):
+class EfficientRep(BaseNode[Tensor, list[Tensor]]):
     """EfficientRep backbone.
 
     TODO: add more details

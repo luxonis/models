@@ -18,11 +18,11 @@ from luxonis_train.utils.boxutils import (
 )
 from luxonis_train.utils.types import Packet
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
 class EfficientBBoxHead(
-    LuxonisNode[list[Tensor], tuple[list[Tensor], list[Tensor], list[Tensor]]]
+    BaseNode[list[Tensor], tuple[list[Tensor], list[Tensor], list[Tensor]]]
 ):
     """Head for object detection.
 

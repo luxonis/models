@@ -6,14 +6,14 @@ from luxonis_train.utils.types import (
     Packet,
 )
 
-from .luxonis_visualizer import LuxonisVisualizer
+from .base_visualizer import BaseVisualizer
 from .utils import (
     draw_keypoint_labels,
     draw_keypoints,
 )
 
 
-class KeypointVisualizer(LuxonisVisualizer[list[Tensor], Tensor]):
+class KeypointVisualizer(BaseVisualizer[list[Tensor], Tensor]):
     def __init__(
         self,
         visibility_threshold: float = 0.5,

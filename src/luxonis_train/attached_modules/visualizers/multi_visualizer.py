@@ -6,10 +6,10 @@ from luxonis_train.utils.types import (
     Packet,
 )
 
-from .luxonis_visualizer import LuxonisVisualizer
+from .base_visualizer import BaseVisualizer
 
 
-class MultiVisualizer(LuxonisVisualizer[Packet[Tensor], Labels]):
+class MultiVisualizer(BaseVisualizer[Packet[Tensor], Labels]):
     """Special type of visualizer that combines multiple visualizers together.
 
     All the visualizers are applied in the order they are provided and they all draw on

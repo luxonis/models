@@ -19,7 +19,7 @@ from luxonis_train.utils.boxutils import (
 )
 from luxonis_train.utils.types import BaseProtocol, Labels, LabelType, Packet
 
-from .luxonis_loss import LuxonisLoss
+from .base_loss import BaseLoss
 
 
 class Protocol(BaseProtocol):
@@ -28,10 +28,8 @@ class Protocol(BaseProtocol):
     distributions: Annotated[list[Tensor], Field(min_length=1, max_length=1)]
 
 
-class AdaptiveDetectionLoss(
-    LuxonisLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]
-):
-    class NodeAttributes(LuxonisLoss.NodeAttributes):
+class AdaptiveDetectionLoss(BaseLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]):
+    class NodeAttributes(BaseLoss.NodeAttributes):
         stride: Tensor
         original_in_shape: Size
         grid_cell_size: float

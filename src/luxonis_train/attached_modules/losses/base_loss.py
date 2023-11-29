@@ -4,7 +4,7 @@ from torch import Tensor
 from typeguard import typechecked
 from typing_extensions import TypeVarTuple, Unpack
 
-from luxonis_train.attached_modules import LuxonisAttachedModule
+from luxonis_train.attached_modules import BaseAttachedModule
 from luxonis_train.utils.registry import LOSSES
 from luxonis_train.utils.types import (
     Labels,
@@ -14,8 +14,8 @@ from luxonis_train.utils.types import (
 Ts = TypeVarTuple("Ts")
 
 
-class LuxonisLoss(
-    LuxonisAttachedModule[Unpack[Ts]],
+class BaseLoss(
+    BaseAttachedModule[Unpack[Ts]],
     register=False,
     registry=LOSSES,
 ):

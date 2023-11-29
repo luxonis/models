@@ -5,10 +5,10 @@ from typing import Literal
 import torch.nn as nn
 from torch import Tensor
 
-from .luxonis_loss import LuxonisLoss
+from .base_loss import BaseLoss
 
 
-class CrossEntropyLoss(LuxonisLoss[Tensor, Tensor]):
+class CrossEntropyLoss(BaseLoss[Tensor, Tensor]):
     """Pytorch CrossEntropyLoss wrapper.
 
     For attribute definitions check

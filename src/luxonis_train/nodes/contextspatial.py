@@ -14,10 +14,10 @@ from luxonis_train.nodes.blocks import (
 )
 from luxonis_train.utils.registry import NODES
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class ContextSpatial(LuxonisNode[Tensor, list[Tensor]]):
+class ContextSpatial(BaseNode[Tensor, list[Tensor]]):
     """
     TODO: DOCS
     """
@@ -63,7 +63,7 @@ class SpatialPath(nn.Module):
 
 
 class ContextPath(nn.Module):
-    def __init__(self, backbone: LuxonisNode):
+    def __init__(self, backbone: BaseNode):
         super().__init__()
         self.backbone = backbone
 

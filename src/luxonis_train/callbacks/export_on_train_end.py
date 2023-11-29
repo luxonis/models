@@ -13,8 +13,7 @@ class ExportOnTrainEnd(pl.Callback):
 
         Args:
             override_upload_directory (bool): If True override upload_directory
-            in Exporter with
-                currently active MLFlow run (if present)
+              in Exporter with currently active MLFlow run (if present)
         """
         super().__init__()
         self.override_upload_directory = override_upload_directory

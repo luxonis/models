@@ -9,10 +9,10 @@ from luxonis_train.callbacks import LuxonisProgressBar
 from luxonis_train.models import LuxonisModel
 from luxonis_train.utils.tracker import LuxonisTrackerPL
 
-from .luxonis_core import LuxonisCore
+from .core import Core
 
 
-class Tuner(LuxonisCore):
+class Tuner(Core):
     def __init__(self, cfg: str | dict, args: list[str] | tuple[str, ...] | None):
         """Main API which is used to perform hyperparameter tunning.
 

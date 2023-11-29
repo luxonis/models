@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch import Tensor
 
-from .luxonis_visualizer import LuxonisVisualizer
+from .base_visualizer import BaseVisualizer
 from .utils import (
     figure_to_torch,
     numpy_to_torch_img,
@@ -12,7 +12,7 @@ from .utils import (
 )
 
 
-class ClassificationVisualizer(LuxonisVisualizer[Tensor, Tensor]):
+class ClassificationVisualizer(BaseVisualizer[Tensor, Tensor]):
     def __init__(
         self, class_names: list[str] | None = None, include_plot: bool = False, **kwargs
     ):

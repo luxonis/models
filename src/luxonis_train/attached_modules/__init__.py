@@ -1,4 +1,4 @@
-from .luxonis_attached_module import LuxonisAttachedModule  # noqa
+from .base_attached_module import BaseAttachedModule  # noqa
 
 from .losses import *
 from .metrics import *

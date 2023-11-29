@@ -19,8 +19,8 @@ from luxonis_train.utils.types import (
     Packet,
 )
 
+from .base_loss import BaseLoss
 from .bce_with_logits import BCEWithLogitsLoss
-from .luxonis_loss import LuxonisLoss
 from .smooth_bce_with_logits import SmoothBCEWithLogitsLoss
 
 KeypointTargetType = tuple[
@@ -32,7 +32,7 @@ KeypointTargetType = tuple[
 ]
 
 
-class ImplicitKeypointBBoxLoss(LuxonisLoss[list[Tensor], KeypointTargetType]):
+class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
     """Joint loss for keypoint and box predictions for cases where the keypoints and
     boxes are inherently linked.
 
@@ -41,7 +41,7 @@ class ImplicitKeypointBBoxLoss(LuxonisLoss[list[Tensor], KeypointTargetType]):
     https://arxiv.org/ftp/arxiv/papers/2204/2204.06806.pdf
     """
 
-    class NodeAttributes(LuxonisLoss.NodeAttributes):
+    class NodeAttributes(BaseLoss.NodeAttributes):
         n_classes: int
         n_keypoints: int
         n_anchors: int

@@ -13,10 +13,10 @@ from torch import Size
 from luxonis_train.models import LuxonisModel
 from luxonis_train.utils.config import Config
 
-from .luxonis_core import LuxonisCore
+from .core import Core
 
 
-class Exporter(LuxonisCore):
+class Exporter(Core):
     """Main API which is used to create the model, setup pytorch lightning environment
     and perform training based on provided arguments and config."""
 

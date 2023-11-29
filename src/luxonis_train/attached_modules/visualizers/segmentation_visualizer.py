@@ -2,7 +2,7 @@ from torch import Tensor
 
 from luxonis_train.utils.types import Labels, LabelType, Packet, SegmentationProtocol
 
-from .luxonis_visualizer import LuxonisVisualizer
+from .base_visualizer import BaseVisualizer
 from .utils import (
     draw_segmentation_labels,
     draw_segmentation_masks,
@@ -10,7 +10,7 @@ from .utils import (
 )
 
 
-class SegmentationVisualizer(LuxonisVisualizer[Tensor, Tensor]):
+class SegmentationVisualizer(BaseVisualizer[Tensor, Tensor]):
     def __init__(self, color: str = "#5050FF", alpha: float = 0.6, **kwargs):
         super().__init__(
             protocol=SegmentationProtocol,

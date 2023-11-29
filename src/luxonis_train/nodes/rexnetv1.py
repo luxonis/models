@@ -13,10 +13,10 @@ from luxonis_train.nodes.blocks import (
 )
 from luxonis_train.utils.general import make_divisible
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class ReXNetV1_lite(LuxonisNode[Tensor, list[Tensor]]):
+class ReXNetV1_lite(BaseNode[Tensor, list[Tensor]]):
     def __init__(
         self,
         fix_head_stem: bool = False,

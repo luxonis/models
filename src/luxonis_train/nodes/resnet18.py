@@ -8,10 +8,10 @@ License (PyTorch): https://github.com/pytorch/pytorch/blob/master/LICENSE
 import torchvision
 from torch import Tensor
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class ResNet18(LuxonisNode[Tensor, list[Tensor]]):
+class ResNet18(BaseNode[Tensor, list[Tensor]]):
     def __init__(
         self,
         channels_list: list[int] | None = None,

@@ -18,7 +18,7 @@ from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 from luxonis_train.utils.tracker import LuxonisTrackerPL
 
 
-class LuxonisCore:
+class Core:
     """Common logic of the core components.
 
     This class contains common logic of the core components (trainer, evaluator,

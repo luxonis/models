@@ -7,10 +7,10 @@ License (Apache 2.0): `https://github.com/rwightman/gen-efficientnet-pytorch/blo
 import torch
 from torch import Tensor
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class EfficientNet(LuxonisNode[Tensor, list[Tensor]]):
+class EfficientNet(BaseNode[Tensor, list[Tensor]]):
     """EfficientNet backbone.
 
     TODO: DOCS

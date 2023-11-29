@@ -19,7 +19,7 @@ from luxonis_train.utils.types import (
 Ts = TypeVarTuple("Ts")
 
 
-class LuxonisAttachedModule(
+class BaseAttachedModule(
     nn.Module, Generic[Unpack[Ts]], ABC, metaclass=AutoRegisterMeta, register=False
 ):
     """Base class for all modules that are attached to a `LuxonisNode`.

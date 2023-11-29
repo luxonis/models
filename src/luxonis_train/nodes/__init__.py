@@ -1,10 +1,10 @@
+from .base_node import BaseNode
 from .bisenet_head import BiSeNetHead
 from .classification_head import ClassificationHead
 from .contextspatial import ContextSpatial
 from .efficient_bbox_head import EfficientBBoxHead
 from .efficientrep import EfficientRep
 from .implicit_keypoint_bbox_head import ImplicitKeypointBBoxHead
-from .luxonis_node import LuxonisNode
 from .micronet import MicroNet
 from .mobilenetv2 import MobileNetV2
 from .mobileone import MobileOne
@@ -21,7 +21,7 @@ __all__ = [
     "EfficientBBoxHead",
     "EfficientRep",
     "ImplicitKeypointBBoxHead",
-    "LuxonisNode",
+    "BaseNode",
     "MicroNet",
     "MobileNetV2",
     "MobileOne",

@@ -24,10 +24,10 @@ from luxonis_train.utils.boxutils import (
 )
 from luxonis_train.utils.types import Packet
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class ImplicitKeypointBBoxHead(LuxonisNode):
+class ImplicitKeypointBBoxHead(BaseNode):
     """Head for object and keypoint detection.
 
     TODO: more technical documentation

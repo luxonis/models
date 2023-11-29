@@ -5,12 +5,12 @@ from typing import Literal
 import torch
 from torch import Tensor
 
-from luxonis_train.attached_modules.losses import LuxonisLoss
+from luxonis_train.attached_modules.losses import BaseLoss
 
 from .cross_entropy import CrossEntropyLoss
 
 
-class SoftmaxFocalLoss(LuxonisLoss[Tensor, Tensor]):
+class SoftmaxFocalLoss(BaseLoss[Tensor, Tensor]):
     def __init__(
         self,
         alpha: float | list[float] = 0.25,

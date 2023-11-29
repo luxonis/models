@@ -22,14 +22,14 @@ from luxonis_train.utils.types import (
     Packet,
 )
 
-from .luxonis_metric import LuxonisMetric
+from .base_metric import BaseMetric
 
 
 class Protocol(KeypointProtocol, BBoxProtocol):
     ...
 
 
-class MeanAveragePrecisionKeypoints(LuxonisMetric):
+class MeanAveragePrecisionKeypoints(BaseMetric):
     """Mean Average Precision metric for keypoints.
 
     Uses `OKS` as IoU measure.

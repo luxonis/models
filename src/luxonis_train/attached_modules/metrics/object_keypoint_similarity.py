@@ -10,11 +10,11 @@ from luxonis_train.utils.types import (
     Packet,
 )
 
-from .luxonis_metric import LuxonisMetric
+from .base_metric import BaseMetric
 
 
 class ObjectKeypointSimilarity(
-    LuxonisMetric[list[dict[str, Tensor]], list[dict[str, Tensor]]]
+    BaseMetric[list[dict[str, Tensor]], list[dict[str, Tensor]]]
 ):
     """Object Keypoint Similarity metric for evaluating keypoint predictions."""
 

@@ -14,10 +14,10 @@ from pytorch_lightning.utilities import rank_zero_only  # type: ignore
 from torch import Size, Tensor, nn
 
 from luxonis_train.attached_modules import (
-    LuxonisAttachedModule,
-    LuxonisLoss,
-    LuxonisMetric,
-    LuxonisVisualizer,
+    BaseAttachedModule,
+    BaseLoss,
+    BaseMetric,
+    BaseVisualizer,
 )
 from luxonis_train.attached_modules.visualizers import (
     combine_visualizations,
@@ -27,7 +27,7 @@ from luxonis_train.callbacks import (
     LuxonisProgressBar,
     ModuleFreezer,
 )
-from luxonis_train.nodes import LuxonisNode
+from luxonis_train.nodes import BaseNode
 from luxonis_train.utils.config import AttachedModuleConfig, Config
 from luxonis_train.utils.general import (
     DatasetMetadata,
@@ -124,18 +124,18 @@ class LuxonisModel(pl.LightningModule):
         self.test_step_outputs: list[Mapping[str, Tensor | float | int]] = []
         self.training_step_outputs: list[Mapping[str, Tensor | float | int]] = []
         self.validation_step_outputs: list[Mapping[str, Tensor | float | int]] = []
-        self.losses: dict[str, dict[str, LuxonisLoss]] = defaultdict(dict)
-        self.metrics: dict[str, dict[str, LuxonisMetric]] = defaultdict(dict)
-        self.visualizers: dict[str, dict[str, LuxonisVisualizer]] = defaultdict(dict)
+        self.losses: dict[str, dict[str, BaseLoss]] = defaultdict(dict)
+        self.metrics: dict[str, dict[str, BaseMetric]] = defaultdict(dict)
+        self.visualizers: dict[str, dict[str, BaseVisualizer]] = defaultdict(dict)
 
         frozen_nodes: list[str] = []
-        nodes: dict[str, tuple[type[LuxonisNode], Kwargs]] = {}
+        nodes: dict[str, tuple[type[BaseNode], Kwargs]] = {}
 
         for node_cfg in self.cfg.model.nodes:
             node_name = node_cfg.name
             if node_cfg.frozen:
                 frozen_nodes.append(node_name)
-            Node = LuxonisNode.REGISTRY.get(node_name)
+            Node = BaseNode.REGISTRY.get(node_name)
             node_name = node_cfg.override_name or node_name
             nodes[node_name] = (Node, node_cfg.params)
             if not node_cfg.inputs:
@@ -146,13 +146,13 @@ class LuxonisModel(pl.LightningModule):
 
         for loss_cfg in self.cfg.model.losses:
             loss_name, _ = self._init_attached_module(
-                loss_cfg, LuxonisLoss.REGISTRY, self.losses
+                loss_cfg, BaseLoss.REGISTRY, self.losses
             )
             self.loss_weights[loss_name] = loss_cfg.weight
 
         for metric_cfg in self.cfg.model.metrics:
             metric_name, node_name = self._init_attached_module(
-                metric_cfg, LuxonisMetric.REGISTRY, self.metrics
+                metric_cfg, BaseMetric.REGISTRY, self.metrics
             )
             if metric_cfg.is_main_metric:
                 if self.main_metric is not None:
@@ -163,7 +163,7 @@ class LuxonisModel(pl.LightningModule):
 
         for visualizer_cfg in self.cfg.model.visualizers:
             self._init_attached_module(
-                visualizer_cfg, LuxonisVisualizer.REGISTRY, self.visualizers
+                visualizer_cfg, BaseVisualizer.REGISTRY, self.visualizers
             )
 
         self.outputs = self.cfg.model.outputs
@@ -176,7 +176,7 @@ class LuxonisModel(pl.LightningModule):
 
     def _initiate_nodes(
         self,
-        nodes: dict[str, tuple[type[LuxonisNode], Kwargs]],
+        nodes: dict[str, tuple[type[BaseNode], Kwargs]],
     ) -> nn.ModuleDict:
         """Initializes all the nodes in the model.
 
@@ -192,7 +192,7 @@ class LuxonisModel(pl.LightningModule):
         Returns:
             nn.ModuleDict[str, LuxonisNode]: Dictionary of initiated nodes.
         """
-        initiated_nodes: dict[str, LuxonisNode] = {}
+        initiated_nodes: dict[str, BaseNode] = {}
 
         dummy_outputs: dict[str, Packet[Tensor]] = {
             f"__{node_name}_input__": {
@@ -272,7 +272,7 @@ class LuxonisModel(pl.LightningModule):
             for node_name, input_tensors in input_dict.items()
         }
         for node_name, node, input_names, unprocessed in traverse_graph(
-            self.graph, cast(dict[str, LuxonisNode], self.nodes)
+            self.graph, cast(dict[str, BaseNode], self.nodes)
         ):
             # Special input for the first node. Will be changed when
             # multiple inputs will be supported in `luxonis-ml.data`.
@@ -379,7 +379,7 @@ class LuxonisModel(pl.LightningModule):
         inp = list(inputs.values())[0][0]
 
         for module in self.modules():
-            if isinstance(module, LuxonisNode):
+            if isinstance(module, BaseNode):
                 module.set_export_mode()
 
         outputs = self.forward(inp.clone()).outputs
@@ -420,7 +420,7 @@ class LuxonisModel(pl.LightningModule):
         self.forward = old_forward  # type: ignore
 
         for module in self.modules():
-            if isinstance(module, LuxonisNode):
+            if isinstance(module, BaseNode):
                 module.set_export_mode(False)
 
         print(f"Model exported to {save_path}")
@@ -494,7 +494,7 @@ class LuxonisModel(pl.LightningModule):
         """Performs train epoch end operations."""
         epoch_train_losses = self._average_losses(self.training_step_outputs)
         for module in self.modules():
-            if isinstance(module, (LuxonisNode, LuxonisLoss)):
+            if isinstance(module, (BaseNode, BaseLoss)):
                 module._epoch = self.current_epoch
 
         for key, value in epoch_train_losses.items():
@@ -689,7 +689,7 @@ class LuxonisModel(pl.LightningModule):
         self,
         cfg: AttachedModuleConfig,
         registry: Registry,
-        storage: Mapping[str, Mapping[str, LuxonisAttachedModule]],
+        storage: Mapping[str, Mapping[str, BaseAttachedModule]],
     ) -> tuple[str, str]:
         Module = registry.get(cfg.name)
         module_name = cfg.override_name or cfg.name

@@ -3,10 +3,10 @@ from typing import Literal
 from torch import Tensor
 from torchvision.ops import sigmoid_focal_loss
 
-from luxonis_train.attached_modules.losses import LuxonisLoss
+from luxonis_train.attached_modules.losses import BaseLoss
 
 
-class SigmoidFocalLoss(LuxonisLoss[Tensor, Tensor]):
+class SigmoidFocalLoss(BaseLoss[Tensor, Tensor]):
     def __init__(
         self,
         alpha: float = 0.25,

@@ -1,9 +1,9 @@
 from torch import Tensor, nn
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class ClassificationHead(LuxonisNode[Tensor, Tensor]):
+class ClassificationHead(BaseNode[Tensor, Tensor]):
     in_channels: int
 
     def __init__(

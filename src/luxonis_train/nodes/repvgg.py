@@ -13,10 +13,10 @@ from typeguard import check_type
 
 from luxonis_train.nodes.blocks import RepVGGBlock
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class RepVGG(LuxonisNode):
+class RepVGG(BaseNode):
     """Implementation of the RepVGG backbone.
 
     TODO:

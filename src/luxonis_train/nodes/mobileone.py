@@ -13,10 +13,10 @@ from typeguard import check_type
 
 from luxonis_train.nodes.blocks import ConvModule, SqueezeExciteBlock
 
-from .luxonis_node import LuxonisNode
+from .base_node import BaseNode
 
 
-class MobileOne(LuxonisNode[Tensor, list[Tensor]]):
+class MobileOne(BaseNode[Tensor, list[Tensor]]):
     """Implementation of MobileOne backbone.
 
     TODO: add more details

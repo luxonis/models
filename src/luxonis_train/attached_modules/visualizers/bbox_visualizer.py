@@ -4,7 +4,7 @@ from torch import Tensor
 
 from luxonis_train.utils.types import BBoxProtocol, LabelType
 
-from .luxonis_visualizer import LuxonisVisualizer
+from .base_visualizer import BaseVisualizer
 from .utils import (
     draw_bounding_box_labels,
     draw_bounding_boxes,
@@ -12,7 +12,7 @@ from .utils import (
 )
 
 
-class BBoxVisualizer(LuxonisVisualizer[Tensor, Tensor]):
+class BBoxVisualizer(BaseVisualizer[Tensor, Tensor]):
     """Visualizer for bounding box predictions.
 
     Creates a visualization of the bounding box predictions and labels.

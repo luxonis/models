@@ -244,33 +244,6 @@ class BlobconverterExportConfig(BaseModel):
     shaves: int = 6
 
 
-class UploadExportConfig(BaseModel):
-    active: bool = False
-    upload_directory: str | None = None
-
-    @model_validator(mode="after")
-    def check_upload_directory(self) -> "UploadExportConfig":
-        if self.active and not self.upload_directory:
-            raise ValueError("No `upload_directory` specified.")
-        return self
-
-    model_config = {
-        "json_schema_extra": {
-            "if": {"properties": {"active": {"const": True}}},
-            "then": {
-                "allOf": [
-                    {"properties": {"upload_directory": {"type": "string"}}},
-                    {
-                        "required": [
-                            "upload_directory",
-                        ]
-                    },
-                ],
-            },
-        }
-    }
-
-
 class ExportConfig(BaseModel):
     export_save_directory: str = "output_export"
     input_shape: list[int] | None = None
@@ -281,7 +254,7 @@ class ExportConfig(BaseModel):
     mean_values: list[float] | None = None
     onnx: OnnxExportConfig = OnnxExportConfig()
     blobconverter: BlobconverterExportConfig = BlobconverterExportConfig()
-    upload: UploadExportConfig = UploadExportConfig()
+    upload_directory: str | None = None
 
     @model_validator(mode="after")
     def check_values(self) -> "ExportConfig":

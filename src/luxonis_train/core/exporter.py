@@ -122,14 +122,12 @@ class Exporter(Core):
             )
             files_to_upload.append(blob_path)
 
-        if self.cfg.exporter.upload.active:
+        if self.cfg.exporter.upload_directory is not None:
             self._upload_to_s3(files_to_upload)
 
     def _upload_to_s3(self, files_to_upload: list[str]):
         """Uploads .pt, .onnx and current config.yaml to specified s3 bucket."""
-        fs = LuxonisFileSystem(
-            self.cfg.exporter.upload.upload_directory, allow_local=False
-        )
+        fs = LuxonisFileSystem(self.cfg.exporter.upload_directory, allow_local=False)
         print(f"Started upload to {fs.full_path()}...")
 
         for file in files_to_upload:

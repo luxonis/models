@@ -146,7 +146,7 @@ train:
     - name: DeviceStatsMonitor
     - name: ExportOnTrainEnd
       params:
-        override_upload_directory: true
+        upload_to_mlflow: true
     - name: TestOnTrainEnd
 
   optimizer:

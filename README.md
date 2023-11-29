@@ -238,34 +238,32 @@ train:
   validation_interval: 1 # frequency of computing metrics on validation data (int)
   num_log_images: 4 # maximum number of images to visualize and log (int)
   skip_last_batch: True # bool if skip last batch while training (bool)
-  main_head_index: 0 # index of the head which is used for checkpointing based on best metric (int)
   use_rich_text: True # bool if use rich text for console printing
 
   callbacks: # callback specific parameters (check PL docs)
-    test_on_finish: False # bool if should run test when train loop finishes (bool)
-    use_device_stats_monitor: False # bool if should use device stats monitor during training (bool)
-    export_on_finish: # run export when train loop finishes - takes parameters from export block (bool)
-      active: False
-      override_upload_directory: True # if active mlflow run then use it as upload directory (if upload active in export block)
-    model_checkpoint:
-      save_top_k: 3
-    upload_checkpoint_on_finish: # uploads best checkpoint based on val loss when train loop finishes
-      active: False
-      upload_directory: null # either path to s3 or mlflow, if empty mlflow then use current run - should activate mlflow in logger (string)
-    early_stopping:
-      active: True
-      monitor: val_loss/loss
-      mode: min
-      patience: 5
-      verbose: True
+    - name: LearningRateMonitor  # name of the registered callback
+      params: # params of the callback
+        logging_interval: step
+    - name: MetadataLogger
+    - name: EarlyStopping
+      params:
+        patience: 3
+        monitor: val/loss
+        mode: min
+        verbose: true
+    - name: DeviceStatsMonitor
+    - name: ExportOnTrainEnd
+      params:
+        override_upload_directory: true
+    - name: TestOnTrainEnd
 
-  optimizers: # optimizers specific parameters (check Pytorch docs)
-    optimizer:
-      name: Adam
-      params:
-    scheduler:
-      name: ConstantLR
-      params:
+  optimizer:
+    name: Adam
+    params:
+
+  scheduler:
+    name: ConstantLR
+    params:
 ```
 
 ## Training

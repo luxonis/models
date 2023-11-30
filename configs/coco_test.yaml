@@ -163,6 +163,6 @@ train:
       T_max: *epochs
       eta_min: 0
 
-export:
+exporter:
   onnx:
     opset_version: 11

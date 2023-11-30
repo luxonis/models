@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
+from luxonis_ml.utils.registry import AutoRegisterMeta
 from pydantic import BaseModel, ValidationError
 from torch import Size, Tensor, nn
 from typeguard import TypeCheckError, check_type
 
 from luxonis_train.utils.general import DatasetMetadata, validate_packet
-from luxonis_train.utils.registry import NODES, AutoRegisterMeta
+from luxonis_train.utils.registry import NODES
 from luxonis_train.utils.types import (
     AttachIndexType,
     FeaturesProtocol,

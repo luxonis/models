@@ -1,12 +1,12 @@
 from abc import ABC
 from typing import Generic
 
+from luxonis_ml.utils.registry import AutoRegisterMeta
 from pydantic import ValidationError
 from torch import Size, Tensor, nn
 from typing_extensions import TypeVarTuple, Unpack
 
 from luxonis_train.utils.general import DatasetMetadata, validate_packet
-from luxonis_train.utils.registry import AutoRegisterMeta
 from luxonis_train.utils.types import (
     BaseProtocol,
     IncompatibleException,

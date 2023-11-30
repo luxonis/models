@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 
 import torch
+from luxonis_ml.utils.registry import AutoRegisterMeta
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from luxonis_train.utils.registry import LOADERS, AutoRegisterMeta
+from luxonis_train.utils.registry import LOADERS
 from luxonis_train.utils.types import Labels, LabelType
 
 LuxonisLoaderTorchOutput = tuple[Tensor, Labels]

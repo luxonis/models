@@ -133,7 +133,7 @@ class DatasetConfig(BaseModel):
         return self
 
     @field_serializer("bucket_storage", "bucket_type")
-    def get_eunm_value(self, v, _) -> str:
+    def get_enum_value(self, v, _) -> str:
         return str(v.value)
 
     model_config = {

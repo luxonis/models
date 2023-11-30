@@ -1,8 +1,8 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 
 import torch
 from luxonis_ml.utils.registry import AutoRegisterMeta
-from torch import Tensor
+from torch import Tensor, Size
 from torch.utils.data import Dataset
 
 from luxonis_train.utils.registry import LOADERS
@@ -20,6 +20,11 @@ class BaseLoaderTorch(
 ):
     """Base abstract loader class that enforces LuxonisLoaderTorchOutput output label
     structure."""
+
+    @abstractproperty
+    def input_shape(self) -> Size:
+        """Input shape in [N,C,H,W] format"""
+        ...
 
     @abstractmethod
     def __len__(self) -> int:

@@ -303,7 +303,7 @@ class Config(LuxonisConfig):
             if data.get("tuner") and not data.get("tuner", {}).get("params"):
                 del data["tuner"]
                 warnings.warn(
-                    "`tuner` block specified but no `tuner.params`. If tyring to tune values you have to specify at least one parameter"
+                    "`tuner` block specified but no `tuner.params`. If trying to tune values you have to specify at least one parameter"
                 )
         return data
 

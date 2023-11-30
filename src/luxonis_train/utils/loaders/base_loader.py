@@ -39,14 +39,16 @@ class BaseLoaderTorch(
         ...
 
 
-def collate_fn(batch: list[LuxonisLoaderTorchOutput]) -> tuple[Tensor, dict]:
+def collate_fn(
+    batch: list[LuxonisLoaderTorchOutput],
+) -> tuple[Tensor, dict[LabelType, Tensor]]:
     """Default collate function used for training.
 
     Args:
         batch (list): List of images and their annotations in LuxonisLoaderOutput format.
 
     Returns:
-        tuple[FloatTensor, dict]:
+        tuple[Tensor, dict[LabelType, Tensor]]:
           imgs: Tensor of images (torch.float32) of shape [N, 3, H, W]
           out_annotations: Dictionary with annotations
             {
@@ -62,8 +64,8 @@ def collate_fn(batch: list[LuxonisLoaderTorchOutput]) -> tuple[Tensor, dict]:
     imgs = torch.stack(imgs, 0)
 
     present_annotations = anno_dicts[0].keys()
-    out_annotations: dict[str, Tensor | None] = {
-        anno: None for anno in present_annotations
+    out_annotations: dict[LabelType, Tensor] = {
+        anno: torch.empty(0) for anno in present_annotations
     }
 
     if LabelType.CLASSIFICATION in present_annotations:
@@ -76,7 +78,7 @@ def collate_fn(batch: list[LuxonisLoaderTorchOutput]) -> tuple[Tensor, dict]:
 
     if LabelType.BOUNDINGBOX in present_annotations:
         bbox_annos = [anno[LabelType.BOUNDINGBOX] for anno in anno_dicts]
-        label_box = []
+        label_box: list[Tensor] = []
         for i, box in enumerate(bbox_annos):
             l_box = torch.zeros((box.shape[0], 6))
             l_box[:, 0] = i  # add target image index for build_targets()
@@ -86,7 +88,7 @@ def collate_fn(batch: list[LuxonisLoaderTorchOutput]) -> tuple[Tensor, dict]:
 
     if LabelType.KEYPOINT in present_annotations:
         keypoint_annos = [anno[LabelType.KEYPOINT] for anno in anno_dicts]
-        label_keypoints = []
+        label_keypoints: list[Tensor] = []
         for i, points in enumerate(keypoint_annos):
             l_kps = torch.zeros((points.shape[0], points.shape[1] + 1))
             l_kps[:, 0] = i  # add target image index for build_targets()

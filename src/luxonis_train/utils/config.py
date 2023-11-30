@@ -1,6 +1,7 @@
 import sys
 import warnings
 from typing import Annotated, Any, Literal
+from enum import Enum
 
 from luxonis_ml.data import BucketStorage, BucketType, LuxonisDataset, ValAugmentations
 from luxonis_ml.utils import Config as LuxonisConfig
@@ -67,7 +68,7 @@ class ModelConfig(BaseModel):
         if not is_acyclic(graph):
             raise ValueError("Model graph is not acyclic.")
         if not self.outputs:
-            outputs = []  # nodes which are not inputs to any nodes
+            outputs: list[str] = []  # nodes which are not inputs to any nodes
             inputs = set(node_name for node in self.nodes for node_name in node.inputs)
             for node in self.nodes:
                 name = node.override_name or node.name
@@ -133,7 +134,7 @@ class DatasetConfig(BaseModel):
         return self
 
     @field_serializer("bucket_storage", "bucket_type")
-    def get_enum_value(self, v, _) -> str:
+    def get_enum_value(self, v: Enum, _) -> str:
         return str(v.value)
 
     model_config = {

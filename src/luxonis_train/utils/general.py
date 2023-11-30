@@ -1,5 +1,5 @@
+import logging
 import math
-import warnings
 from typing import Generator, TypeVar
 
 from luxonis_ml.data import LuxonisDataset
@@ -100,7 +100,7 @@ def infer_upscale_factor(
         return int(num_up)
     elif not strict:
         if warn:
-            warnings.warn(
+            logging.getLogger(__name__).warning(
                 f"Upscale factor is not an integer: {num_up}. "
                 "Output shape will not be the same as input shape."
             )

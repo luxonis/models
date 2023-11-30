@@ -93,7 +93,7 @@ trainer:
   profiler: null
   verbose: True
 
-logger:
+tracker:
   project_name: coco_test
   run_name: &model_name null
   save_directory: output
@@ -110,7 +110,7 @@ dataset:
 
 train:
   preprocessing:
-    train_image_size: [&height 256, &width 256]
+    train_image_size: [&height 256, &width 320]
     keep_aspect_ratio: False
     train_rgb: True
     normalize:
@@ -137,6 +137,8 @@ train:
       params:
         logging_interval: step
     - name: MetadataLogger
+      params:
+        hyperparams: ["train.epochs", train.batch_size]
     - name: EarlyStopping
       params:
         patience: 3

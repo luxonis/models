@@ -26,7 +26,7 @@ dependencies = [
     "rich>=13.0.0",
     "s3fs>=2023.0.0",
     "pycocotools>=2.0.7",
-    "luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@bc127fe",
+    "luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@dfa0282",
 ]
 
 [project.optional-dependencies]

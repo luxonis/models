@@ -5,8 +5,8 @@ object detectors`, available at `
 https://arxiv.org/pdf/2207.02696.pdf`.
 """
 
+import logging
 import math
-import warnings
 from typing import Literal
 
 import torch
@@ -273,6 +273,6 @@ class ImplicitKeypointBBoxHead(BaseNode):
         delta_a = a[-1] - a[0]
         delta_s = self.stride[-1] - self.stride[0]
         if delta_a.sign() != delta_s.sign():
-            warnings.warn("Reversing anchor order")
+            logging.getLogger(__name__).warning("Reversing anchor order")
             self.anchors[:] = self.anchors.flip(0)
             self.anchor_grid[:] = self.anchor_grid.flip(0)

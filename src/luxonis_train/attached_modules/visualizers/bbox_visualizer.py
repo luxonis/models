@@ -1,4 +1,4 @@
-import warnings
+import logging
 
 from torch import Tensor
 
@@ -131,7 +131,7 @@ class BBoxVisualizer(BaseVisualizer[Tensor, Tensor]):
                 font_size=self.font_size,
             )
         except ValueError as e:
-            warnings.warn(
+            logging.getLogger(__name__).warning(
                 f"Failed to draw bounding boxes: {e}. Skipping visualization."
             )
             prediction_viz = prediction_canvas

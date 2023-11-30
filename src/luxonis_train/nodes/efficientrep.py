@@ -5,6 +5,8 @@ Applications`, available at `
 https://arxiv.org/pdf/2209.02976.pdf`.
 """
 
+import logging
+
 from torch import Tensor, nn
 
 from luxonis_train.nodes.blocks import (
@@ -95,8 +97,9 @@ class EfficientRep(BaseNode[Tensor, list[Tensor]]):
             mode (bool, optional): Whether to set the export mode. Defaults to `True`.
         """
         super().set_export_mode(mode)
+        logger = logging.getLogger(__name__)
         if mode:
-            print("Reparametrizing EfficientRep.")
+            logger.info("Reparametrizing EfficientRep.")
             for module in self.modules():
                 if isinstance(module, RepVGGBlock):
                     module.reparametrize()

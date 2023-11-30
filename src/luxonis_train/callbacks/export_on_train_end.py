@@ -1,4 +1,4 @@
-import warnings
+import logging
 from pathlib import Path
 from typing import cast
 
@@ -34,12 +34,12 @@ class ExportOnTrainEnd(pl.Callback):
         best_model_path = model_checkpoint_callbacks[0].best_model_path
         opts = ["model.weights", best_model_path]
         if self.upload_to_mlflow:
-            if pl_module.cfg.logger.is_mlflow:
-                logger = cast(LuxonisTrackerPL, trainer.logger)
-                new_upload_directory = f"mlflow://{logger.project_id}/{logger.run_id}"
+            if pl_module.cfg.tracker.is_mlflow:
+                tracker = cast(LuxonisTrackerPL, trainer.logger)
+                new_upload_directory = f"mlflow://{tracker.project_id}/{tracker.run_id}"
                 opts += ["exporter.upload_directory", new_upload_directory]
             else:
-                warnings.warn(
+                logging.getLogger(__name__).warning(
                     "`upload_to_mlflow` is set to True, "
                     "but there is  no MLFlow active run, skipping."
                 )

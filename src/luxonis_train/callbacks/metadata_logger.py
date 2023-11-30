@@ -16,10 +16,19 @@ class MetadataLogger(pl.Callback):
     and luxonis-train packages. Also stores this information locally.
     """
 
+    def __init__(self, hyperparams: list[str]):
+        """Constructs `MetadataLogger`.
+
+        Args:
+            hyperparams (list[str]): List of hyperparameters to log.
+        """
+        super().__init__()
+        self.hyperparams = hyperparams
+
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         cfg = pl_module.cfg
 
-        hparams = {key: cfg.get(key) for key in cfg.logger.logged_hyperparams}
+        hparams = {key: cfg.get(key) for key in self.hyperparams}
 
         # try to get luxonis-ml and luxonis-train git commit hashes (if installed as editable)
         luxonis_ml_hash = self._get_editable_package_git_hash("luxonis_ml")

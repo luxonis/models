@@ -1,15 +1,16 @@
+import logging
 import os
-import warnings
+import os.path as osp
 from typing import Any
 
+import lightning_utilities.core.rank_zero as rank_zero_module
 import pytorch_lightning as pl
 import rich.traceback
 import torch
 from dotenv import load_dotenv
 from luxonis_ml.data import LuxonisDataset, TrainAugmentations, ValAugmentations
-from pydantic import ValidationError
+from luxonis_ml.utils import reset_logging, setup_logging
 from pytorch_lightning.utilities import rank_zero_only  # type: ignore
-from rich import print
 
 from luxonis_train.callbacks import LuxonisProgressBar
 from luxonis_train.utils.config import Config
@@ -43,11 +44,7 @@ class Core:
         if isinstance(cfg, Config):
             self.cfg = cfg
         else:
-            try:
-                self.cfg = Config(cfg)  # type: ignore
-            except ValidationError as e:
-                print(e.errors())
-                raise e
+            self.cfg = Config(cfg)  # type: ignore
 
         opts = opts or []
 
@@ -61,22 +58,30 @@ class Core:
 
         self.rank = rank_zero_only.rank
 
-        cfg_logger = self.cfg.logger
-
         load_dotenv()  # loads env variables for mlflow logging
-        logger_params = cfg_logger.model_dump()
-        logger_params.pop("logged_hyperparams")
-        self.logger = LuxonisTrackerPL(
+        self.tracker = LuxonisTrackerPL(
             rank=self.rank,
             mlflow_tracking_uri=os.getenv(
                 "MLFLOW_TRACKING_URI"
             ),  # read separately from env vars
-            **logger_params,
+            **self.cfg.tracker.model_dump(),
         )
 
         self.run_save_dir = os.path.join(
-            cfg_logger.save_directory, self.logger.run_name
+            self.cfg.tracker.save_directory, self.tracker.run_name
         )
+        # NOTE: to add the file handler (we only get the save dir now,
+        # but we want to use the logger before)
+        reset_logging()
+        setup_logging(
+            use_rich=self.cfg.train.use_rich_text,
+            file=osp.join(self.run_save_dir, "luxonis_train.log"),
+        )
+
+        self.logger = logging.getLogger(__name__)
+
+        # NOTE: overriding logger in pl so it uses our logger to log device info
+        rank_zero_module.log = self.logger
 
         self.train_augmentations = TrainAugmentations(
             image_size=self.cfg.train.preprocessing.train_image_size,
@@ -99,7 +104,7 @@ class Core:
             accelerator=self.cfg.trainer.accelerator,
             devices=self.cfg.trainer.devices,
             strategy=self.cfg.trainer.strategy,
-            logger=self.logger,
+            logger=self.tracker,
             max_epochs=self.cfg.train.epochs,
             accumulate_grad_batches=self.cfg.train.accumulate_grad_batches,
             check_val_every_n_epoch=self.cfg.train.validation_interval,
@@ -151,7 +156,7 @@ class Core:
         if self.cfg.train.use_weighted_sampler:
             classes_count = self.dataset.get_classes()[1]
             if len(classes_count) == 0:
-                warnings.warn(
+                self.logger.warning(
                     "WeightedRandomSampler only available for classification tasks. Using default sampler instead."
                 )
             else:

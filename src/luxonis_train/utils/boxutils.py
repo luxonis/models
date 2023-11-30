@@ -1,4 +1,5 @@
 """This module contains various utility functions for working with bounding boxes."""
+
 import math
 from typing import Literal, TypeAlias
 
@@ -380,7 +381,7 @@ def anchors_from_dataset(
     n_anchors: int = 9,
     n_generations: int = 1000,
     ratio_threshold: float = 4.0,
-) -> Tensor:
+) -> tuple[Tensor, float]:
     """Generates anchors based on bounding box annotations present in provided data
     loader. It uses K-Means for initial proposals which are then refined with genetic
     algorithm.
@@ -392,10 +393,9 @@ def anchors_from_dataset(
         ratio_threshold (float, optional): Minimum threshold for ratio. Defaults to 4.0.
 
     Returns:
-        Tensor: Proposed anchors
+        tuple[Tensor, float]: Proposed anchors and the best possible recall.
     """
 
-    print("Generating anchors...")
     widths = []
     inputs = None
     for inp, labels in loader:
@@ -478,11 +478,9 @@ def anchors_from_dataset(
     proposed_anchors = proposed_anchors[
         torch.argsort(proposed_anchors.prod(1))
     ]  # sort small to large
-    print(
-        f"Anchor generation finished. Best possible recall: {calc_best_possible_recall(proposed_anchors, wh)}"
-    )
+    recall = calc_best_possible_recall(proposed_anchors, wh)
 
-    return proposed_anchors
+    return proposed_anchors, recall.item()
 
 
 def anchors_for_fpn_features(

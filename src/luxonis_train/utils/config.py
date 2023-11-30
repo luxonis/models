@@ -1,10 +1,11 @@
+import logging
 import sys
-import warnings
 from typing import Annotated, Any, Literal
 from enum import Enum
 
 from luxonis_ml.data import BucketStorage, BucketType, LuxonisDataset, ValAugmentations
 from luxonis_ml.utils import Config as LuxonisConfig
+from luxonis_ml.utils import setup_logging
 from pydantic import BaseModel, Field, field_serializer, model_validator
 from torch.utils.data import DataLoader
 
@@ -12,6 +13,8 @@ from luxonis_train.utils.boxutils import anchors_from_dataset
 from luxonis_train.utils.general import is_acyclic
 from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 from luxonis_train.utils.registry import MODELS
+
+logger = logging.getLogger(__name__)
 
 
 class AttachedModuleConfig(BaseModel):
@@ -49,21 +52,20 @@ class ModelConfig(BaseModel):
     outputs: list[str] = []
 
     @model_validator(mode="after")
-    def check_predefined_model(self) -> "ModelConfig":
+    def check_predefined_model(self):
         if self.predefined_model:
-            # TODO:  Unified LuxonisLogger instead of warnings
-            warnings.warn("Loading predefined model type")
+            logger.info("Loading predefined model type")
             self.nodes += MODELS.get(self.predefined_model)(**self.params)
 
         elif self.params:
-            warnings.warn(
+            logger.warning(
                 "Model-wise parameters ignored as no `predefined_model` specified."
             )
 
         return self
 
     @model_validator(mode="after")
-    def check_graph(self) -> "ModelConfig":
+    def check_graph(self):
         graph = {node.override_name or node.name: node.inputs for node in self.nodes}
         if not is_acyclic(graph):
             raise ValueError("Model graph is not acyclic.")
@@ -82,11 +84,7 @@ class ModelConfig(BaseModel):
     model_config = {
         "json_schema_extra": {
             "if": {"properties": {"predefined_model": {"type": "null"}}},
-            "then": {
-                "allOf": [
-                    {"properties": {"nodes": {"type": "array"}}},
-                ],
-            },
+            "then": {"properties": {"nodes": {"type": "array"}}},
         }
     }
 
@@ -100,7 +98,7 @@ class TrainerConfig(BaseModel):
     verbose: bool = True
 
 
-class LoggerConfig(BaseModel):
+class TrackerConfig(BaseModel):
     project_name: str | None = None
     project_id: str | None = None
     run_name: str | None = None
@@ -110,9 +108,6 @@ class LoggerConfig(BaseModel):
     is_wandb: bool = False
     wandb_entity: str | None = None
     is_mlflow: bool = False
-    logged_hyperparams: list[str] = ["train.epochs", "train.batch_size"]
-
-    # Can also add extra validation based on Tracker class
 
 
 class DatasetConfig(BaseModel):
@@ -128,7 +123,7 @@ class DatasetConfig(BaseModel):
     test_view: str = "test"
 
     @model_validator(mode="after")
-    def check_dataset_params(self) -> "DatasetConfig":
+    def check_dataset_params(self):
         if not self.dataset_name and not self.dataset_id:
             raise ValueError("Must provide either `dataset_name` or `dataset_id`.")
         return self
@@ -177,7 +172,7 @@ class PreprocessingConfig(BaseModel):
     augmentations: list[AugmentationConfig] = []
 
     @model_validator(mode="after")
-    def check_normalize(self) -> "PreprocessingConfig":
+    def check_normalize(self):
         if self.normalize.active:
             self.augmentations.append(
                 AugmentationConfig(name="Normalize", params=self.normalize.params)
@@ -224,12 +219,12 @@ class TrainConfig(BaseModel):
     scheduler: SchedulerConfig = SchedulerConfig()
 
     @model_validator(mode="after")
-    def check_num_workes_platform(self) -> "TrainConfig":
+    def check_num_workes_platform(self):
         if (
             sys.platform == "win32" or sys.platform == "darwin"
         ) and self.num_workes != 0:
             self.num_workers = 0
-            warnings.warn(
+            logger.warning(
                 "Setting `num_workers` to 0 because of platform compatibility."
             )
         return self
@@ -258,7 +253,7 @@ class ExportConfig(BaseModel):
     upload_directory: str | None = None
 
     @model_validator(mode="after")
-    def check_values(self) -> "ExportConfig":
+    def check_values(self):
         def pad_values(values: float | list[float] | None):
             if values is None:
                 return None
@@ -292,7 +287,7 @@ class Config(LuxonisConfig):
     model: ModelConfig
     dataset: DatasetConfig
     trainer: TrainerConfig = TrainerConfig()
-    logger: LoggerConfig = LoggerConfig()
+    tracker: TrackerConfig = TrackerConfig()
     train: TrainConfig = TrainConfig()
     exporter: ExportConfig = ExportConfig()
     tuner: TunerConfig = TunerConfig()
@@ -303,9 +298,17 @@ class Config(LuxonisConfig):
         if isinstance(data, dict):
             if data.get("tuner") and not data.get("tuner", {}).get("params"):
                 del data["tuner"]
-                warnings.warn(
+                logger.warning(
                     "`tuner` block specified but no `tuner.params`. If trying to tune values you have to specify at least one parameter"
                 )
+        return data
+
+    @model_validator(mode="before")
+    @classmethod
+    def setup_logging(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if data.get("trainer", {}).get("use_rich", True):
+                setup_logging(use_rich=True)
         return data
 
     def _validate(self) -> None:
@@ -315,13 +318,13 @@ class Config(LuxonisConfig):
                 node.name == "ImplicitKeypointBBoxHead"
                 and node.params.get("anchors") is None
             ):
-                warnings.warn("Generating anchors for ImplicitKeypointBBoxHead")
+                logger.info("Generating anchors for ImplicitKeypointBBoxHead")
                 node.params["anchors"] = self._autogenerate_anchors(node)
 
         if self._fs is not None and self._fs.is_mlflow:
-            warnings.warn("Setting `project_id` and `run_id` to config's MLFlow run")
-            self.logger.project_id = self._fs.experiment_id
-            self.logger.run_id = self._fs.run_id
+            logger.info("Setting `project_id` and `run_id` to config's MLFlow run")
+            self.tracker.project_id = self._fs.experiment_id
+            self.tracker.run_id = self._fs.run_id
 
     def _autogenerate_anchors(self, head: ModelNodeConfig) -> list[list[float]]:
         """Automatically generates anchors for the provided dataset.
@@ -358,5 +361,8 @@ class Config(LuxonisConfig):
             collate_fn=collate_fn,
         )
         num_heads = head.params.get("num_heads", 3)
-        proposed_anchors = anchors_from_dataset(pytorch_loader, n_anchors=num_heads * 3)
+        proposed_anchors, recall = anchors_from_dataset(
+            pytorch_loader, n_anchors=num_heads * 3
+        )
+        logger.info(f"Anchors generated. Best possible recall: {recall:.2f}")
         return proposed_anchors.reshape(-1, 6).tolist()

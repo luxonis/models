@@ -98,12 +98,13 @@ class Exporter(Core):
         if not check:
             raise RuntimeError("Onnx simplify failed.")
         onnx.save(onnx_model, onnx_path)
+        self.logger.info(f"ONNX model saved to {onnx_path}")
         files_to_upload = [self.local_path, onnx_path]
 
         if self.cfg.exporter.blobconverter.active:
             import blobconverter
 
-            print("Converting ONNX to .blob")
+            self.logger.info("Converting ONNX to .blob")
 
             optimizer_params = [
                 f"--scale_values={self.scale_values}",
@@ -121,6 +122,7 @@ class Exporter(Core):
                 output_dir=self.export_path,
             )
             files_to_upload.append(blob_path)
+            self.logger.info(f".blob model saved to {blob_path}")
 
         if self.cfg.exporter.upload_directory is not None:
             self._upload_to_s3(files_to_upload)
@@ -128,7 +130,7 @@ class Exporter(Core):
     def _upload_to_s3(self, files_to_upload: list[str]):
         """Uploads .pt, .onnx and current config.yaml to specified s3 bucket."""
         fs = LuxonisFileSystem(self.cfg.exporter.upload_directory, allow_local=False)
-        print(f"Started upload to {fs.full_path()}...")
+        self.logger.info(f"Started upload to {fs.full_path()}...")
 
         for file in files_to_upload:
             suffix = Path(file).suffix
@@ -151,4 +153,4 @@ class Exporter(Core):
             yaml.dump(modelconverter_config, f, default_flow_style=False)
             fs.put_file(local_path=f.name, remote_path="config_export.yaml")
 
-        print("Files upload finished")
+        self.logger.info("Files upload finished")

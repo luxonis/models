@@ -66,25 +66,25 @@ class Tuner(Core):
     def _objective(self, trial: optuna.trial.Trial):
         """Objective function used to optimize Optuna study."""
         rank = rank_zero_only.rank
-        cfg_logger = self.cfg.logger
-        logger_params = cfg_logger.model_dump()
-        logger_params.pop("logged_hyperparams")
-        logger = LuxonisTrackerPL(
+        cfg_tracker = self.cfg.tracker
+        tracker_params = cfg_tracker.model_dump()
+        tracker_params.pop("logged_hyperparams")
+        tracker = LuxonisTrackerPL(
             rank=rank,
             mlflow_tracking_uri=os.getenv(
                 "MLFLOW_TRACKING_URI"
             ),  # read seperately from env vars
             is_sweep=True,
-            **logger_params,
+            **tracker_params,
         )
-        run_save_dir = os.path.join(cfg_logger.save_directory, logger.run_name)
+        run_save_dir = os.path.join(cfg_tracker.save_directory, tracker.run_name)
 
         # get curr trial params and update config
         curr_params = self._get_trial_params(trial)
         for key, value in curr_params.items():
             self.cfg.override_config({key: value})
 
-        logger.log_hyperparams(curr_params)  # log curr trial params
+        tracker.log_hyperparams(curr_params)  # log curr trial params
 
         # save current config to logger directory
         self.cfg.save_data(os.path.join(run_save_dir, "config.yaml"))
@@ -106,7 +106,7 @@ class Tuner(Core):
             accelerator=self.cfg.trainer.accelerator,
             devices=self.cfg.trainer.devices,
             strategy=self.cfg.trainer.strategy,
-            logger=logger,
+            logger=tracker,
             max_epochs=self.cfg.train.epochs,
             accumulate_grad_batches=self.cfg.train.accumulate_grad_batches,
             check_val_every_n_epoch=self.cfg.train.validation_interval,

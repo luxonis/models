@@ -1,3 +1,5 @@
+import logging
+
 import pytorch_lightning as pl
 from luxonis_ml.utils.filesystem import LuxonisFileSystem
 
@@ -20,7 +22,8 @@ class UploadCheckpointOnTrainEnd(pl.Callback):
         )
 
     def on_train_end(self, trainer: pl.Trainer, _: pl.LightningModule) -> None:
-        print(f"Started checkpoint upload to {self.fs.full_path()}...")
+        logger = logging.getLogger(__name__)
+        logger.info(f"Started checkpoint upload to {self.fs.full_path()}...")
         model_checkpoint_callbacks = [
             c
             for c in trainer.callbacks  # type: ignore
@@ -35,4 +38,4 @@ class UploadCheckpointOnTrainEnd(pl.Callback):
                 "mlflow", None
             ),
         )
-        print("Checkpoint upload finished")
+        logger.info("Checkpoint upload finished")

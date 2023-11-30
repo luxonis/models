@@ -35,12 +35,15 @@ class Trainer(Core):
             new_thread (bool, optional): Runs training in new thread if set to True. Defaults to False.
         """
         if not new_thread:
+            self.logger.info(f"Checkpoints will be saved in: {self.get_save_dir()}")
+            self.logger.info("Starting training...")
             self.pl_trainer.fit(
                 self.lightning_module,
                 self.pytorch_loader_train,
                 self.pytorch_loader_val,
             )
-            print(f"Checkpoints saved in: {self.get_save_dir()}")
+            self.logger.info("Training finished")
+            self.logger.info(f"Checkpoints saved in: {self.get_save_dir()}")
         else:
             # Every time exception happens in the Thread, this hook will activate
             def thread_exception_hook(args):

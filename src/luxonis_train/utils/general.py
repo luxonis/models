@@ -5,7 +5,9 @@ from typing import Generator, TypeVar
 from luxonis_ml.data import LuxonisDataset
 from pydantic import BaseModel
 from torch import Size, Tensor
+from torch.utils.data import DataLoader
 
+from luxonis_train.utils.boxutils import anchors_from_dataset
 from luxonis_train.utils.types import Packet
 
 
@@ -24,13 +26,36 @@ class DatasetMetadata:
 
     def __init__(
         self,
+        *,
         class_names: list[str] | None = None,
         keypoint_names: list[str] | None = None,
         connectivity: list[tuple[int, int]] | None = None,
+        loader: DataLoader | None = None,
     ):
         self.class_names = class_names or []
         self.keypoint_names = keypoint_names or []
         self.connectivity = connectivity or []
+        self.loader = loader
+
+    def autogenerate_anchors(self, n_heads: int) -> tuple[list[list[float]], float]:
+        """Automatically generates anchors for the provided dataset.
+
+        Args:
+            n_heads: Number of heads to generate anchors for.
+
+        Returns:
+            list[list[float]]: list of anchors in [-1,6] format
+        """
+        if self.loader is None:
+            raise ValueError(
+                "Cannot generate anchors without a dataset loader. "
+                "Please provide a dataset loader to the constructor."
+            )
+
+        proposed_anchors, recall = anchors_from_dataset(
+            self.loader, n_anchors=n_heads * 3
+        )
+        return proposed_anchors.reshape(-1, 6).tolist(), recall
 
     @property
     def n_classes(self) -> int:
@@ -41,6 +66,14 @@ class DatasetMetadata:
     def n_keypoints(self) -> int:
         """Number of keypoints in the dataset."""
         return len(self.keypoint_names)
+
+    def set_loader(self, loader: DataLoader) -> None:
+        """Sets the dataset loader.
+
+        Args:
+            loader (DataLoader): Dataset loader.
+        """
+        self.loader = loader
 
     @classmethod
     def from_dataset(cls, dataset: LuxonisDataset) -> "DatasetMetadata":

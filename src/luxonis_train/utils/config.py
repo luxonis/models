@@ -3,15 +3,12 @@ import sys
 from typing import Annotated, Any, Literal
 from enum import Enum
 
-from luxonis_ml.data import BucketStorage, BucketType, LuxonisDataset, ValAugmentations
+from luxonis_ml.data import BucketStorage, BucketType
 from luxonis_ml.utils import Config as LuxonisConfig
-from luxonis_ml.utils import setup_logging
+from luxonis_ml.utils import Environ, setup_logging
 from pydantic import BaseModel, Field, field_serializer, model_validator
-from torch.utils.data import DataLoader
 
-from luxonis_train.utils.boxutils import anchors_from_dataset
 from luxonis_train.utils.general import is_acyclic
-from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 from luxonis_train.utils.registry import MODELS
 
 logger = logging.getLogger(__name__)
@@ -291,6 +288,7 @@ class Config(LuxonisConfig):
     train: TrainConfig = TrainConfig()
     exporter: ExportConfig = ExportConfig()
     tuner: TunerConfig = TunerConfig()
+    ENVIRON: Environ = Environ()
 
     @model_validator(mode="before")
     @classmethod
@@ -305,6 +303,16 @@ class Config(LuxonisConfig):
 
     @model_validator(mode="before")
     @classmethod
+    def check_environment(cls, data: Any) -> Any:
+        if "ENVIRON" in data:
+            logger.warning(
+                "Specifying `ENVIRON` section in config file is not recommended. "
+                "Please use environment variables or .env file instead."
+            )
+        return data
+
+    @model_validator(mode="before")
+    @classmethod
     def setup_logging(cls, data: Any) -> Any:
         if isinstance(data, dict):
             if data.get("trainer", {}).get("use_rich", True):
@@ -313,56 +321,7 @@ class Config(LuxonisConfig):
 
     def _validate(self) -> None:
         """Performs any additional validation on the top level after the fact."""
-        for node in self.model.nodes:
-            if (
-                node.name == "ImplicitKeypointBBoxHead"
-                and node.params.get("anchors") is None
-            ):
-                logger.info("Generating anchors for ImplicitKeypointBBoxHead")
-                node.params["anchors"] = self._autogenerate_anchors(node)
-
         if self._fs is not None and self._fs.is_mlflow:
             logger.info("Setting `project_id` and `run_id` to config's MLFlow run")
             self.tracker.project_id = self._fs.experiment_id
             self.tracker.run_id = self._fs.run_id
-
-    def _autogenerate_anchors(self, head: ModelNodeConfig) -> list[list[float]]:
-        """Automatically generates anchors for the provided dataset.
-
-        Args:
-            head (ModelNodeConfig): Config of the head where anchors will be used
-
-        Returns:
-            list[list[float]]: list of anchors in [-1,6] format
-        """
-
-        dataset = LuxonisDataset(
-            dataset_name=self.dataset.dataset_name,
-            team_id=self.dataset.team_id,
-            dataset_id=self.dataset.dataset_id,
-            bucket_type=self.dataset.bucket_type,
-            bucket_storage=self.dataset.bucket_storage,
-        )
-        val_augmentations = ValAugmentations(
-            image_size=self.train.preprocessing.train_image_size,
-            augmentations=[{"name": "Normalize", "params": {}}],
-            train_rgb=self.train.preprocessing.train_rgb,
-            keep_aspect_ratio=self.train.preprocessing.keep_aspect_ratio,
-        )
-        loader = LuxonisLoaderTorch(
-            dataset,
-            view=self.dataset.train_view,
-            augmentations=val_augmentations,
-        )
-        pytorch_loader = DataLoader(
-            loader,
-            batch_size=self.train.batch_size,
-            num_workers=self.train.num_workers,
-            collate_fn=collate_fn,
-        )
-        num_heads = head.params.get("num_heads", 3)
-        proposed_anchors, recall = anchors_from_dataset(
-            pytorch_loader, n_anchors=num_heads * 3
-        )
-        logger.info(f"Anchors generated. Best possible recall: {recall:.2f}")
-        return proposed_anchors.reshape(-1, 6).tolist()

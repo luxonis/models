@@ -71,9 +71,7 @@ class Tuner(Core):
         tracker_params.pop("logged_hyperparams")
         tracker = LuxonisTrackerPL(
             rank=rank,
-            mlflow_tracking_uri=os.getenv(
-                "MLFLOW_TRACKING_URI"
-            ),  # read seperately from env vars
+            mlflow_tracking_uri=self.cfg.environment.MLFLOW_TRACKING_URI,
             is_sweep=True,
             **tracker_params,
         )

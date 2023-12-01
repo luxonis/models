@@ -40,7 +40,7 @@ class ImplicitKeypointBBoxHead(BaseNode):
         n_classes: int | None = None,
         n_keypoints: int | None = None,
         num_heads: int = 3,
-        anchors: list[list[int]] | None = None,
+        anchors: list[list[float]] | None = None,
         init_coco_biases: bool = True,
         conf_thres: float = 0.25,
         iou_thres: float = 0.45,
@@ -54,24 +54,19 @@ class ImplicitKeypointBBoxHead(BaseNode):
             num_heads (int, optional): Number of output heads. Defaults to 3.
                 ***Note:*** Should be same also on neck in most cases.*
             anchors (list[list[int]]): Anchors used for object detection.
-              Defaults to:
-              ```
-              [ [12, 16, 19, 36, 40, 28],
-                [36, 75, 76, 55, 72, 146],
-                [142, 110, 192, 243, 459, 401],
-              ]
-              ```
-              Inferred from the COCO dataset.
+              If not provided, the anchors are generated automatically from
+              the dataset. Defaults to None.
             than threshold won't be drawn. Defaults to 0.5.
             init_coco_biases (bool, optional): Whether to use COCO bias and weight
             initialization. Defaults to True.
         """
         super().__init__(**kwargs)
-        anchors = anchors or [
-            [12, 16, 19, 36, 40, 28],
-            [36, 75, 76, 55, 72, 146],
-            [142, 110, 192, 243, 459, 401],
-        ]
+        self.logger = logging.getLogger(__name__)
+
+        if anchors is None:
+            self.logger.info("No anchors provided, generating them automatically.")
+            anchors, recall = self.dataset_metadata.autogenerate_anchors(num_heads)
+            self.logger.info(f"Anchors generated. Best possible recall: {recall:.2f}")
 
         self.conf_thres = conf_thres
         self.iou_thres = iou_thres
@@ -273,6 +268,6 @@ class ImplicitKeypointBBoxHead(BaseNode):
         delta_a = a[-1] - a[0]
         delta_s = self.stride[-1] - self.stride[0]
         if delta_a.sign() != delta_s.sign():
-            logging.getLogger(__name__).warning("Reversing anchor order")
+            self.logger.warning("Reversing anchor order")
             self.anchors[:] = self.anchors.flip(0)
             self.anchor_grid[:] = self.anchor_grid.flip(0)

@@ -3,7 +3,6 @@ import os
 
 import cv2
 import torch
-from dotenv import load_dotenv
 from luxonis_ml.data import (
     LuxonisDataset,
     TrainAugmentations,
@@ -45,8 +44,6 @@ if __name__ == "__main__":
         if len(opts) % 2 != 0:
             raise ValueError("Override options should be a list of key-value pairs")
         cfg.override_config(dict(zip(opts[::2], opts[1::2])))
-
-    load_dotenv()
 
     image_size = cfg.get("train.preprocessing.train_image_size")
 

@@ -7,7 +7,6 @@ import lightning_utilities.core.rank_zero as rank_zero_module
 import pytorch_lightning as pl
 import rich.traceback
 import torch
-from dotenv import load_dotenv
 from luxonis_ml.data import LuxonisDataset, TrainAugmentations, ValAugmentations
 from luxonis_ml.utils import reset_logging, setup_logging
 from pytorch_lightning.utilities import rank_zero_only  # type: ignore
@@ -58,12 +57,9 @@ class Core:
 
         self.rank = rank_zero_only.rank
 
-        load_dotenv()  # loads env variables for mlflow logging
         self.tracker = LuxonisTrackerPL(
             rank=self.rank,
-            mlflow_tracking_uri=os.getenv(
-                "MLFLOW_TRACKING_URI"
-            ),  # read separately from env vars
+            mlflow_tracking_uri=self.cfg.ENVIRON.MLFLOW_TRACKING_URI,
             **self.cfg.tracker.model_dump(),
         )
 
@@ -122,8 +118,6 @@ class Core:
             bucket_storage=self.cfg.dataset.bucket_storage,
         )
 
-        self.dataset_metadata = DatasetMetadata.from_dataset(self.dataset)
-
         self.loader_train = LuxonisLoaderTorch(
             self.dataset,
             view=self.cfg.dataset.train_view,
@@ -174,6 +168,9 @@ class Core:
             sampler=sampler,
         )
         self.error_message = None
+
+        self.dataset_metadata = DatasetMetadata.from_dataset(self.dataset)
+        self.dataset_metadata.set_loader(self.pytorch_loader_train)
 
         self.cfg.save_data(os.path.join(self.run_save_dir, "config.yaml"))
 

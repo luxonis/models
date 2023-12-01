@@ -117,7 +117,6 @@ class DatasetMetadata:
         )
 
 
-# TEST:
 def make_divisible(x: int | float, divisor: int) -> int:
     """Upward revision the value x to make it evenly divisible by the divisor."""
     return math.ceil(x / divisor) * divisor
@@ -198,6 +197,7 @@ def validate_packet(data: Packet, protocol: type[BaseModel]) -> Packet:
 T = TypeVar("T")
 
 
+# TEST:
 def traverse_graph(
     graph: dict[str, list[str]], nodes: dict[str, T]
 ) -> Generator[tuple[str, T, list[str], set[str]], None, None]:

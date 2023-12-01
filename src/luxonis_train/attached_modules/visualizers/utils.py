@@ -232,7 +232,8 @@ def get_color(seed: int = 42) -> tuple[int, int, int]:
     return (seed * 123457) % 255, (seed * 321) % 255, (seed * 654) % 255
 
 
-# NOTE: :TODO Support native visualizations
+# TODO: Support native visualizations
+# NOTE: Ignore for now, native visualizations not a priority.
 #
 # It could be beneficial in the long term to make the visualization more abstract.
 # Reason for that is that certain services, e.g. WandB, have their native way
@@ -270,14 +271,11 @@ def get_color(seed: int = 42) -> tuple[int, int, int]:
 # We could even create a validation schema for this to enforce the structure.
 # We would then just have to support this new structure in the logger (`LuxonisTracker`).
 #
-# TODO: TEST:
+#  TEST:
 def combine_visualizations(
     visualization: Tensor | tuple[Tensor, Tensor] | tuple[Tensor, list[Tensor]],
 ) -> Tensor:
-    """Default way of combining multiple visualizations into one final image.
-
-    TODO: TEST:
-    """
+    """Default way of combining multiple visualizations into one final image."""
 
     def resize_to_match(
         fst: Tensor,

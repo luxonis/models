@@ -687,7 +687,7 @@ class LuxonisModel(pl.LightningModule):
         Module = registry.get(cfg.name)
         module_name = cfg.override_name or cfg.name
         node_name = cfg.attached_to
-        node_attributes = self.nodes[node_name].__dict__
+        node_attributes = self.nodes[node_name].dump_params()
         module = Module(**cfg.params, node_attributes=node_attributes)
         storage[node_name][module_name] = module  # type: ignore
         return module_name, node_name

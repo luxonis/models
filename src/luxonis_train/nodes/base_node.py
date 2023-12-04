@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from luxonis_ml.utils.registry import AutoRegisterMeta
 from pydantic import BaseModel, ValidationError
@@ -87,18 +87,22 @@ class BaseNode(
     def __init__(
         self,
         *,
-        input_shapes: list[Packet[Size]],
-        original_in_shape: Size,
-        dataset_metadata: DatasetMetadata,
+        input_shapes: list[Packet[Size]] | None = None,
+        original_in_shape: Size | None = None,
+        dataset_metadata: DatasetMetadata | None = None,
         attach_index: AttachIndexType = "all",
         in_protocols: list[type[BaseModel]] | None = None,
+        n_classes: int | None = None,
+        in_sizes: Size | list[Size] | None = None,
     ):
         """Constructor for the `LuxonisModule`.
 
         Args:
-            input_shapes (list[Packet[Size]]): List of input shapes for the module.
-            original_in_shape (Size): Original input shape of the model.
-            dataset_metadata (DatasetMetadata): Metadata of the dataset.
+            input_shapes (list[Packet[Size]] | None): List of input shapes for the module.
+            original_in_shape (Size | None): Original input shape of the model. Some
+              nodes won't function if not provided.
+            dataset_metadata (DatasetMetadata | None): Metadata of the dataset.
+              Some nodes won't function if not provided.
             attach_index (`AttachIndexType`, optional): Index of
               previous output that this node attaches to.
               Can be a single integer to specify a single output, a tuple of
@@ -106,17 +110,57 @@ class BaseNode(
               to specify all outputs. Defaults to "all".
               Python indexing conventions apply.
             in_protocols (list[type[BaseModel]], optional): List of input protocols
-                used to validate inputs to the node. Defaults to [FeaturesProtocol].
+              used to validate inputs to the node. Defaults to [FeaturesProtocol].
+            n_classes (int, optional): Number of classes in the dataset. Provide only
+              in case `dataset_metadata` is not provided. Defaults to None.
+            in_sizes (Size | list[Size] | None): List of input sizes for the node.
+              Provide only in case the `input_shapes` were not provided.
         """
         super().__init__()
 
-        self.input_shapes = input_shapes
-        self.original_in_shape = original_in_shape
-        self.dataset_metadata = dataset_metadata
         self.attach_index = attach_index
         self.in_protocols = in_protocols or [FeaturesProtocol]
+
+        self._input_shapes = input_shapes
+        self._original_in_shape = original_in_shape
+        if n_classes is not None:
+            if dataset_metadata is not None:
+                raise ValueError("Cannot set both `dataset_metadata` and `n_classes`.")
+            dataset_metadata = DatasetMetadata(_n_classes=n_classes)
+        self._dataset_metadata = dataset_metadata
         self._export = False
         self._epoch = 0
+        self._in_sizes = in_sizes
+
+    def _non_set_error(self, name: str) -> ValueError:
+        return ValueError(
+            f"{self.__class__.__name__} is trying to access `{name}`, "
+            "but it was not set during initialization. "
+        )
+
+    @property
+    def input_shapes(self) -> list[Packet[Size]]:
+        """Getter for the input shapes."""
+        if self._input_shapes is None:
+            raise self._non_set_error("input_shapes")
+        return self._input_shapes
+
+    @property
+    def original_in_shape(self) -> Size:
+        """Getter for the original input shape."""
+        if self._original_in_shape is None:
+            raise self._non_set_error("original_in_shape")
+        return self._original_in_shape
+
+    @property
+    def dataset_metadata(self) -> DatasetMetadata:
+        """Getter for the dataset metadata."""
+        if self._dataset_metadata is None:
+            raise ValueError(
+                f"{self._non_set_error('dataset_metadata')}"
+                "Either provide `dataset_metadata` or `n_classes`."
+            )
+        return self._dataset_metadata
 
     @property
     def in_sizes(self) -> Size | list[Size]:
@@ -124,6 +168,9 @@ class BaseNode(
 
         Should work out of the box for most cases where the `input_shapes` are
         sufficiently simple. Otherwise the `input_shapes` should be used directly.
+
+        In case `in_sizes` were provided during initialization, they are returned
+        directly.
 
         Example:
             ```
@@ -146,6 +193,9 @@ class BaseNode(
             IncompatibleException: If the `input_shapes` are too complicated for
               the default implementation.
         """
+        if self._in_sizes is not None:
+            return self._in_sizes
+
         features = self.input_shapes[0]["features"]
         if features is None:
             raise IncompatibleException(
@@ -291,6 +341,18 @@ class BaseNode(
         unwrapped = self.unwrap(self.validate(inputs))
         outputs = super().__call__(unwrapped)
         return self.wrap(outputs)
+
+    def dump_params(self) -> dict[str, Any]:
+        """Dumps the parameters of the module.
+
+        Returns:
+            dict[str, Any]: Dictionary of parameters.
+        """
+        return self.__dict__ | {
+            "input_shapes": self.input_shapes,
+            "original_in_shape": self.original_in_shape,
+            "dataset_metadata": self.dataset_metadata,
+        }
 
     def validate(self, data: list[Packet]) -> list[Packet]:
         """Validates the inputs against `in_protocols`."""

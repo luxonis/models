@@ -31,11 +31,15 @@ class DatasetMetadata:
         keypoint_names: list[str] | None = None,
         connectivity: list[tuple[int, int]] | None = None,
         loader: DataLoader | None = None,
+        _n_classes: int | None = None,
+        _n_keypoints: int | None = None,
     ):
         self.class_names = class_names or []
         self.keypoint_names = keypoint_names or []
         self.connectivity = connectivity or []
         self.loader = loader
+        self._n_classes = _n_classes
+        self._n_keypoints = _n_keypoints
 
     def autogenerate_anchors(self, n_heads: int) -> tuple[list[list[float]], float]:
         """Automatically generates anchors for the provided dataset.
@@ -49,7 +53,8 @@ class DatasetMetadata:
         if self.loader is None:
             raise ValueError(
                 "Cannot generate anchors without a dataset loader. "
-                "Please provide a dataset loader to the constructor."
+                "Please provide a dataset loader to the constructor "
+                "or call `set_loader` method."
             )
 
         proposed_anchors, recall = anchors_from_dataset(
@@ -60,12 +65,12 @@ class DatasetMetadata:
     @property
     def n_classes(self) -> int:
         """Number of classes in the dataset."""
-        return len(self.class_names)
+        return self._n_classes or len(self.class_names)
 
     @property
     def n_keypoints(self) -> int:
         """Number of keypoints in the dataset."""
-        return len(self.keypoint_names)
+        return self._n_keypoints or len(self.keypoint_names)
 
     def set_loader(self, loader: DataLoader) -> None:
         """Sets the dataset loader.

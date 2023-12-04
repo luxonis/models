@@ -37,7 +37,6 @@ class ImplicitKeypointBBoxHead(BaseNode):
 
     def __init__(
         self,
-        n_classes: int | None = None,
         n_keypoints: int | None = None,
         num_heads: int = 3,
         anchors: list[list[float]] | None = None,
@@ -49,8 +48,8 @@ class ImplicitKeypointBBoxHead(BaseNode):
         """Constructor for the `ImplicitKeypointBBoxHead` module.
 
         Args:
-            n_classes (int): Number of classes.
-            n_keypoints (int): Number of keypoints.
+            n_keypoints (int | None): Number of keypoints. If not defined, inferred
+              from the dataset metadata (if provided). Defaults to None.
             num_heads (int, optional): Number of output heads. Defaults to 3.
                 ***Note:*** Should be same also on neck in most cases.*
             anchors (list[list[int]]): Anchors used for object detection.
@@ -72,7 +71,7 @@ class ImplicitKeypointBBoxHead(BaseNode):
         self.iou_thres = iou_thres
 
         self.n_keypoints = n_keypoints or self.dataset_metadata.n_keypoints
-        self.n_classes = n_classes or self.dataset_metadata.n_classes
+        self.n_classes = self.dataset_metadata.n_classes
 
         if self.n_keypoints == 0:
             raise ValueError(

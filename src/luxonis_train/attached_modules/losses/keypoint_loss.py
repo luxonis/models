@@ -31,7 +31,9 @@ class KeypointLoss(BaseLoss[Tensor, Tensor]):
         super().__init__(
             protocol=Protocol, required_labels=[LabelType.KEYPOINT], **kwargs
         )
-        self.BCE = BCEWithLogitsLoss(pos_weight=torch.tensor([bce_power]), **kwargs)
+        self.b_cross_entropy = BCEWithLogitsLoss(
+            pos_weight=torch.tensor([bce_power]), **kwargs
+        )
         self.distance_weight = distance_weight
         self.visibility_weight = visibility_weight
 
@@ -59,7 +61,8 @@ class KeypointLoss(BaseLoss[Tensor, Tensor]):
 
         mask = target[:, 0::2] != 0
         visibility_loss = (
-            self.BCE.forward(visibility_score, mask.float()) * self.visibility_weight
+            self.b_cross_entropy.forward(visibility_score, mask.float())
+            * self.visibility_weight
         )
         distance = (x - gt_x) ** 2 + (y - gt_y) ** 2
 

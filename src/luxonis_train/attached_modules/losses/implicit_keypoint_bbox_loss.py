@@ -54,6 +54,7 @@ class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
     def __init__(
         self,
         cls_pw: float = 1.0,
+        viz_pw: float = 1.0,
         obj_pw: float = 1.0,
         label_smoothing: float = 0.0,
         min_objectness_iou: float = 0.0,
@@ -67,11 +68,32 @@ class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
         balance: list[float] | None = None,
         **kwargs,
     ):
+        """
+        Args:
+            cls_pw (float, optional): Power for the BCE loss for classes.
+              Defaults to 1.0.
+            viz_pw (float, optional): Power for the BCE loss for keypoints.
+            obj_pw (float, optional): Power for the BCE loss for objectness.
+              Defaults to 1.0.
+            label_smoothing (float, optional): Label smoothing factor.
+              Defaults to 0.0.
+            min_objectness_iou (float, optional): Minimum objectness iou.
+              Defaults to 0.0.
+            bbox_loss_weight (float, optional): Weight for the bounding box loss.
+            keypoint_distance_loss_weight (float, optional): Weight for the keypoint
+              distance loss. Defaults to 0.10.
+            keypoint_visibility_loss_weight (float, optional): Weight for the keypoint  visibility loss. Defaults to 0.6.
+            class_loss_weight (float, optional): Weight for the class loss. Defaults to 0.6.
+            objectness_loss_weight (float, optional): Weight for the objectness loss. Defaults to 0.7.
+            anchor_threshold (float, optional): Threshold for matching anchors to
+              targets. Defaults to 4.0.
+            bias (float, optional): Bias for matching anchors to targets. Defaults to 0.5.
+            balance (list[float], optional): Balance for the different heads. Defaults to None.
+        """
         super().__init__(
             required_labels=[LabelType.BOUNDINGBOX, LabelType.KEYPOINT],
             **kwargs,
         )
-        balance = balance or [4.0, 1.0, 0.4]
 
         self.n_classes = self.node_attributes.n_classes
         self.n_keypoints = self.node_attributes.n_keypoints
@@ -79,7 +101,7 @@ class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
         self.num_heads = self.node_attributes.num_heads
         self.box_offset = self.node_attributes.box_offset
         self.anchors = self.node_attributes.anchors
-        self.balance = balance
+        self.balance = balance or [4.0, 1.0, 0.4]
         if len(self.balance) < self.num_heads:
             raise ValueError(
                 f"Balance list must have at least {self.num_heads} elements."
@@ -100,14 +122,16 @@ class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
 
         self.bias = bias
 
-        self.BCE = BCEWithLogitsLoss(pos_weight=torch.tensor([obj_pw]), **kwargs)
+        self.b_cross_entropy = BCEWithLogitsLoss(
+            pos_weight=torch.tensor([obj_pw]), **kwargs
+        )
         self.class_loss = SmoothBCEWithLogitsLoss(
             label_smoothing=label_smoothing,
             bce_pow=cls_pw,
             **kwargs,
         )
         self.keypoint_loss = KeypointLoss(
-            bce_power=cls_pw,
+            bce_power=viz_pw,
             distance_weight=keypoint_distance_loss_weight,
             visibility_weight=keypoint_visibility_loss_weight,
             **kwargs,
@@ -300,7 +324,7 @@ class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
                     )
 
             sub_losses["objectness"] += (
-                self.BCE.forward(pred[..., 4], obj_targets)
+                self.b_cross_entropy.forward(pred[..., 4], obj_targets)
                 * balance
                 * self.objectness_weight
             )

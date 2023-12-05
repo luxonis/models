@@ -52,7 +52,7 @@ class Core:
                 raise ValueError("Override options should be a list of key-value pairs")
             self.cfg.override_config(dict(zip(opts[::2], opts[1::2])))
 
-        if self.cfg.train.use_rich_text:
+        if self.cfg.use_rich_text:
             rich.traceback.install(suppress=[pl, torch])
 
         self.rank = rank_zero_only.rank
@@ -70,7 +70,7 @@ class Core:
         # but we want to use the logger before)
         reset_logging()
         setup_logging(
-            use_rich=self.cfg.train.use_rich_text,
+            use_rich=self.cfg.use_rich_text,
             file=osp.join(self.run_save_dir, "luxonis_train.log"),
         )
 
@@ -108,7 +108,7 @@ class Core:
             profiler=self.cfg.trainer.profiler,  # for debugging purposes,
             # NOTE: this is likely PL bug,
             # should be configurable inside configure_callbacks(),
-            callbacks=LuxonisProgressBar() if self.cfg.train.use_rich_text else None,
+            callbacks=LuxonisProgressBar() if self.cfg.use_rich_text else None,
         )
         self.dataset = LuxonisDataset(
             dataset_name=self.cfg.dataset.dataset_name,

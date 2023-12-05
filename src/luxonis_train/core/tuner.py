@@ -27,7 +27,7 @@ class Tuner(Core):
 
         pruner = (
             optuna.pruners.MedianPruner()
-            if self.cfg.get("tuner.use_pruner")
+            if self.cfg.tuner.use_pruner
             else optuna.pruners.NopPruner()
         )
 
@@ -71,7 +71,7 @@ class Tuner(Core):
         tracker_params.pop("logged_hyperparams")
         tracker = LuxonisTrackerPL(
             rank=rank,
-            mlflow_tracking_uri=self.cfg.environment.MLFLOW_TRACKING_URI,
+            mlflow_tracking_uri=self.cfg.ENVIRON.MLFLOW_TRACKING_URI,
             is_sweep=True,
             **tracker_params,
         )
@@ -97,7 +97,7 @@ class Tuner(Core):
             trial, monitor="val_loss/loss"
         )
         callbacks: list[pl.Callback] = (
-            [LuxonisProgressBar()] if self.cfg.train.use_rich_text else []
+            [LuxonisProgressBar()] if self.cfg.use_rich_text else []
         )
         callbacks.append(pruner_callback)
         pl_trainer = pl.Trainer(
@@ -122,26 +122,27 @@ class Tuner(Core):
 
     def _get_trial_params(self, trial: optuna.trial.Trial):
         """Get trial params based on specified config."""
-        cfg_tuner = self.cfg.get("tuner.params")
+        cfg_tuner = self.cfg.tuner.params
         new_params = {}
         for key, value in cfg_tuner.items():
             key_info = key.split("_")
             key_name = "_".join(key_info[:-1])
             key_type = key_info[-1]
-
-            if key_type == "categorical":
-                # NOTE: might need to do some preprocessing if list doesn't only have strings
-                new_value = trial.suggest_categorical(key_name, value)
-            elif key_type == "float":
-                new_value = trial.suggest_float(key_name, *value)
-            elif key_type == "int":
-                new_value = trial.suggest_int(key_name, *value)
-            elif key_type == "loguniform":
-                new_value = trial.suggest_loguniform(key_name, *value)
-            elif key_type == "uniform":
-                new_value = trial.suggest_uniform(key_name, *value)
-            else:
-                raise KeyError(f"Tunning type '{key_type}' not supported.")
+            match key_type, value:
+                case "categorical", list(lst):
+                    new_value = trial.suggest_categorical(key_name, lst)
+                case "float", [float(low), float(high)]:
+                    new_value = trial.suggest_float(key_name, low, high)
+                case "int", [int(low), int(high)]:
+                    new_value = trial.suggest_int(key_name, low, high)
+                case "loguniform", [float(low), float(high)]:
+                    new_value = trial.suggest_loguniform(key_name, low, high)
+                case "uniform", [float(low), float(high)]:
+                    new_value = trial.suggest_uniform(key_name, low, high)
+                case _, _:
+                    raise KeyError(
+                        f"Combination of {key_type} and {value} not supported"
+                    )
 
             new_params[key_name] = new_value
 

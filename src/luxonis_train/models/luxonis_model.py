@@ -527,13 +527,17 @@ class LuxonisModel(pl.LightningModule):
             return (self.current_epoch / self.cfg.train.epochs) * 100
 
     def _evaluation_step(
-        self, mode: Literal["test", "val"], batch: tuple[Tensor, Labels], batch_idx: int
+        self,
+        mode: Literal["test", "val"],
+        batch: tuple[Tensor, Labels],
+        batch_idx: int,
     ) -> dict[str, Tensor]:
-        inputs = batch[0]
+        inputs, labels = batch
         images = get_unnormalized_images(self.cfg, inputs)
         outputs = self.forward(
-            *batch,
-            # TODO: support batch visualization
+            inputs,
+            labels,
+            # TODO: support batch visualizations
             image=images[0],
             compute_metrics=True,
             compute_visualizations=True,
@@ -616,7 +620,7 @@ class LuxonisModel(pl.LightningModule):
         if self.frozen_nodes:
             callbacks.append(ModuleFreezer(self.frozen_nodes))
 
-        if self.cfg.train.use_rich_text:
+        if self.cfg.use_rich_text:
             callbacks.append(RichModelSummary(max_depth=2))
 
         for callback in self.cfg.train.callbacks:
@@ -711,7 +715,7 @@ class LuxonisModel(pl.LightningModule):
     ) -> None:
         """Prints validation metrics in the console."""
 
-        if self.cfg.train.use_rich_text:
+        if self.cfg.use_rich_text:
             self._progress_bar.print_results(stage=stage, loss=loss, metrics=metrics)
         else:
             print(f"\n----- {stage} -----")

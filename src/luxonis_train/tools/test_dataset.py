@@ -22,11 +22,21 @@ from luxonis_train.utils.types import LabelType
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-cfg", "--config", type=str, required=True, help="Configuration file to use"
+        "--config",
+        type=str,
+        required=True,
+        help="Configuration file to use",
     )
-    parser.add_argument("--view", type=str, default="val", help="Dataset view to use")
     parser.add_argument(
-        "--no-display", action="store_true", help="Don't display images"
+        "--view",
+        type=str,
+        default="val",
+        help="Dataset view to use",
+    )
+    parser.add_argument(
+        "--no-display",
+        action="store_true",
+        help="Don't display images",
     )
     parser.add_argument(
         "--save-dir",
@@ -45,32 +55,32 @@ if __name__ == "__main__":
             raise ValueError("Override options should be a list of key-value pairs")
         cfg.override_config(dict(zip(opts[::2], opts[1::2])))
 
-    image_size = cfg.get("train.preprocessing.train_image_size")
+    image_size = cfg.train.preprocessing.train_image_size
 
     dataset = LuxonisDataset(
-        dataset_name=cfg.get("dataset.dataset_name"),
-        team_id=cfg.get("dataset.team_id"),
-        dataset_id=cfg.get("dataset.dataset_id"),
-        bucket_type=cfg.get("dataset.bucket_type"),
-        bucket_storage=cfg.get("dataset.bucket_storage"),
+        dataset_name=cfg.dataset.dataset_name,
+        team_id=cfg.dataset.team_id,
+        dataset_id=cfg.dataset.dataset_id,
+        bucket_type=cfg.dataset.bucket_type,
+        bucket_storage=cfg.dataset.bucket_storage,
     )
     augmentations = (
         TrainAugmentations(
             image_size=image_size,
             augmentations=[
-                i.model_dump() for i in cfg.get("train.preprocessing.augmentations")
+                i.model_dump() for i in cfg.train.preprocessing.augmentations
             ],
-            train_rgb=cfg.get("train.preprocessing.train_rgb"),
-            keep_aspect_ratio=cfg.get("train.preprocessing.keep_aspect_ratio"),
+            train_rgb=cfg.train.preprocessing.train_rgb,
+            keep_aspect_ratio=cfg.train.preprocessing.keep_aspect_ratio,
         )
         if args.view == "train"
         else ValAugmentations(
             image_size=image_size,
             augmentations=[
-                i.model_dump() for i in cfg.get("train.preprocessing.augmentations")
+                i.model_dump() for i in cfg.train.preprocessing.augmentations
             ],
-            train_rgb=cfg.get("train.preprocessing.train_rgb"),
-            keep_aspect_ratio=cfg.get("train.preprocessing.keep_aspect_ratio"),
+            train_rgb=cfg.train.preprocessing.train_rgb,
+            keep_aspect_ratio=cfg.train.preprocessing.keep_aspect_ratio,
         )
     )
 

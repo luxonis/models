@@ -85,7 +85,6 @@ model:
       attached_to: EfficientBBoxHead
 
 trainer:
-  use_rich_text: True
   accelerator: auto
   devices: auto
   strategy: auto

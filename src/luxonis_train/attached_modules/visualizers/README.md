@@ -70,7 +70,7 @@ Special type of meta-visualizer that combines several visualizers into one. The 
 
 **Example**
 
-Example of combining [KeypointVisualizer](#keypointvisualizer) and [BBoxVisualzier](#bboxvisualizer).
+Example of combining [KeypointVisualizer](#keypointvisualizer) and [BBoxVisualizer](#bboxvisualizer).
 
 ![multi_viz_example](../../../../media/example_viz/multi.png)
 

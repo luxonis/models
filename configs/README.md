@@ -4,7 +4,7 @@ The configuration is defined in a yaml file, which you must provide.
 The configuration file consists of a few major blocks that are described below.
 You can create your own config or use/edit one of the examples.
 
-**Table of contents:**
+## Table Of Content
 
 - [Model](#model)
   - [Nodes](#nodes)
@@ -25,6 +25,19 @@ You can create your own config or use/edit one of the examples.
   - [Blob](#blob)
 - [Tuner](#tuner)
   - [Storage](#storage)
+
+**Top-level options**
+
+| Key           | Type                  | Default value | Description                                   |
+| ------------- | --------------------- | ------------- | --------------------------------------------- |
+| use_rich_text | bool                  | True          | whether to use rich text for console printing |
+| model         | [Model](#model)       |               | model section                                 |
+| dataset       | [dataset](#dataset)   |               | dataset section                               |
+| train         | [train](#train)       |               | train section                                 |
+| tracker       | [tracker](#tracker)   |               | tracker section                               |
+| trainer       | [trainer](#trainer)   |               | trainer section                               |
+| exporter      | [exporter](#exporter) |               | exporter section                              |
+| tuner         | [tuner](#tuner)       |               | tuner section                                 |
 
 ## Model
 
@@ -151,19 +164,18 @@ Here you can change everything related to actual training of the model.
 | validation_interval     | int  | 1             | frequency of computing metrics on validation data                                    |
 | num_log_images          | int  | 4             | maximum number of images to visualize and log                                        |
 | skip_last_batch         | bool | True          | whether to skip last batch while training                                            |
-| use_rich_text           | bool | True          | whether to use rich text for console printing                                        |
 
 ### Preprocessing
 
 We use [Albumentations](https://albumentations.ai/docs/) library for `augmentations`. [Here](https://albumentations.ai/docs/api_reference/full_reference/#pixel-level-transforms) you can see a list of all pixel level augmentations supported, and [here](https://albumentations.ai/docs/api_reference/full_reference/#spatial-level-transforms) you see all spatial level transformations. In config you can specify any augmentation from this lists and their params. Additionaly we support `Mosaic4` batch augmentation and letterbox resizing if `keep_aspect_ratio: True`.
 
-| Key               | Type                                                                             | Default value | Description                                                                                                                                                             |
-| ----------------- | -------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| train_image_size  | list\[int\]                                                                      | \[256, 256\]  | image size used for training \[height, width\]                                                                                                                          |
-| keep_aspect_ratio | bool                                                                             | True          | bool if keep aspect ration while resizing                                                                                                                               |
-| train_rgb         | bool                                                                             | True          | bool if train on rgb or bgr                                                                                                                                             |
-| normalize.active  | bool                                                                             | True          | bool if use normalization                                                                                                                                               |
-| normalize.params  | dict                                                                             | {}            | params for normalization, see [documentation](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Normalize) |
+| Key               | Type                                                                                 | Default value | Description                                                                                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| train_image_size  | list\[int\]                                                                          | \[256, 256\]  | image size used for training \[height, width\]                                                                                                                          |
+| keep_aspect_ratio | bool                                                                                 | True          | bool if keep aspect ration while resizing                                                                                                                               |
+| train_rgb         | bool                                                                                 | True          | bool if train on rgb or bgr                                                                                                                                             |
+| normalize.active  | bool                                                                                 | True          | bool if use normalization                                                                                                                                               |
+| normalize.params  | dict                                                                                 | {}            | params for normalization, see [documentation](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Normalize) |
 | augmentations     | list\[{"name": Name of the augmentation, "params": Parameters of the augmentation}\] | \[\]          | list of Albumentations augmentations                                                                                                                                    |
 
 ### Optimizer

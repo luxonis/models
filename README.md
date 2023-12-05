@@ -28,8 +28,6 @@ The entire configuration is specified in a `yaml` file. This includes the model
 structure, used losses, metrics, optimizers etc. For specific instructions and example
 configuration files, see [Configuration](./configs/README.md).
 
-
-
 ## Training
 
 Once you've configured your `config.yaml` file you can train the model using this command:

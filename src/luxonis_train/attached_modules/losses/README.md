@@ -1,29 +1,70 @@
-## Losses
+# Losses
 
-Every loss takes these parameters:
-- head_attributes: Dict[str, Any], optional # Dictionary of all head attributes to which the loss is connected to. Defaults to {}.
+List of all the available loss functions.
 
-## List
-- **CrossEntropyLoss** ([source](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html))
-  - Params: Can be seen in the source
+## Table Of Content
 
-- **BCEWithLogitsLoss** ([source](https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html))
-  - Params: Can be seen in the source
+- [Losses](#losses)
+  * [CrossEntropyLoss](#crossentropyloss)
+  * [BCEWithLogitsLoss](#bcewithlogitsloss)
+  * [SigmoidFocalLoss](#sigmoidfocalloss)
+  * [SoftmaxFocalLoss](#softmaxfocalloss)
+  * [AdaptiveDetectionLoss](#adaptivedetectionloss)
 
-- **SigmoidFocalLoss** ([source](https://pytorch.org/vision/stable/generated/torchvision.ops.sigmoid_focal_loss.html#torchvision.ops.sigmoid_focal_loss))
-  - Params:
-    - alpha: float # Defaults to 0.8.
-    - gamma: float # Defaults to 2.0.
-    - reduction: Literal["none", "mean", "sum"] # Defaults to "mean".
+## CrossEntropyLoss
 
-- **SoftmaxFocalLoss**:
-  - Params:
-    - alpha: Union[float, list] # Either a float for all channels or list of alphas for each channel with length C. Defaults to 0.25.
-    - gamma: float # Defaults to 2.0.
-    - reduction: Literal["none", "mean", "sum"] # Defaults to "mean".
+Adapted from [here](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html).
 
-- **AdaptiveDetectionLoss** (adapted from [here](https://arxiv.org/pdf/2209.02976.pdf))
-  - Params:
-    - n_warmup_epochs: int # Number of epochs where ATSS assigner is used, after that we switch to TAL assigner. Defaults to 4.
-    - iou_type: Literal["none", "giou", "diou", "ciou", "siou"] # IoU type used for bbox regression loss. Defaults to "giou".
-    - loss_weight: Dict[str, float] # Mapping for sub losses weights. Defautls to {"class": 1.0, "iou": 2.5}.
+**Params**
+
+| Key       | Type                             | Default value | Description                                                                                                           |
+| --------- | -------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------- |
+| weight    | list\[float\] \| None            | None          | A manual rescaling weight given to each class. If given, it has to be a list of the same length as there are classes. |
+| reduction | Literal\["none", "mean", "sum"\] | "mean"        | Specifies the reduction to apply to the output.                                                                       |
+
+## BCEWithLogitsLoss
+
+Adapted from [here](https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html).
+
+**Params**
+
+| Key             | Type                             | Default value | Description                                                                                                                                                                                                                                                                                  |
+| --------------- | -------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| weight          | list\[float\] \| None            | None          | A manual rescaling weight given to each class. If given, has to be a list of the same length as there are classes.                                                                                                                                                                           |
+| ignore_index    | int                              | -100          | Specifies a target value that is ignored and does not contribute to the input gradient. When `size_average` is `True`, the loss is averaged over non-ignored targets. Note that `ignore_index` is only applicable when the target contains class indices.                                    |
+| reduction       | Literal\["none", "mean", "sum"\] | "mean"        | Specifies the reduction to apply to the output.                                                                                                                                                                                                                                              |
+| label_smoothing | float\[0.0, 1.0\]                | 0.0           | Specifies the amount of smoothing when computing the loss, where 0.0 means no smoothing. The targets become a mixture of the original ground truth and a uniform distribution as described in [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567). |
+
+## SigmoidFocalLoss
+
+Adapted from [here](https://pytorch.org/vision/stable/generated/torchvision.ops.sigmoid_focal_loss.html#torchvision.ops.sigmoid_focal_loss).
+
+**Params**
+
+| Key       | Type                             | Default value | Description |
+| --------- | -------------------------------- | ------------- | ----------- |
+| alpha     | float                            | 0.8           |             |
+| gamma     | float                            | 2.0           |             |
+| reduction | Literal\["none", "mean", "sum"\] | "mean"        |             |
+
+## SoftmaxFocalLoss
+
+**Params**
+
+| Key       | Type                             | Default value | Description                                                         |
+| --------- | -------------------------------- | ------------- | ------------------------------------------------------------------- |
+| alpha     | float \| list                    | 0.25          | Either a float for all channels or list of alphas for each channel. |
+| gamma     | float                            | 2.0           |                                                                     |
+| reduction | Literal\["none", "mean", "sum"\] | "mean"        |                                                                     |
+
+## AdaptiveDetectionLoss
+
+Adapted from [here](https://arxiv.org/pdf/2209.02976.pdf).
+
+**Params**
+
+| Key             | Type                                              | Default value              | Description                                                                         |
+| --------------- | ------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| n_warmup_epochs | int                                               | 4                          | Number of epochs where ATSS assigner is used, after that we switch to TAL assigner. |
+| iou_type        | Literal\["none", "giou", "diou", "ciou", "siou"\] | "giou"                     | IoU type used for bbox regression loss.                                             |
+| loss_weight     | Dict\[str, float\]                                | {"class:" 1.0, "iou": 2.5} | Mapping for sub losses weights.                                                     |

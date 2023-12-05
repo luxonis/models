@@ -6,7 +6,7 @@ from .bce_with_logits import BCEWithLogitsLoss
 
 
 class SmoothBCEWithLogitsLoss(BaseLoss[list[Tensor], Tensor]):
-    """BCE with logits loss with label smoothing.
+    """BCE with logits loss and label smoothing.
 
     Args:
         label_smoothing (float, optional): Label smoothing factor. Defaults to 0.0.

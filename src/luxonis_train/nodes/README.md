@@ -1,6 +1,26 @@
 # Nodes
 
-[TOC]
+Nodes are the basic building structures of the model. They can be connected together
+arbitrarily as long as the two nodes are compatible with each other.
+
+## Table Of Content
+
+- [Nodes](#nodes)
+  * [ResNet18](#resnet18)
+  * [MicroNet](#micronet)
+  * [RepVGG](#repvgg)
+  * [EfficientRep](#efficientrep)
+  * [RexNetV1_lite](#rexnetv1_lite)
+  * [MobileOne](#mobileone)
+  * [MobileNetV2](#mobilenetv2)
+  * [EfficientNet](#efficientnet)
+  * [ContextSpatial](#contextspatial)
+  * [RepPANNeck](#reppanneck)
+  * [ClassificationHead](#classificationhead)
+  * [SegmentationHead](#segmentationhead)
+  * [BiSeNetHead](#bisenethead)
+  * [EfficientBBoxHead](#efficientbboxhead)
+  * [ImplicitKeypointBBoxHead](#implicitkeypointbboxhead)
 
 Every node takes these parameters:
 
@@ -8,6 +28,8 @@ Every node takes these parameters:
 | ------------ | ----------- | ------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | attach_index | int \| None | None          | Index of previous output that the head attaches to. Each node has a sensible default. Usually should not be manually set. |
 | n_classes    | int \| None | None          | Number of classes in the dataset. Inferred from the dataset if not provided.                                              |
+
+Additional parameters for specific nodes are listed below.
 
 ## ResNet18
 
@@ -108,7 +130,7 @@ Adapted from [here](https://github.com/taveraantonio/BiseNetv1).
 
 ## RepPANNeck
 
-Aadapted from [here](https://arxiv.org/pdf/2209.02976.pdf).
+Adapted from [here](https://arxiv.org/pdf/2209.02976.pdf).
 
 **Params**
 
@@ -159,11 +181,11 @@ Adapted from [here](https://arxiv.org/pdf/2207.02696.pdf).
 
 **Params**
 
-| Key              | Type                | Default value                                                                                                                                                                                                      | Description                                        |
-| ---------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| n_keypoints      | int \| None         | None                                                                                                                                                                                                               | Number of keypoints.                               |
-| num_heads        | bool                | 3                                                                                                                                                                                                                  | Number of output heads                             |
-| anchors          | List\[List\[int\]\] | \[ \[12, 16, 19, 36, 40, 28\], \[36, 75, 76, 55, 72, 146\], \[142, 110, 192, 243, 459, 401\] \]. *(from COCO)* \***Note:** If this is set to null in config then anchors are computed at runtime from the dataset. | Anchors used for object detection                  |
-| init_coco_biases | bool                | True                                                                                                                                                                                                               | Whether to use COCO bias and weight initialization |
-| conf_thres       | float               | 0.25                                                                                                                                                                                                               | confidence threshold for nms (used for evaluation) |
-| iou_thres        | float               | 0.45                                                                                                                                                                                                               | iou threshold for nms (used for evaluation)        |
+| Key              | Type                        | Default value | Description                                                                                                |
+| ---------------- | --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------- |
+| n_keypoints      | int \| None                 | None          | Number of keypoints.                                                                                       |
+| num_heads        | int                         | 3             | Number of output heads                                                                                     |
+| anchors          | List\[List\[int\]\] \| None | None          | Anchors used for object detection. If set to `None`, the anchors are computed at runtime from the dataset. |
+| init_coco_biases | bool                        | True          | Whether to use COCO bias and weight initialization                                                         |
+| conf_thres       | float                       | 0.25          | confidence threshold for nms (used for evaluation)                                                         |
+| iou_thres        | float                       | 0.45          | iou threshold for nms (used for evaluation)                                                                |

@@ -1,82 +1,169 @@
-## Nodes
+# Nodes
+
+[TOC]
 
 Every node takes these parameters:
- - attach_index: int # Index of previous output that the head attaches to. Each node has a sensible default. Usually should not be manually set.
 
-### List
-- **ResNet18** ([source](https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html))
-  - Params:
-    - download_weights: bool # If True download weights from imagenet. Defaults to False.
+| Key          | Type        | Default value | Description                                                                                                               |
+| ------------ | ----------- | ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| attach_index | int \| None | None          | Index of previous output that the head attaches to. Each node has a sensible default. Usually should not be manually set. |
+| n_classes    | int \| None | None          | Number of classes in the dataset. Inferred from the dataset if not provided.                                              |
 
-- **MicroNet** ([source](https://github.com/liyunsheng13/micronet))
-  - Params:
-    - variant: Literal["M1", "M2", "M3"] # Defaults to 'M1'.
+## ResNet18
 
-- **RepVGG** ([source](https://github.com/DingXiaoH/RepVGG))
-  - Params:
-    - variant: Literal["A0", "A1", "A2"] # Defaults to "A0".
+Adapted from [here](https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html).
 
-- **EfficientRep** (adapted from [here](https://arxiv.org/pdf/2209.02976.pdf))
-  - Params:
-    - channels_list: List[int] # List of number of channels for each block. Defaults to [64, 128, 256, 512, 1024].
-    - num_repeats: List[int] # List of number of repeats of RepVGGBlock. Defaults to [1, 6, 12, 18, 6].
-    - in_channels: int # Number of input channels, should be 3 in most cases . Defaults to 3.
-    - depth_mul: int # Depth multiplier. Defaults to 0.33.
-    - width_mul: int # Width multiplier. Defaults to 0.25.
+**Params**
 
-- **RexNetV1_lite** ([source](https://github.com/clovaai/rexnet))
-  - Params:
-    - fix_head_stem: bool # Whether to multiply head stem. Defaults to False.
-    - divisible_value: int # Divisor used. Defaults to 8.
-    - input_ch: int # tarting channel dimension. Defaults to 16.
-    - final_ch: int # Final channel dimension. Defaults to 164.
-    - multiplier: float # Channel dimension multiplier. Defaults to 1.0.
-    - kernel_conf: str # Kernel sizes encoded as string. Defaults to '333333'.
+| Key              | Type | Default value | Description                            |
+| ---------------- | ---- | ------------- | -------------------------------------- |
+| download_weights | bool | False         | If True download weights from imagenet |
 
-- **MobileOne** ([source](https://github.com/apple/ml-mobileone))
-  - Params:
-    - variant: Literal["s0", "s1", "s2", "s3", "s4"] # Defaults to "s0".
+## MicroNet
 
-- **MobileNetV2** ([source](https://pytorch.org/vision/main/models/generated/torchvision.models.mobilenet_v2.html))
-  - Params:
-    - download_weights: bool # If True download weights from imagenet. Defaults to False.
+Adapted from [here](https://github.com/liyunsheng13/micronet).
+**Params**
 
-- **EfficientNet** ([source](https://github.com/rwightman/gen-efficientnet-pytorch))
-  - Params:
-    - download_weights: bool # If True download weights from imagenet. Defualts to False.
+| Key     | Type                        | Default value | Description |
+| ------- | --------------------------- | ------------- | ----------- |
+| variant | Literal\["M1", "M2", "M3"\] | "M1"          |             |
 
-- **ContextSpatial** (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
-  - Params:
-    - context_backbone: str # Backbone used. Defaults to 'MobileNetV2'.
+## RepVGG
 
-- **RepPANNeck** (adapted from [here](https://arxiv.org/pdf/2209.02976.pdf))
-  - Params:
-    - num_heads: Literal[2,3,4] # Number of output heads. Defaults to 3. ***Note:** Should be same also on head in most cases*.
-    - channels_list: List[int] # List of number of channels for each block. Defaults to [256, 128, 128, 256, 256, 512].
-    - num_repeats: List[int] # List of number of repeats of RepVGGBlock. Defaults to [12, 12, 12, 12].
-    - depth_mul: int # Depth multiplier. Defaults to 0.33.
-    - width_mul: int # Width multiplier. Defaults to 0.25.
+Adapted from [here](https://github.com/DingXiaoH/RepVGG).
+**Params**
 
-- **ClassificationHead**
-  - Params:
-    - fc_dropout: float # Dropout rate before last layer, range [0,1]. Defaults to 0.2.
+| Key     | Type                        | Default value | Description |
+| ------- | --------------------------- | ------------- | ----------- |
+| variant | Literal\["A0", "A1", "A2"\] | "A0"          |             |
 
-- **SegmentationHead** (adapted from [here](https://github.com/pytorch/vision/blob/main/torchvision/models/segmentation/fcn.py))
+## EfficientRep
 
-- **BiSeNetHead** (adapted from [here](https://github.com/taveraantonio/BiseNetv1))
-  - Params:
-    - upscale_factor: int # Factor used for upscaling input. Defaults to 8.
-    - is_aux: bool # Either use 256 for intermediate channels or 64. Defaults to False.
+Adapted from [here](https://arxiv.org/pdf/2209.02976.pdf)
 
-- **EfficientBBoxHead** (adapted from [here](https://arxiv.org/pdf/2209.02976.pdf))
-  - Params:
-    - num_heads: bool # Number of output heads. Defaults to 3.
+**Params**
 
-- **ImplicitKeypointBBoxHead** (adapted from [here](https://arxiv.org/pdf/2207.02696.pdf))
-  - Params:
-    - n_keypoints: int # Number of keypoints.
-    - num_heads: bool # Number of output heads. Defaults to 3.
-    - anchors: List[List[int]] # Anchors used for object detection. Defaults to [ [12, 16, 19, 36, 40, 28], [36, 75, 76, 55, 72, 146], [142, 110, 192, 243, 459, 401] ]. *(from COCO)* ***Note:** If this is set to null in config then anchors are computed at runtime from the dataset.*
-    - init_coco_biases: bool # Whether to use COCO bias and weight initialization. Defaults to True.
-    - conf_thres: float # confidence threshold for nms (used for evaluation)
-    - out_thres: float # iou threshold for nms (used for evaluation)
+| Key           | Type        | Default value               | Description                                         |
+| ------------- | ----------- | --------------------------- | --------------------------------------------------- |
+| channels_list | List\[int\] | \[64, 128, 256, 512, 1024\] | List of number of channels for each block           |
+| num_repeats   | List\[int\] | \[1, 6, 12, 18, 6\]         | List of number of repeats of RepVGGBlock            |
+| in_channels   | int         | 3                           | Number of input channels, should be 3 in most cases |
+| depth_mul     | int         | 0.33                        | Depth multiplier                                    |
+| width_mul     | int         | 0.25                        | Width multiplier                                    |
+
+## RexNetV1_lite
+
+Adapted from ([here](https://github.com/clovaai/rexnet).
+
+**Params**
+
+| Key             | Type  | Default value | Description                    |
+| --------------- | ----- | ------------- | ------------------------------ |
+| fix_head_stem   | bool  | False         | Whether to multiply head stem  |
+| divisible_value | int   | 8             | Divisor used                   |
+| input_ch        | int   | 16            | tarting channel dimension      |
+| final_ch        | int   | 164           | Final channel dimension        |
+| multiplier      | float | 1.0           | Channel dimension multiplier   |
+| kernel_conf     | str   | '333333'      | Kernel sizes encoded as string |
+
+## MobileOne
+
+Adapted from [here](https://github.com/apple/ml-mobileone).
+
+**Params**
+
+| Key     | Type                                    | Default value | Description |
+| ------- | --------------------------------------- | ------------- | ----------- |
+| variant | Literal\["s0", "s1", "s2", "s3", "s4"\] | "s0"          |             |
+
+## MobileNetV2
+
+Adapted from [here](https://pytorch.org/vision/main/models/generated/torchvision.models.mobilenet_v2.html).
+
+**Params**
+
+| Key              | Type | Default value | Description                            |
+| ---------------- | ---- | ------------- | -------------------------------------- |
+| download_weights | bool | False         | If True download weights from imagenet |
+
+## EfficientNet
+
+Adapted from [here](https://github.com/rwightman/gen-efficientnet-pytorch).
+
+**Params**
+
+| Key              | Type | Default value | Description                             |
+| ---------------- | ---- | ------------- | --------------------------------------- |
+| download_weights | bool | False         | If True download weights from imagenet. |
+
+## ContextSpatial
+
+Adapted from [here](https://github.com/taveraantonio/BiseNetv1).
+
+**Params**
+
+| Key              | Type | Default value | Description   |
+| ---------------- | ---- | ------------- | ------------- |
+| context_backbone | str  | "MobileNetV2" | Backbone used |
+
+## RepPANNeck
+
+Aadapted from [here](https://arxiv.org/pdf/2209.02976.pdf).
+
+**Params**
+
+| Key           | Type             | Default value                                           | Description                               |
+| ------------- | ---------------- | ------------------------------------------------------- | ----------------------------------------- |
+| num_heads     | Literal\[2,3,4\] | 3 ***Note:** Should be same also on head in most cases* | Number of output heads                    |
+| channels_list | List\[int\]      | \[256, 128, 128, 256, 256, 512\]                        | List of number of channels for each block |
+| num_repeats   | List\[int\]      | \[12, 12, 12, 12\]                                      | List of number of repeats of RepVGGBlock  |
+| depth_mul     | int              | 0.33                                                    | Depth multiplier                          |
+| width_mul     | int              | 0.25                                                    | Width multiplier                          |
+
+## ClassificationHead
+
+**Params**
+
+| Key        | Type  | Default value | Description                                   |
+| ---------- | ----- | ------------- | --------------------------------------------- |
+| fc_dropout | float | 0.2           | Dropout rate before last layer, range \[0,1\] |
+
+## SegmentationHead
+
+Adapted from [here](https://github.com/pytorch/vision/blob/main/torchvision/models/segmentation/fcn.py).
+
+## BiSeNetHead
+
+Adapted from [here](https://github.com/taveraantonio/BiseNetv1).
+
+**Params**
+
+| Key            | Type | Default value | Description                                    |
+| -------------- | ---- | ------------- | ---------------------------------------------- |
+| upscale_factor | int  | 8             | Factor used for upscaling input                |
+| is_aux         | bool | False         | Either use 256 for intermediate channels or 64 |
+
+## EfficientBBoxHead
+
+Adapted from [here](https://arxiv.org/pdf/2209.02976.pdf).
+
+**Params**
+
+| Key       | Type | Default value | Description            |
+| --------- | ---- | ------------- | ---------------------- |
+| num_heads | bool | 3             | Number of output heads |
+
+## ImplicitKeypointBBoxHead
+
+Adapted from [here](https://arxiv.org/pdf/2207.02696.pdf).
+
+**Params**
+
+| Key              | Type                | Default value                                                                                                                                                                                                      | Description                                        |
+| ---------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| n_keypoints      | int \| None         | None                                                                                                                                                                                                               | Number of keypoints.                               |
+| num_heads        | bool                | 3                                                                                                                                                                                                                  | Number of output heads                             |
+| anchors          | List\[List\[int\]\] | \[ \[12, 16, 19, 36, 40, 28\], \[36, 75, 76, 55, 72, 146\], \[142, 110, 192, 243, 459, 401\] \]. *(from COCO)* \***Note:** If this is set to null in config then anchors are computed at runtime from the dataset. | Anchors used for object detection                  |
+| init_coco_biases | bool                | True                                                                                                                                                                                                               | Whether to use COCO bias and weight initialization |
+| conf_thres       | float               | 0.25                                                                                                                                                                                                               | confidence threshold for nms (used for evaluation) |
+| iou_thres        | float               | 0.45                                                                                                                                                                                                               | iou threshold for nms (used for evaluation)        |

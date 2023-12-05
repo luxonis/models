@@ -1,7 +1,7 @@
 import logging
 import sys
-from typing import Annotated, Any, Literal
 from enum import Enum
+from typing import Annotated, Any, Literal
 
 from luxonis_ml.data import BucketStorage, BucketType
 from luxonis_ml.utils import Config as LuxonisConfig
@@ -37,11 +37,19 @@ class ModelNodeConfig(BaseModel):
     frozen: bool = False
 
 
+class PredefinedModelConfig(BaseModel):
+    name: str
+    params: dict[str, Any] = {}
+    include_nodes: bool = True
+    include_losses: bool = True
+    include_metrics: bool = True
+    include_visualizers: bool = True
+
+
 class ModelConfig(BaseModel):
     name: str
-    predefined_model: str | None = None
+    predefined_model: PredefinedModelConfig | None = None
     weights: str | None = None
-    params: dict[str, Any] = {}
     nodes: list[ModelNodeConfig] = []
     losses: list[LossModuleConfig] = []
     metrics: list[MetricModuleConfig] = []
@@ -51,13 +59,20 @@ class ModelConfig(BaseModel):
     @model_validator(mode="after")
     def check_predefined_model(self):
         if self.predefined_model:
-            logger.info("Loading predefined model type")
-            self.nodes += MODELS.get(self.predefined_model)(**self.params)
-
-        elif self.params:
-            logger.warning(
-                "Model-wise parameters ignored as no `predefined_model` specified."
+            logger.info(f"Using predefined model: `{self.predefined_model.name}`")
+            model = MODELS.get(self.predefined_model.name)(
+                **self.predefined_model.params
             )
+            nodes, losses, metrics, visualizers = model.generate_model(
+                include_nodes=self.predefined_model.include_nodes,
+                include_losses=self.predefined_model.include_losses,
+                include_metrics=self.predefined_model.include_metrics,
+                include_visualizers=self.predefined_model.include_visualizers,
+            )
+            self.nodes += nodes
+            self.losses += losses
+            self.metrics += metrics
+            self.visualizers += visualizers
 
         return self
 
@@ -205,8 +220,6 @@ class TrainConfig(BaseModel):
     validation_interval: int = 1
     num_log_images: int = 4
     skip_last_batch: bool = True
-    main_head_index: int = 0
-    use_rich_text: bool = True
     log_sub_losses: bool = True
     save_top_k: int = 3
 
@@ -281,6 +294,7 @@ class TunerConfig(BaseModel):
 
 
 class Config(LuxonisConfig):
+    use_rich_text: bool = True
     model: ModelConfig
     dataset: DatasetConfig
     trainer: TrainerConfig = TrainerConfig()
@@ -315,7 +329,7 @@ class Config(LuxonisConfig):
     @classmethod
     def setup_logging(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            if data.get("trainer", {}).get("use_rich", True):
+            if data.get("use_rich_text", True):
                 setup_logging(use_rich=True)
         return data
 

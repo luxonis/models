@@ -52,7 +52,6 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
 
     def __init__(
         self,
-        n_keypoints: int | None = None,
         kpt_sigmas: Tensor | None = None,
         box_format: Literal["xyxy", "xywh", "cxcywh"] = "xyxy",
         **kwargs,
@@ -72,9 +71,7 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
             **kwargs,
         )
 
-        self.n_keypoints = (
-            n_keypoints or self.node_attributes.dataset_metadata.n_keypoints
-        )
+        self.n_keypoints = self.node_attributes.dataset_metadata.n_keypoints
 
         if kpt_sigmas is not None and len(kpt_sigmas) != self.n_keypoints:
             raise ValueError("Expected kpt_sigmas to be of shape (num_keypoints).")

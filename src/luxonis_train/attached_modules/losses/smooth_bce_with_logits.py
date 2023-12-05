@@ -1,3 +1,5 @@
+from typing import Literal
+
 import torch
 from torch import Tensor
 
@@ -11,14 +13,34 @@ class SmoothBCEWithLogitsLoss(BaseLoss[list[Tensor], Tensor]):
     Args:
         label_smoothing (float, optional): Label smoothing factor. Defaults to 0.0.
         bce_pow (float, optional): Weight for positive samples. Defaults to 1.0.
+        weight (list[float], optional): a manual rescaling weight given to the loss
+            of each batch element. If given, it has to be a list of length `nbatch`.
+        reduction (str, optional): Specifies the reduction to apply to the output:
+            ``'none'`` | ``'mean'`` | ``'sum'``. ``'none'``: no reduction will be applied,
+            ``'mean'``: the sum of the output will be divided by the number of
+            elements in the output, ``'sum'``: the output will be summed. Note: :attr:`size_average`
+            and :attr:`reduce` are in the process of being deprecated, and in the meantime,
+            specifying either of those two args will override :attr:`reduction`. Default: ``'mean'``
     """
 
-    def __init__(self, label_smoothing: float = 0.0, bce_pow: float = 1.0, **kwargs):
+    def __init__(
+        self,
+        label_smoothing: float = 0.0,
+        bce_pow: float = 1.0,
+        weight: list[float] | None = None,
+        reduction: Literal["mean", "sum", "none"] = "mean",
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.negative_smooth_const = 1.0 - 0.5 * label_smoothing
         self.positive_smooth_const = 0.5 * label_smoothing
         self.criterion = BCEWithLogitsLoss(
-            node_attributes=self.node_attributes, pos_weight=torch.tensor([bce_pow])
+            node_attributes=self.node_attributes,
+            pos_weight=torch.tensor(
+                [bce_pow],
+            ),
+            weight=weight,
+            reduction=reduction,
         )
 
     def forward(self, predictions: list[Tensor], target: Tensor) -> Tensor:

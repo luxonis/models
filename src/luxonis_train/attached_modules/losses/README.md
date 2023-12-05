@@ -5,11 +5,11 @@ List of all the available loss functions.
 ## Table Of Content
 
 - [Losses](#losses)
-  * [CrossEntropyLoss](#crossentropyloss)
-  * [BCEWithLogitsLoss](#bcewithlogitsloss)
-  * [SigmoidFocalLoss](#sigmoidfocalloss)
-  * [SoftmaxFocalLoss](#softmaxfocalloss)
-  * [AdaptiveDetectionLoss](#adaptivedetectionloss)
+  - [CrossEntropyLoss](#crossentropyloss)
+  - [BCEWithLogitsLoss](#bcewithlogitsloss)
+  - [SigmoidFocalLoss](#sigmoidfocalloss)
+  - [SoftmaxFocalLoss](#softmaxfocalloss)
+  - [AdaptiveDetectionLoss](#adaptivedetectionloss)
 
 ## CrossEntropyLoss
 
@@ -17,10 +17,11 @@ Adapted from [here](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntr
 
 **Params**
 
-| Key       | Type                             | Default value | Description                                                                                                           |
-| --------- | -------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------- |
-| weight    | list\[float\] \| None            | None          | A manual rescaling weight given to each class. If given, it has to be a list of the same length as there are classes. |
-| reduction | Literal\["none", "mean", "sum"\] | "mean"        | Specifies the reduction to apply to the output.                                                                       |
+| Key             | Type                             | Default value | Description                                                                                                                                                                                                                                                                                  |
+| --------------- | -------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| weight          | list\[float\] \| None            | None          | A manual rescaling weight given to each class. If given, it has to be a list of the same length as there are classes.                                                                                                                                                                        |
+| reduction       | Literal\["none", "mean", "sum"\] | "mean"        | Specifies the reduction to apply to the output.                                                                                                                                                                                                                                              |
+| label_smoothing | float\[0.0, 1.0\]                | 0.0           | Specifies the amount of smoothing when computing the loss, where 0.0 means no smoothing. The targets become a mixture of the original ground truth and a uniform distribution as described in [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567). |
 
 ## BCEWithLogitsLoss
 
@@ -28,12 +29,22 @@ Adapted from [here](https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLo
 
 **Params**
 
+| Key          | Type                             | Default value | Description                                                                                                                                                                                                                                               |
+| ------------ | -------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| weight       | list\[float\] \| None            | None          | A manual rescaling weight given to each class. If given, has to be a list of the same length as there are classes.                                                                                                                                        |
+| ignore_index | int                              | -100          | Specifies a target value that is ignored and does not contribute to the input gradient. When `size_average` is `True`, the loss is averaged over non-ignored targets. Note that `ignore_index` is only applicable when the target contains class indices. |
+| reduction    | Literal\["none", "mean", "sum"\] | "mean"        | Specifies the reduction to apply to the output.                                                                                                                                                                                                           |
+
+## SmoothBCEWithLogitsLoss
+
+**Params**
+
 | Key             | Type                             | Default value | Description                                                                                                                                                                                                                                                                                  |
 | --------------- | -------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | weight          | list\[float\] \| None            | None          | A manual rescaling weight given to each class. If given, has to be a list of the same length as there are classes.                                                                                                                                                                           |
-| ignore_index    | int                              | -100          | Specifies a target value that is ignored and does not contribute to the input gradient. When `size_average` is `True`, the loss is averaged over non-ignored targets. Note that `ignore_index` is only applicable when the target contains class indices.                                    |
 | reduction       | Literal\["none", "mean", "sum"\] | "mean"        | Specifies the reduction to apply to the output.                                                                                                                                                                                                                                              |
 | label_smoothing | float\[0.0, 1.0\]                | 0.0           | Specifies the amount of smoothing when computing the loss, where 0.0 means no smoothing. The targets become a mixture of the original ground truth and a uniform distribution as described in [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567). |
+| bce_pow         | float                            | 1.0           | Weight for the positive samples.                                                                                                                                                                                                                                                             |
 
 ## SigmoidFocalLoss
 

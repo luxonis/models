@@ -5,11 +5,14 @@ List of all the available loss functions.
 ## Table Of Content
 
 - [Losses](#losses)
-  - [CrossEntropyLoss](#crossentropyloss)
-  - [BCEWithLogitsLoss](#bcewithlogitsloss)
-  - [SigmoidFocalLoss](#sigmoidfocalloss)
-  - [SoftmaxFocalLoss](#softmaxfocalloss)
-  - [AdaptiveDetectionLoss](#adaptivedetectionloss)
+  * [Table Of Content](#table-of-content)
+  * [CrossEntropyLoss](#crossentropyloss)
+  * [BCEWithLogitsLoss](#bcewithlogitsloss)
+  * [SmoothBCEWithLogitsLoss](#smoothbcewithlogitsloss)
+  * [SigmoidFocalLoss](#sigmoidfocalloss)
+  * [SoftmaxFocalLoss](#softmaxfocalloss)
+  * [AdaptiveDetectionLoss](#adaptivedetectionloss)
+  * [ImplicitKeypointBBoxLoss](#implicitkeypointbboxloss)
 
 ## CrossEntropyLoss
 

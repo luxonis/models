@@ -76,7 +76,6 @@ Example of combining [KeypointVisualizer](#keypointvisualizer) and [BBoxVisualzi
 
 **Params**
 
-| Key                                                                                                                                                                                           | Type         | Default value                                    | Description |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------------------------------ | ----------- |
-| visualizers                                                                                                                                                                                   | list\[dict\] | List of visualizers to combine. Each item in the |             |
-| list is a dictionary with the following keys: <br> - name (str): Name of the visualizer. Must be a key in the VISUALIZERS registry. <br> params (dict): Parameters to pass to the visualizer. |              |                                                  |             |
+| Key         | Type         | Default value | Description                                                                                                                                                                                                                                    |
+| ----------- | ------------ | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| visualizers | list\[dict\] | \[ \]         | List of visualizers to combine. Each item in the list is a dictionary with the following keys: <br> - name (str): Name of the visualizer. Must be a key in the VISUALIZERS registry. <br> params (dict): Parameters to pass to the visualizer. |

@@ -2,6 +2,7 @@ from torch import Tensor
 
 from luxonis_train.utils.registry import VISUALIZERS
 from luxonis_train.utils.types import (
+    Kwargs,
     Labels,
     Packet,
 )
@@ -16,7 +17,16 @@ class MultiVisualizer(BaseVisualizer[Packet[Tensor], Labels]):
     the same canvas.
     """
 
-    def __init__(self, visualizers: list[dict], **kwargs):
+    def __init__(self, visualizers: list[Kwargs], **kwargs):
+        """
+
+        Args:
+            visualizers (list[Kwargs]): List of visualizers to combine. Each item in the
+                list is a dictionary with the following keys:
+                - name (str): Name of the visualizer. Must be a key in the
+                    VISUALIZERS registry.
+                - params (dict): Parameters to pass to the visualizer.
+        """
         super().__init__(**kwargs)
         self.visualizers = []
         for item in visualizers:

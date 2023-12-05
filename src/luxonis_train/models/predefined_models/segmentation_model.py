@@ -44,6 +44,7 @@ class SegmentationModel(BasePredefinedModel):
                 name="BCEWithLogitsLoss"
                 if self.task == "binary"
                 else "CrossEntropyLoss",
+                override_name="segmentation_loss",
                 attached_to="segmentation_head",
                 params=self.loss_params,
                 weight=1.0,

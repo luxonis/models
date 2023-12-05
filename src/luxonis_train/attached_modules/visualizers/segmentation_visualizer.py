@@ -12,6 +12,12 @@ from .utils import (
 
 class SegmentationVisualizer(BaseVisualizer[Tensor, Tensor]):
     def __init__(self, color: str = "#5050FF", alpha: float = 0.6, **kwargs):
+        """
+
+        Args:
+            color (str): Color of the segmentation masks. Defaults to "#5050FF".
+            alpha (float): Alpha value of the segmentation masks. Defaults to 0.6.
+        """
         super().__init__(
             protocol=SegmentationProtocol,
             required_labels=[LabelType.SEGMENTATION],

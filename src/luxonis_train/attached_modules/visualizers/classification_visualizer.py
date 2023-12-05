@@ -13,11 +13,15 @@ from .utils import (
 
 
 class ClassificationVisualizer(BaseVisualizer[Tensor, Tensor]):
-    def __init__(
-        self, class_names: list[str] | None = None, include_plot: bool = False, **kwargs
-    ):
+    def __init__(self, include_plot: bool = False, **kwargs):
+        """
+
+        Args:
+            include_plot (bool): Whether to include a plot of the class
+                probabilities in the visualization. Defaults to False.
+        """
         super().__init__(**kwargs)
-        self.class_names = class_names
+        self.class_names = self.node_attributes.dataset_metadata.class_names
         self.include_plot = include_plot
 
     def _get_class_name(self, cls: Tensor) -> str:

@@ -36,7 +36,7 @@ class BBoxVisualizer(BaseVisualizer[Tensor, Tensor]):
         Args:
             labels (dict[int, str] | list[str], optional): Either a dictionary mapping
               class indices to names, or a list of names. If list is provided, the
-              label mapping is done by index. By default, no labels are used.
+              label mapping is done by index. By default, no labels are drawn.
             colors (dict[int, tuple[int, int, int] | str]
                     | list[tuple[int, int, int] | str], optional):
               Either a dictionary mapping class indices to colors, or a list of colors.

@@ -44,6 +44,7 @@ Adapted from [here](https://pytorch.org/vision/main/models/generated/torchvision
 ## MicroNet
 
 Adapted from [here](https://github.com/liyunsheng13/micronet).
+
 **Params**
 
 | Key     | Type                        | Default value | Description |
@@ -53,6 +54,7 @@ Adapted from [here](https://github.com/liyunsheng13/micronet).
 ## RepVGG
 
 Adapted from [here](https://github.com/DingXiaoH/RepVGG).
+
 **Params**
 
 | Key     | Type                        | Default value | Description |
@@ -61,7 +63,7 @@ Adapted from [here](https://github.com/DingXiaoH/RepVGG).
 
 ## EfficientRep
 
-Adapted from [here](https://arxiv.org/pdf/2209.02976.pdf)
+Adapted from [here](https://arxiv.org/pdf/2209.02976.pdf).
 
 **Params**
 

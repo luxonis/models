@@ -260,7 +260,7 @@ class ExportConfig(BaseModel):
     mean_values: list[float] | None = None
     onnx: OnnxExportConfig = OnnxExportConfig()
     blobconverter: BlobconverterExportConfig = BlobconverterExportConfig()
-    upload_directory: str | None = None
+    upload_url: str | None = None
 
     @model_validator(mode="after")
     def check_values(self):

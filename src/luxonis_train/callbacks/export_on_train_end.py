@@ -16,7 +16,7 @@ class ExportOnTrainEnd(pl.Callback):
 
         Args:
             upload_to_mlflow (bool, optional): If se to True, overrides the
-              upload directory in Exporter with currently
+              upload url in Exporter with currently
               active MLFlow run (if present).
         """
         super().__init__()

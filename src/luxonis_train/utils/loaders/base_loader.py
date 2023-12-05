@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod, abstractproperty
 
 import torch
 from luxonis_ml.utils.registry import AutoRegisterMeta
-from torch import Tensor, Size
+from torch import Size, Tensor
 from torch.utils.data import Dataset
 
 from luxonis_train.utils.registry import LOADERS
@@ -23,7 +23,7 @@ class BaseLoaderTorch(
 
     @abstractproperty
     def input_shape(self) -> Size:
-        """Input shape in [N,C,H,W] format"""
+        """Input shape in [N,C,H,W] format."""
         ...
 
     @abstractmethod

@@ -3,10 +3,7 @@ from pytorch_lightning.callbacks import BaseFinetuning
 from torch import nn
 from torch.optim.optimizer import Optimizer
 
-from luxonis_train.utils.registry import CALLBACKS
 
-
-@CALLBACKS.register_module()
 class ModuleFreezer(BaseFinetuning):
     """Callback that freezes parts of the model."""
 

@@ -6,6 +6,7 @@ You can create your own config or use/edit one of the examples.
 
 ## Table Of Content
 
+- [Top-level Options](#top-level-options)
 - [Model](#model)
   - [Nodes](#nodes)
   - [Attached Modules](#attached-modules)
@@ -26,7 +27,7 @@ You can create your own config or use/edit one of the examples.
 - [Tuner](#tuner)
   - [Storage](#storage)
 
-**Top-level options**
+## Top-level Options
 
 | Key           | Type                  | Default value | Description                                   |
 | ------------- | --------------------- | ------------- | --------------------------------------------- |

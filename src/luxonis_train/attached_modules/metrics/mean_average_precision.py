@@ -49,11 +49,12 @@ class MeanAveragePrecision(BaseMetric, detection.MeanAveragePrecision):
 
         return output_list, label_list
 
-    def compute(self) -> dict[str, Tensor]:
+    def compute(self) -> tuple[Tensor, dict[str, Tensor]]:
         metric_dict = self.metric.compute()
 
         del metric_dict["classes"]
         del metric_dict["map_per_class"]
         del metric_dict["mar_100_per_class"]
+        map = metric_dict.pop("map")
 
-        return metric_dict
+        return map, metric_dict

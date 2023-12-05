@@ -205,7 +205,7 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
             )
 
     @typechecked
-    def compute(self) -> dict[str, Tensor]:
+    def compute(self) -> tuple[Tensor, dict[str, Tensor]]:
         """Torchmetric compute function."""
         coco_target, coco_preds = COCO(), COCO()
         coco_target.dataset = self._get_coco_format(
@@ -234,8 +234,8 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
             self.coco_eval.summarize()
             stats = self.coco_eval.stats
 
-        return {
-            "kpt_map": torch.tensor([stats[0]], dtype=torch.float32),
+        kpt_map = torch.tensor([stats[0]], dtype=torch.float32)
+        return kpt_map, {
             "kpt_map_50": torch.tensor([stats[1]], dtype=torch.float32),
             "kpt_map_75": torch.tensor([stats[2]], dtype=torch.float32),
             "kpt_map_medium": torch.tensor([stats[3]], dtype=torch.float32),

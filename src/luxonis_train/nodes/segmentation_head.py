@@ -17,11 +17,7 @@ from .base_node import BaseNode
 
 
 class SegmentationHead(BaseNode[Tensor, Tensor]):
-    def __init__(
-        self,
-        n_classes: int | None = None,
-        **kwargs,
-    ):
+    def __init__(self, **kwargs):
         """Basic segmentation FCN head. Note that it doesn't ensure that ouptut is same
         size as input.
 
@@ -30,7 +26,6 @@ class SegmentationHead(BaseNode[Tensor, Tensor]):
             head attaches to. Defaults to -1.
         """
         super().__init__(attach_index=-1, **kwargs)
-        n_classes = n_classes or self.dataset_metadata.n_classes
 
         original_height = self.original_in_shape[2]
         num_up = infer_upscale_factor(
@@ -46,7 +41,8 @@ class SegmentationHead(BaseNode[Tensor, Tensor]):
             in_channels //= 2
 
         self.head = nn.Sequential(
-            *modules, nn.Conv2d(in_channels, n_classes, kernel_size=1)
+            *modules,
+            nn.Conv2d(in_channels, self.dataset_metadata.n_classes, kernel_size=1),
         )
 
     def wrap(self, output: Tensor) -> Packet[Tensor]:

@@ -15,7 +15,7 @@ Visualizer for bounding boxes.
 
 **Example**
 
-![bbox_viz_example](../../../media/example_viz/bbox.png)
+![bbox_viz_example](../../../../media/example_viz/bbox.png)
 
 **Params**
 
@@ -32,7 +32,7 @@ Visualizer for bounding boxes.
 
 **Example**
 
-![kpt_viz_example](../../../media/example_viz/kpts.png)
+![kpt_viz_example](../../../../media/example_viz/kpts.png)
 
 **Params**
 
@@ -47,7 +47,7 @@ Visualizer for bounding boxes.
 
 **Example**
 
-![seg_viz_example](../../../media/example_viz/segmentation.png)
+![seg_viz_example](../../../../media/example_viz/segmentation.png)
 
 **Params**
 
@@ -72,7 +72,7 @@ Special type of meta-visualizer that combines several visualizers into one. The 
 
 Example of combining [KeypointVisualizer](#keypointvisualizer) and [BBoxVisualzier](#bboxvisualizer).
 
-![multi_viz_example](../../../media/example_viz/multi.png)
+![multi_viz_example](../../../../media/example_viz/multi.png)
 
 **Params**
 

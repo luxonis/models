@@ -4,12 +4,11 @@ List of all supported callbacks.
 
 ## Table Of Content
 
-- [Callbacks](#callbacks)
-  - [PytorchLightning Callbacks](#pytorchlightning-callbacks)
-  - [ExportOnTrainEnd](#exportontrainend)
-  - [LuxonisProgressBar](#luxonisprogressbar)
-  - [MetadataLogger](#metadatalogger)
-  - [TestOnTrainEnd](#testontrainend)
+- [PytorchLightning Callbacks](#pytorchlightning-callbacks)
+- [ExportOnTrainEnd](#exportontrainend)
+- [LuxonisProgressBar](#luxonisprogressbar)
+- [MetadataLogger](#metadatalogger)
+- [TestOnTrainEnd](#testontrainend)
 
 ## PytorchLightning Callbacks
 

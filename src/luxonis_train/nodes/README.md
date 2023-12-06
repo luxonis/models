@@ -5,22 +5,21 @@ arbitrarily as long as the two nodes are compatible with each other.
 
 ## Table Of Content
 
-- [Nodes](#nodes)
-  - [ResNet18](#resnet18)
-  - [MicroNet](#micronet)
-  - [RepVGG](#repvgg)
-  - [EfficientRep](#efficientrep)
-  - [RexNetV1_lite](#rexnetv1_lite)
-  - [MobileOne](#mobileone)
-  - [MobileNetV2](#mobilenetv2)
-  - [EfficientNet](#efficientnet)
-  - [ContextSpatial](#contextspatial)
-  - [RepPANNeck](#reppanneck)
-  - [ClassificationHead](#classificationhead)
-  - [SegmentationHead](#segmentationhead)
-  - [BiSeNetHead](#bisenethead)
-  - [EfficientBBoxHead](#efficientbboxhead)
-  - [ImplicitKeypointBBoxHead](#implicitkeypointbboxhead)
+- [ResNet18](#resnet18)
+- [MicroNet](#micronet)
+- [RepVGG](#repvgg)
+- [EfficientRep](#efficientrep)
+- [RexNetV1_lite](#rexnetv1_lite)
+- [MobileOne](#mobileone)
+- [MobileNetV2](#mobilenetv2)
+- [EfficientNet](#efficientnet)
+- [ContextSpatial](#contextspatial)
+- [RepPANNeck](#reppanneck)
+- [ClassificationHead](#classificationhead)
+- [SegmentationHead](#segmentationhead)
+- [BiSeNetHead](#bisenethead)
+- [EfficientBBoxHead](#efficientbboxhead)
+- [ImplicitKeypointBBoxHead](#implicitkeypointbboxhead)
 
 Every node takes these parameters:
 

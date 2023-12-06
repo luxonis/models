@@ -2,12 +2,11 @@
 
 ## Table Of Content
 
-- [Visualizers](#visualizers)
-  - [BBoxVisualizer](#bboxvisualizer)
-  - [ClassificationVisualizer](#classificationvisualizer)
-  - [KeypointVisualizer](#keypointvisualizer)
-  - [SegmentationVisualizer](#segmentationvisualizer)
-  - [MultiVisualizer](#multivisualizer)
+- [BBoxVisualizer](#bboxvisualizer)
+- [ClassificationVisualizer](#classificationvisualizer)
+- [KeypointVisualizer](#keypointvisualizer)
+- [SegmentationVisualizer](#segmentationvisualizer)
+- [MultiVisualizer](#multivisualizer)
 
 ## BBoxVisualizer
 

@@ -4,11 +4,10 @@ List of all the available metrics.
 
 ## Table Of Content
 
-- [Metrics](#metrics)
-  - [Torchmetrics](#torchmetrics)
-  - [ObjectKeypointSimilarity](#objectkeypointsimilarity)
-  - [MeanAveragePrecision](#meanaverageprecision)
-  - [MeanAveragePrecisionKeypoints](#meanaverageprecisionkeypoints)
+- [Torchmetrics](#torchmetrics)
+- [ObjectKeypointSimilarity](#objectkeypointsimilarity)
+- [MeanAveragePrecision](#meanaverageprecision)
+- [MeanAveragePrecisionKeypoints](#meanaverageprecisionkeypoints)
 
 ## Torchmetrics
 

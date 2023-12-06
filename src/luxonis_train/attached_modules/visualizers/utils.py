@@ -2,6 +2,7 @@ import io
 from typing import Literal
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import torch
@@ -31,6 +32,7 @@ def figure_to_torch(fig: Figure, width: int, height: int) -> Tensor:
     img_arr = img_arr.resize((width, height))
     img_tensor = torch.tensor(np.array(img_arr)).permute(2, 0, 1)
     buf.close()
+    plt.close(fig)
     return img_tensor
 
 

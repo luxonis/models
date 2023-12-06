@@ -20,8 +20,8 @@ models which can be used instead.
 | [SegmentationHead](../../nodes/README.md#segmentationhead)                     | segmentation_head     | Head of the model.                                                      |
 | [BCEWithLogitsLoss](../../attached_modules/losses/README.md#bcewithlogitsloss) | segmentation_loss     | Loss of the model when the task is set to "binary".                     |
 | [CrossEntropyLoss](../../attached_modules/losses/README.md#crossentropyloss)   | segmentation_loss     | Loss of the model when the task is set to "multiclass" or "multilabel". |
-| [JaccardIndex](../../attached_modules/metrics/README.md#jaccardindex) | segmentation_jaccard_index     | Main metric of the model.                     |
-| [F1Score](../../attached_modules/metrics/README.md#f1score) | segmentation_f1_score     | Secondary metric of the model.                     |
+| [JaccardIndex](../../attached_modules/metrics/README.md#torchmetrics) | segmentation_jaccard_index     | Main metric of the model.                     |
+| [F1Score](../../attached_modules/metrics/README.md#torchmetrics) | segmentation_f1_score     | Secondary metric of the model.                     |
 | [SegmentationVisualizer](../../attached_modules/visualizers/README.md#segmentationvisualizer) | segmentation_visualizer    | Visualizer of the `SegmentationHead`.                     |
 
 **Params**
@@ -94,15 +94,18 @@ Basic model for classification. Can be used for multiclass and multilabel tasks.
 
 | Name                                                                           | Alias                 | Function                                                                |
 | ------------------------------------------------------------------------------ | --------------------- | ----------------------------------------------------------------------- |
-| [MicroNet](../../nodes/README.md#micronet)                                     | segmentation_backbone | Backbone of the model. Can be changed                                   |
-| [ClassificationHead](../../nodes/README.md#classificationhead)                     | segmentation_head     | Head of the model.                                                      |
-| [CrossEntropyLoss](../../attached_modules/losses/README.md#crossentropyloss)   | segmentation_loss     | Loss of the model. |
+| [MicroNet](../../nodes/README.md#micronet)                                     | classification_backbone | Backbone of the model. Can be changed                                   |
+| [ClassificationHead](../../nodes/README.md#classificationhead)                     | classification_head     | Head of the model.                                                      |
+| [CrossEntropyLoss](../../attached_modules/losses/README.md#crossentropyloss)   | classification_loss     | Loss of the model. |
+| [F1Score](../../attached_modules/metrics/README.md#torchmetrics) | classification_f1_score     | Main metric of the model.                     |
+| [Accuracy](../../attached_modules/metrics/README.md#torchmetrics) | classification_accuracy     | Secondary metric of the model.                     |
+| [Recall](../../attached_modules/metrics/README.md#torchmetrics) | classification_recall     | Secondary metric of the model.                     |
 
 **Params**
 
 | Key               | Type                                            | Default value | Description                                |
 | ----------------- | ----------------------------------------------- | ------------- | ------------------------------------------ |
-| task              | Literal\["binary", "multiclass", "multilabel"\] | "binary"      | Type of the task of the model.             |
+| task              | Literal\["multiclass", "multilabel"\] | "multiclass"      | Type of the task of the model.             |
 | backbone          | str                                             | "MicroNet"    | Name of the node to be used as a backbone. |
 | backbone_params   | dict                                            | {}            | Additional parameters to the backbone.     |
 | head_params       | dict                                            | {}            | Additional parameters to the head.         |

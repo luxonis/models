@@ -318,12 +318,13 @@ class BaseNode(
 
         if isinstance(output, Tensor):
             outputs: list[Tensor] = [output]
-        try:
-            outputs = check_type(output, list[Tensor])
-        except TypeCheckError as e:
-            raise IncompatibleException(
-                "Default `wrap` expects a single tensor or a list of tensors."
-            ) from e
+        else:
+            try:
+                outputs = check_type(output, list[Tensor])
+            except TypeCheckError as e:
+                raise IncompatibleException(
+                    "Default `wrap` expects a single tensor or a list of tensors."
+                ) from e
         return {"features": outputs}
 
     def __call__(self, inputs: list[Packet[Tensor]]) -> Packet[Tensor]:

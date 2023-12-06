@@ -148,7 +148,7 @@ class BaseAttachedModule(
             if "boxes" in inputs and LabelType.BOUNDINGBOX in labels:
                 return inputs["boxes"], labels[LabelType.BOUNDINGBOX]  # type: ignore
             if "classes" in inputs and LabelType.CLASSIFICATION in labels:
-                return inputs["classes"], labels[LabelType.CLASSIFICATION]  # type: ignore
+                return inputs["classes"][0], labels[LabelType.CLASSIFICATION]  # type: ignore
             if "keypoints" in inputs and LabelType.KEYPOINT in labels:
                 return inputs["keypoints"], labels[LabelType.KEYPOINT]  # type: ignore
             if "segmentation" in inputs and LabelType.SEGMENTATION in labels:

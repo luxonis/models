@@ -15,7 +15,7 @@ from .base_predefined_model import BasePredefinedModel
 @dataclass
 class ClassificationModel(BasePredefinedModel):
     backbone: str = "MicroNet"
-    task: Literal["multiclass", "multilabel"] = "multiclass"
+    task: Literal["multiclass", "multilabel"] = "multilabel"
     backbone_params: Kwargs = field(default_factory=dict)
     head_params: Kwargs = field(default_factory=dict)
     loss_params: Kwargs = field(default_factory=dict)
@@ -56,6 +56,18 @@ class ClassificationModel(BasePredefinedModel):
                 name="F1Score",
                 override_name="classification_f1_score",
                 is_main_metric=True,
+                attached_to="classification_head",
+                params={"task": self.task},
+            ),
+            MetricModuleConfig(
+                name="Accuracy",
+                override_name="classification_accuracy",
+                attached_to="classification_head",
+                params={"task": self.task},
+            ),
+            MetricModuleConfig(
+                name="Recall",
+                override_name="classification_recall",
                 attached_to="classification_head",
                 params={"task": self.task},
             ),

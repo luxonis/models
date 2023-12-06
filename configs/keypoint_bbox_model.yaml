@@ -10,9 +10,6 @@ model:
 
 dataset:
   dataset_name: coco_test
-  train_view: train
-  val_view: train
-  test_view: test
 
 train:
   preprocessing:

@@ -1,5 +1,7 @@
 from torch import Tensor, nn
 
+from luxonis_train.utils.types import Packet
+
 from .base_node import BaseNode
 
 
@@ -29,3 +31,6 @@ class ClassificationHead(BaseNode[Tensor, Tensor]):
 
     def forward(self, inputs: Tensor) -> Tensor:
         return self.head(inputs)
+
+    def wrap(self, output: Tensor) -> Packet[Tensor]:
+        return {"classes": [output]}

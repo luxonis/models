@@ -12,10 +12,6 @@
 
 Visualizer for bounding boxes.
 
-**Example**
-
-![bbox_viz_example](../../../../media/example_viz/bbox.png)
-
 **Params**
 
 | Key       | Type                                    | Default value                                          | Description                                                                                                                                                       |
@@ -27,11 +23,11 @@ Visualizer for bounding boxes.
 | font      | str \| None                             | None                                                   | A filename containing a TrueType font.                                                                                                                            |
 | font_size | int \| None                             |                                                        | None                                                                                                                                                              |
 
-## KeypointVisualizer
-
 **Example**
 
-![kpt_viz_example](../../../../media/example_viz/kpts.png)
+![bbox_viz_example](../../../../media/example_viz/bbox.png)
+
+## KeypointVisualizer
 
 **Params**
 
@@ -41,12 +37,12 @@ Visualizer for bounding boxes.
 | connectivity         | list\[tuple\[int, int\]\] \| None | None          | List of tuples of keypoint indices that define the connections in the skeleton.                                                  |
 | visible_color        | str                               | "red"         | Color of visible keypoints.                                                                                                      |
 | nonvisible_color     | str \| None                       | None          | Color of nonvisible keypoints. If None, nonvisible keypoints are not drawn.                                                      |
-
-## SegmentationVisualizer
-
 **Example**
 
-![seg_viz_example](../../../../media/example_viz/segmentation.png)
+![kpt_viz_example](../../../../media/example_viz/kpts.png)
+
+
+## SegmentationVisualizer
 
 **Params**
 
@@ -55,13 +51,24 @@ Visualizer for bounding boxes.
 | color | str   | #5050FF       | Color of the segmentation masks.       |
 | alpha | float | 0.6           | Alpha value of the segmentation masks. |
 
+**Example**
+
+![seg_viz_example](../../../../media/example_viz/segmentation.png)
+
 ## ClassificationVisualizer
 
 **Params**
 
 | Key          | Type | Default value | Description                                                                |
 | ------------ | ---- | ------------- | -------------------------------------------------------------------------- |
-| include_plot | bool | False         | Whether to include a plot of the class probabilities in the visualization. |
+| include_plot | bool | True         | Whether to include a plot of the class probabilities in the visualization. |
+| color | tuple[int, int, int]   | (255, 0, 0)      | Color of the text. |
+| font_scale | float | 1.0 | Scale of the font. |
+| thickness | int | 1 | Line thickness of the font. |
+
+**Example**
+
+![class_viz_example](../../../../media/example_viz/class.png)
 
 ## MultiVisualizer
 

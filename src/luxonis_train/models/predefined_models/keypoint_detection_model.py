@@ -26,7 +26,7 @@ class KeypointDetectionModel(BasePredefinedModel):
         nodes = [
             ModelNodeConfig(
                 name="EfficientRep",
-                override_name="keypoint_bbox_backbone",
+                override_name="kpt_detection_backbone",
                 params=self.backbone_params,
             ),
         ]
@@ -34,8 +34,8 @@ class KeypointDetectionModel(BasePredefinedModel):
             nodes.append(
                 ModelNodeConfig(
                     name="RepPANNeck",
-                    override_name="keypoint_bbox_neck",
-                    inputs=["keypoint_bbox_backbone"],
+                    override_name="kpt_detection_neck",
+                    inputs=["kpt_detection_backbone"],
                     params=self.neck_params,
                 )
             )
@@ -43,10 +43,10 @@ class KeypointDetectionModel(BasePredefinedModel):
         nodes.append(
             ModelNodeConfig(
                 name="ImplicitKeypointBBoxHead",
-                override_name="keypoint_bbox_head",
-                inputs=["keypoint_bbox_neck"]
+                override_name="kpt_detection_head",
+                inputs=["kpt_detection_neck"]
                 if self.use_neck
-                else ["keypoint_bbox_backbone"],
+                else ["kpt_detection_backbone"],
                 params=self.head_params,
             )
         )
@@ -57,7 +57,7 @@ class KeypointDetectionModel(BasePredefinedModel):
         return [
             LossModuleConfig(
                 name="ImplicitKeypointBBoxLoss",
-                attached_to="keypoint_bbox_head",
+                attached_to="kpt_detection_head",
                 params=self.loss_params,
                 weight=1.0,
             )
@@ -68,12 +68,14 @@ class KeypointDetectionModel(BasePredefinedModel):
         return [
             MetricModuleConfig(
                 name="ObjectKeypointSimilarity",
-                attached_to="keypoint_bbox_head",
+                override_name="kpt_detection_oks",
+                attached_to="kpt_detection_head",
                 is_main_metric=True,
             ),
             MetricModuleConfig(
                 name="MeanAveragePrecisionKeypoints",
-                attached_to="keypoint_bbox_head",
+                override_name="kpt_detection_map",
+                attached_to="kpt_detection_head",
             ),
         ]
 
@@ -82,7 +84,8 @@ class KeypointDetectionModel(BasePredefinedModel):
         return [
             AttachedModuleConfig(
                 name="MultiVisualizer",
-                attached_to="keypoint_bbox_head",
+                override_name="kpt_detection_visualizer",
+                attached_to="kpt_detection_head",
                 params={
                     "visualizers": [
                         {

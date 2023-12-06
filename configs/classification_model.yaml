@@ -1,0 +1,49 @@
+# Example configuration for training a predefined segmentation model
+
+
+use_rich_text: True
+
+model:
+  name: cifar10_classification
+  predefined_model:
+    name: ClassificationModel
+    params:
+      backbone: MicroNet
+      task: multiclass
+
+dataset:
+  dataset_name: cifar10_test
+  train_view: train
+  val_view: val
+  test_view: test
+
+train:
+  preprocessing:
+    train_image_size: [&height 128, &width 128]
+    keep_aspect_ratio: False
+    normalize:
+      active: True
+
+  batch_size: 4
+  epochs: &epochs 1
+  num_workers: 4
+  validation_interval: 1
+  num_log_images: 8
+
+  callbacks:
+    - name: ExportOnTrainEnd
+    - name: TestOnTrainEnd
+
+  optimizer:
+    name: SGD
+    params:
+      lr: 0.02
+      momentum: 0.937
+      nesterov: True
+      weight_decay: 0.0005
+
+  scheduler:
+    name: CosineAnnealingLR
+    params:
+      T_max: *epochs
+      eta_min: 0

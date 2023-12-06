@@ -15,7 +15,7 @@ from .base_predefined_model import BasePredefinedModel
 @dataclass
 class SegmentationModel(BasePredefinedModel):
     backbone: str = "MicroNet"
-    task: Literal["binary", "multiclass", "multilabel"] = "binary"
+    task: Literal["binary", "multiclass"] = "binary"
     backbone_params: Kwargs = field(default_factory=dict)
     head_params: Kwargs = field(default_factory=dict)
     loss_params: Kwargs = field(default_factory=dict)
@@ -56,13 +56,14 @@ class SegmentationModel(BasePredefinedModel):
         return [
             MetricModuleConfig(
                 name="JaccardIndex",
-                override_name="IoU",
+                override_name="segmentation_jaccard_index",
                 attached_to="segmentation_head",
                 is_main_metric=True,
                 params={"task": self.task},
             ),
             MetricModuleConfig(
                 name="F1Score",
+                override_name="segmentation_f1_score",
                 attached_to="segmentation_head",
                 params={"task": self.task},
             ),
@@ -73,6 +74,7 @@ class SegmentationModel(BasePredefinedModel):
         return [
             AttachedModuleConfig(
                 name="SegmentationVisualizer",
+                override_name="segmentation_visualizer",
                 attached_to="segmentation_head",
                 params=self.visualizer_params,
             )

@@ -54,6 +54,7 @@ class DetectionModel(BasePredefinedModel):
         return [
             LossModuleConfig(
                 name="AdaptiveDetectionLoss",
+                override_name="detection_loss",
                 attached_to="detection_head",
                 params=self.loss_params,
                 weight=1.0,
@@ -65,6 +66,7 @@ class DetectionModel(BasePredefinedModel):
         return [
             MetricModuleConfig(
                 name="MeanAveragePrecision",
+                override_name="detection_map",
                 attached_to="detection_head",
                 is_main_metric=True,
             ),
@@ -75,6 +77,7 @@ class DetectionModel(BasePredefinedModel):
         return [
             AttachedModuleConfig(
                 name="BBoxVisualizer",
+                override_name="detection_visualizer",
                 attached_to="detection_head",
                 params=self.visualizer_params,
             )

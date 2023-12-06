@@ -74,14 +74,15 @@ Visualizer for bounding boxes.
 
 Special type of meta-visualizer that combines several visualizers into one. The combined visualizers share canvas.
 
+**Params**
+
+| Key         | Type         | Default value | Description                                                                                                                                                                                                                                    |
+| ----------- | ------------ | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| visualizers | list\[dict\] | \[ \]         | List of visualizers to combine. Each item in the list is a dictionary with the following keys: <br> - name (str): Name of the visualizer. Must be a key in the VISUALIZERS registry. <br> params (dict): Parameters to pass to the visualizer. |
+
 **Example**
 
 Example of combining [KeypointVisualizer](#keypointvisualizer) and [BBoxVisualizer](#bboxvisualizer).
 
 ![multi_viz_example](../../../../media/example_viz/multi.png)
 
-**Params**
-
-| Key         | Type         | Default value | Description                                                                                                                                                                                                                                    |
-| ----------- | ------------ | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| visualizers | list\[dict\] | \[ \]         | List of visualizers to combine. Each item in the list is a dictionary with the following keys: <br> - name (str): Name of the visualizer. Must be a key in the VISUALIZERS registry. <br> params (dict): Parameters to pass to the visualizer. |

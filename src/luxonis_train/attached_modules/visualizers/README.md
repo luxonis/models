@@ -37,10 +37,9 @@ Visualizer for bounding boxes.
 | connectivity         | list\[tuple\[int, int\]\] \| None | None          | List of tuples of keypoint indices that define the connections in the skeleton.                                                  |
 | visible_color        | str                               | "red"         | Color of visible keypoints.                                                                                                      |
 | nonvisible_color     | str \| None                       | None          | Color of nonvisible keypoints. If None, nonvisible keypoints are not drawn.                                                      |
-**Example**
+| **Example**          |                                   |               |                                                                                                                                  |
 
 ![kpt_viz_example](../../../../media/example_viz/kpts.png)
-
 
 ## SegmentationVisualizer
 
@@ -59,12 +58,12 @@ Visualizer for bounding boxes.
 
 **Params**
 
-| Key          | Type | Default value | Description                                                                |
-| ------------ | ---- | ------------- | -------------------------------------------------------------------------- |
-| include_plot | bool | True         | Whether to include a plot of the class probabilities in the visualization. |
-| color | tuple[int, int, int]   | (255, 0, 0)      | Color of the text. |
-| font_scale | float | 1.0 | Scale of the font. |
-| thickness | int | 1 | Line thickness of the font. |
+| Key          | Type                   | Default value | Description                                                                |
+| ------------ | ---------------------- | ------------- | -------------------------------------------------------------------------- |
+| include_plot | bool                   | True          | Whether to include a plot of the class probabilities in the visualization. |
+| color        | tuple\[int, int, int\] | (255, 0, 0)   | Color of the text.                                                         |
+| font_scale   | float                  | 1.0           | Scale of the font.                                                         |
+| thickness    | int                    | 1             | Line thickness of the font.                                                |
 
 **Example**
 
@@ -85,4 +84,3 @@ Special type of meta-visualizer that combines several visualizers into one. The 
 Example of combining [KeypointVisualizer](#keypointvisualizer) and [BBoxVisualizer](#bboxvisualizer).
 
 ![multi_viz_example](../../../../media/example_viz/multi.png)
-

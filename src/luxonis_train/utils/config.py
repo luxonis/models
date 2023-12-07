@@ -283,7 +283,7 @@ class StorageConfig(BaseModel):
 class TunerConfig(BaseModel):
     study_name: str = "test-study"
     use_pruner: bool = True
-    n_trials: int = 3
+    n_trials: int | None = 15
     timeout: int | None = None
     storage: StorageConfig = StorageConfig()
     params: Annotated[

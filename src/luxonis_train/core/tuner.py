@@ -1,4 +1,4 @@
-import os
+import os.path as osp
 
 import optuna
 import pytorch_lightning as pl
@@ -35,18 +35,13 @@ class Tuner(Core):
         if self.cfg.tuner.storage.active:
             if self.cfg.tuner.storage.storage_type == "local":
                 storage = "sqlite:///study_local.db"
-            elif self.cfg.tuner.storage.storage_type == "remote":
-                storage = "postgresql://{}:{}@{}:{}/{}".format(
-                    os.environ["POSTGRES_USER"],
-                    os.environ["POSTGRES_PASSWORD"],
-                    os.environ["POSTGRES_HOST"],
-                    os.environ["POSTGRES_PORT"],
-                    os.environ["POSTGRES_DB"],
-                )
             else:
-                raise KeyError(
-                    f"Storage type '{self.cfg.tuner.storage.storage_type}' "
-                    "not supported. Choose one of ['local', 'remote']"
+                storage = "postgresql://{}:{}@{}:{}/{}".format(
+                    self.cfg.ENVIRON.POSTGRES_USER,
+                    self.cfg.ENVIRON.POSTGRES_PASSWORD,
+                    self.cfg.ENVIRON.POSTGRES_HOST,
+                    self.cfg.ENVIRON.POSTGRES_PORT,
+                    self.cfg.ENVIRON.POSTGRES_DB,
                 )
 
         study = optuna.create_study(
@@ -68,24 +63,20 @@ class Tuner(Core):
         rank = rank_zero_only.rank
         cfg_tracker = self.cfg.tracker
         tracker_params = cfg_tracker.model_dump()
-        tracker_params.pop("logged_hyperparams")
         tracker = LuxonisTrackerPL(
             rank=rank,
             mlflow_tracking_uri=self.cfg.ENVIRON.MLFLOW_TRACKING_URI,
             is_sweep=True,
             **tracker_params,
         )
-        run_save_dir = os.path.join(cfg_tracker.save_directory, tracker.run_name)
+        run_save_dir = osp.join(cfg_tracker.save_directory, tracker.run_name)
 
-        # get curr trial params and update config
         curr_params = self._get_trial_params(trial)
-        for key, value in curr_params.items():
-            self.cfg.override_config({key: value})
+        self.cfg.override_config(curr_params)
 
-        tracker.log_hyperparams(curr_params)  # log curr trial params
+        tracker.log_hyperparams(curr_params)
 
-        # save current config to logger directory
-        self.cfg.save_data(os.path.join(run_save_dir, "config.yaml"))
+        self.cfg.save_data(osp.join(run_save_dir, "config.yaml"))
 
         lightning_module = LuxonisModel(
             cfg=self.cfg,
@@ -118,6 +109,12 @@ class Tuner(Core):
         )
         pruner_callback.check_pruned()
 
+        if "val/loss" not in pl_trainer.callback_metrics:
+            raise ValueError(
+                "No validation loss found. "
+                "This can happen if `TestOnTrainEnd` callback is used."
+            )
+
         return pl_trainer.callback_metrics["val/loss"].item()
 
     def _get_trial_params(self, trial: optuna.trial.Trial):
@@ -128,13 +125,24 @@ class Tuner(Core):
             key_info = key.split("_")
             key_name = "_".join(key_info[:-1])
             key_type = key_info[-1]
+            print(key_name)
             match key_type, value:
                 case "categorical", list(lst):
                     new_value = trial.suggest_categorical(key_name, lst)
-                case "float", [float(low), float(high)]:
-                    new_value = trial.suggest_float(key_name, low, high)
-                case "int", [int(low), int(high)]:
-                    new_value = trial.suggest_int(key_name, low, high)
+                case "float", [float(low), float(high), *step]:
+                    step = step[0] if step else None
+                    if step is not None and not isinstance(step, float):
+                        raise ValueError(
+                            f"Step for float type must be float, but got {step}"
+                        )
+                    new_value = trial.suggest_float(key_name, low, high, step=step)
+                case "int", [int(low), int(high), *step]:
+                    step = step[0] if step else 1
+                    if not isinstance(step, int):
+                        raise ValueError(
+                            f"Step for int type must be int, but got {step}"
+                        )
+                    new_value = trial.suggest_int(key_name, low, high, step=step)
                 case "loguniform", [float(low), float(high)]:
                     new_value = trial.suggest_loguniform(key_name, low, high)
                 case "uniform", [float(low), float(high)]:

@@ -250,7 +250,7 @@ Here you can specify options for tuning.
 | ---------- | ----------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | study_name | str               | "test-study"  | Name of the study.                                                                                                                                                                                                                                                                                                 |
 | use_pruner | bool              | True          | Whether to use the MedianPruner.                                                                                                                                                                                                                                                                                   |
-| n_trials   | int               | 3             | Number of trials for each process.                                                                                                                                                                                                                                                                                 |
+| n_trials   | int \| None               | 15            | Number of trials for each process. `None` represents no limit in terms of numbner of trials. |
 | timeout    | int \| None       | None          | Stop study after the given number of seconds.                                                                                                                                                                                                                                                                      |
 | params     | dict\[str, list\] | {}            | Which parameters to tune. The keys should be in the format `key1.key2.key3_<type>`. Type can be one of `[categorical, float, int, longuniform, uniform]`. For more information about the types, visit [Optuna documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.Trial.html). |
 
@@ -259,9 +259,9 @@ Example of params for tuner block:
 ```yaml
 tuner:
   params:
-    train.optimizers.optimizer.name_categorical: ["Adam", "SGD"]
-    train.optimizers.optimizer.params.lr_float: [0.0001, 0.001]
-    train.batch_size_int: [4, 4, 16]
+    train.optimizer.name_categorical: ["Adam", "SGD"]
+    train.optimizer.params.lr_float: [0.0001, 0.001]
+    train.batch_size_int: [4, 16, 4]
 ```
 
 ### Storage
@@ -269,6 +269,7 @@ tuner:
 | Key    | Type | Default value | Description                                          |
 | ------ | ---- | ------------- | ---------------------------------------------------- |
 | active | bool | True          | Whether to use storage to make the study persistent. |
+| storage_type | Literal\["local", "remote"\] | "local"          | Type of the storage. |
 
 ## ENVIRON
 
@@ -295,7 +296,7 @@ This is not a recommended way due to possible leakage of secrets. This section i
 | POSTGRES_PORT            | str \| None                                                | None                            |             |
 | POSTGRES_DB              | str \| None                                                | None                            |             |
 | LUXONISML_BUCKET         | str \| None                                                | None                            |             |
-| LUXONISML_BASE_PATH      | str                                                        | str(Path.home() / "luxonis_ml") |             |
+| LUXONISML_BASE_PATH      | str                                                        | "~/luxonis_ml" |             |
 | LUXONISML_TEAM_ID        | str                                                        | "offline"                       |             |
 | LUXONISML_TEAM_NAME      | str                                                        | "offline"                       |             |
 | LOG_LEVEL                | Literal\["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"\] | "INFO"                          |             |

@@ -1,7 +1,7 @@
 [project]
 name = "luxonis-train"
 version = "0.0.1"
-description = "Luxonis training library for training lightweight models that run fast on OAK products."
+description = "Luxonis training framework for seamless training of various neural networks."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }

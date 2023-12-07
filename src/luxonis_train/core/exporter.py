@@ -1,5 +1,4 @@
 import os
-import os.path as osp
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -45,9 +44,15 @@ class Exporter(Core):
         else:
             self.input_shape = Size(input_shape)
 
-        self.export_path = osp.join(
-            self.cfg.exporter.export_save_directory, self.cfg.exporter.export_model_name
+        export_path = (
+            Path(self.cfg.exporter.export_save_directory)
+            / self.cfg.exporter.export_model_name
         )
+
+        if not export_path.parent.exists():
+            self.logger.info(f"Creating export directory {export_path.parent}")
+            export_path.parent.mkdir(parents=True, exist_ok=True)
+        self.export_path = str(export_path)
 
         normalize_params = self.cfg.train.preprocessing.normalize.params
         if self.cfg.exporter.scale_values is not None:

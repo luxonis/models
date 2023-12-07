@@ -50,12 +50,18 @@ class Core:
         if opts:
             if len(opts) % 2 != 0:
                 raise ValueError("Override options should be a list of key-value pairs")
-            self.cfg.override_config(dict(zip(opts[::2], opts[1::2])))
+
+            # NOTE: has to be done like this for torchx to work
+            overrides = {}
+            if opts:
+                for i in range(0, len(opts), 2):
+                    overrides[opts[i]] = opts[i + 1]
+            self.cfg.override_config(overrides)
 
         if self.cfg.use_rich_text:
             rich.traceback.install(suppress=[pl, torch])
 
-        self.rank = rank_zero_only.rank
+        self.rank = rank_zero_only.rank  # type: ignore
 
         self.tracker = LuxonisTrackerPL(
             rank=self.rank,

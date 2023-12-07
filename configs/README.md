@@ -250,7 +250,7 @@ Here you can specify options for tuning.
 | ---------- | ----------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | study_name | str               | "test-study"  | Name of the study.                                                                                                                                                                                                                                                                                                 |
 | use_pruner | bool              | True          | Whether to use the MedianPruner.                                                                                                                                                                                                                                                                                   |
-| n_trials   | int \| None               | 15            | Number of trials for each process. `None` represents no limit in terms of numbner of trials. |
+| n_trials   | int \| None       | 15            | Number of trials for each process. `None` represents no limit in terms of numbner of trials.                                                                                                                                                                                                                       |
 | timeout    | int \| None       | None          | Stop study after the given number of seconds.                                                                                                                                                                                                                                                                      |
 | params     | dict\[str, list\] | {}            | Which parameters to tune. The keys should be in the format `key1.key2.key3_<type>`. Type can be one of `[categorical, float, int, longuniform, uniform]`. For more information about the types, visit [Optuna documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.trial.Trial.html). |
 
@@ -266,10 +266,10 @@ tuner:
 
 ### Storage
 
-| Key    | Type | Default value | Description                                          |
-| ------ | ---- | ------------- | ---------------------------------------------------- |
-| active | bool | True          | Whether to use storage to make the study persistent. |
-| storage_type | Literal\["local", "remote"\] | "local"          | Type of the storage. |
+| Key          | Type                         | Default value | Description                                          |
+| ------------ | ---------------------------- | ------------- | ---------------------------------------------------- |
+| active       | bool                         | True          | Whether to use storage to make the study persistent. |
+| storage_type | Literal\["local", "remote"\] | "local"       | Type of the storage.                                 |
 
 ## ENVIRON
 
@@ -280,23 +280,23 @@ For more info on the variables, see [Credentials](../README.md#credentials).
 
 This is not a recommended way due to possible leakage of secrets. This section is intended for testing purposes only.
 
-| Key                      | Type                                                       | Default value                   | Description |
-| ------------------------ | ---------------------------------------------------------- | ------------------------------- | ----------- |
-| AWS_ACCESS_KEY_ID        | str \| None                                                | None                            |             |
-| AWS_SECRET_ACCESS_KEY    | str \| None                                                | None                            |             |
-| AWS_S3_ENDPOINT_URL      | str \| None                                                | None                            |             |
-| MLFLOW_CLOUDFLARE_ID     | str \| None                                                | None                            |             |
-| MLFLOW_CLOUDFLARE_SECRET | str \| None                                                | None                            |             |
-| MLFLOW_S3_BUCKET         | str \| None                                                | None                            |             |
-| MLFLOW_S3_ENDPOINT_URL   | str \| None                                                | None                            |             |
-| MLFLOW_TRACKING_URI      | str \| None                                                | None                            |             |
-| POSTGRES_USER            | str \| None                                                | None                            |             |
-| POSTGRES_PASSWORD        | str \| None                                                | None                            |             |
-| POSTGRES_HOST            | str \| None                                                | None                            |             |
-| POSTGRES_PORT            | str \| None                                                | None                            |             |
-| POSTGRES_DB              | str \| None                                                | None                            |             |
-| LUXONISML_BUCKET         | str \| None                                                | None                            |             |
+| Key                      | Type                                                       | Default value  | Description |
+| ------------------------ | ---------------------------------------------------------- | -------------- | ----------- |
+| AWS_ACCESS_KEY_ID        | str \| None                                                | None           |             |
+| AWS_SECRET_ACCESS_KEY    | str \| None                                                | None           |             |
+| AWS_S3_ENDPOINT_URL      | str \| None                                                | None           |             |
+| MLFLOW_CLOUDFLARE_ID     | str \| None                                                | None           |             |
+| MLFLOW_CLOUDFLARE_SECRET | str \| None                                                | None           |             |
+| MLFLOW_S3_BUCKET         | str \| None                                                | None           |             |
+| MLFLOW_S3_ENDPOINT_URL   | str \| None                                                | None           |             |
+| MLFLOW_TRACKING_URI      | str \| None                                                | None           |             |
+| POSTGRES_USER            | str \| None                                                | None           |             |
+| POSTGRES_PASSWORD        | str \| None                                                | None           |             |
+| POSTGRES_HOST            | str \| None                                                | None           |             |
+| POSTGRES_PORT            | str \| None                                                | None           |             |
+| POSTGRES_DB              | str \| None                                                | None           |             |
+| LUXONISML_BUCKET         | str \| None                                                | None           |             |
 | LUXONISML_BASE_PATH      | str                                                        | "~/luxonis_ml" |             |
-| LUXONISML_TEAM_ID        | str                                                        | "offline"                       |             |
-| LUXONISML_TEAM_NAME      | str                                                        | "offline"                       |             |
-| LOG_LEVEL                | Literal\["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"\] | "INFO"                          |             |
+| LUXONISML_TEAM_ID        | str                                                        | "offline"      |             |
+| LUXONISML_TEAM_NAME      | str                                                        | "offline"      |             |
+| LOG_LEVEL                | Literal\["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"\] | "INFO"         |             |

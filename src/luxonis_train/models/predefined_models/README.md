@@ -1,6 +1,6 @@
 # Predefined models
 
-In addition to definig the model by hand, we offer a list of predefined
+In addition to definig the model by hand, we offer a list of simple predefined
 models which can be used instead.
 
 ## Table Of Content
@@ -10,7 +10,20 @@ models which can be used instead.
 - [KeypointDetectionModel](#keypointdetectionmodel)
 - [ClassificationModel](#classificationmodel)
 
+**Params**
+
+| Key                 | Type             | Default value | Description                                                           |
+| ------------------- | ---------------- | ------------- | --------------------------------------------------------------------- |
+| name                | str              |               | Name of the predefined architecture. See below the available options. |
+| params              | dict\[str, Any\] | {}            | Additional parameters of the predefined model.                        |
+| include_nodes       | bool             | True          | Whether to include nodes of the model.                                |
+| include_losses      | bool             | True          | Whether to include loss functions.                                    |
+| include_metrics     | bool             | True          | Whether to include metrics.                                           |
+| include_visualizers | bool             | True          | Whether to include visualizers.                                       |
+
 ## SegmentationModel
+
+See an example configuration file using this predefined model [here](../../../configs/segmentation_model.yaml)
 
 **Components**
 
@@ -37,6 +50,8 @@ models which can be used instead.
 
 ## DetectionModel
 
+See an example configuration file using this predefined model [here](../../../configs/detection_model.yaml)
+
 **Components**
 
 | Name                                                                                   | Alias                | Function                            |
@@ -60,6 +75,8 @@ models which can be used instead.
 | visualizer_params | dict | {}            | Additional parameters to the visualizer.  |
 
 ## KeypointDetectionModel
+
+See an example configuration file using this predefined model [here](../../../configs/keypoint_bbox_model.yaml)
 
 **Components**
 
@@ -89,6 +106,8 @@ models which can be used instead.
 ## ClassificationModel
 
 Basic model for classification. Can be used for multiclass and multilabel tasks.
+
+See an example configuration file using this predefined model [here](../../../configs/classification_model.yaml)
 
 **Components**
 

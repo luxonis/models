@@ -1,10 +1,11 @@
-# Example configuration for training a predefined segmentation model
+# Example configuration for exporting a predefined segmentation model
 
 
 use_rich_text: True
 
 model:
   name: coco_segmentation
+  weights: null  # specify a path to the weights here
   predefined_model:
     name: SegmentationModel
     params:
@@ -27,12 +28,15 @@ train:
   validation_interval: 10
   num_log_images: 8
 
-  callbacks:
-    - name: ExportOnTrainEnd
-    - name: TestOnTrainEnd
-
   optimizer:
     name: SGD
 
   scheduler:
     name: ConstantLR
+
+exporter:
+  onnx:
+    opset_version: 11
+  blobconverter:
+    active: True
+    shaves: 8

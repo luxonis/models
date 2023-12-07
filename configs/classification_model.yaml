@@ -37,14 +37,6 @@ train:
 
   optimizer:
     name: SGD
-    params:
-      lr: 0.02
-      momentum: 0.937
-      nesterov: True
-      weight_decay: 0.0005
 
   scheduler:
-    name: CosineAnnealingLR
-    params:
-      T_max: *epochs
-      eta_min: 0
+    name: ConstantLR

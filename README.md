@@ -55,9 +55,11 @@ To start the tuning, run
 python3 -m luxonis_train tune --config config.yaml
 ```
 
+You can see an example tuning configuration [here](configs/example_tuning.yaml).
+
 ## Exporting
 
-We support export to `ONNX`, `OpenVINO`, and `DepthAI .blob format` which is used for OAK cameras. By default, we export to `ONNX` format.
+We support export to `ONNX`, and `DepthAI .blob format` which is used for OAK cameras. By default, we export to `ONNX` format.
 
 To use the exporter, you have to specify the [exporter](configs/README.md#exporter) section in the config file.
 
@@ -66,6 +68,8 @@ Once you have the config file ready you can export the model using
 ```bash
 python3 -m luxonis_train export --config config.yaml
 ```
+
+You can see an example export configuration [here](configs/example_export.yaml).
 
 ## Customizations
 

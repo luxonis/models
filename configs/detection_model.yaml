@@ -27,28 +27,11 @@ train:
   num_log_images: 8
 
   callbacks:
-    - name: LearningRateMonitor
-      params:
-        logging_interval: step
-    - name: EarlyStopping
-      params:
-        patience: 3
-        monitor: val/loss
-        mode: min
-        verbose: true
     - name: ExportOnTrainEnd
     - name: TestOnTrainEnd
 
   optimizer:
     name: SGD
-    params:
-      lr: 0.02
-      momentum: 0.937
-      nesterov: True
-      weight_decay: 0.0005
 
   scheduler:
-    name: CosineAnnealingLR
-    params:
-      T_max: *epochs
-      eta_min: 0
+    name: ConstantLR

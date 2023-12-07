@@ -1,3 +1,6 @@
+# An example configuration for a more complex network.
+
+
 model:
   name: coco_test
   nodes:
@@ -117,14 +120,26 @@ train:
       params:
         mean: 0.3755
         std: 0.2204
-    augmentations: []
+    augmentations:
+      - name: Defocus
+        params:
+          p: 0.1
+      - name: Sharpen
+        params:
+          p: 0.1
+      - name: Flip
+      - name: RandomRotate90
+      - name: Mosaic4
+        params:
+          out_width: *width
+          out_height: *height
 
   batch_size: 4
   accumulate_grad_batches: 1
-  epochs: &epochs 1
+  epochs: &epochs 200
   num_workers: 8
   train_metrics_interval: -1
-  validation_interval: 1
+  validation_interval: 10
   num_log_images: 8
   skip_last_batch: True
   main_head_index: 0
@@ -167,3 +182,9 @@ train:
 exporter:
   onnx:
     opset_version: 11
+
+tuner:
+  params:
+    train.optimizer.name_categorical: ["Adam", "SGD"]
+    train.optimizer.params.lr_float: [0.0001, 0.001]
+    train.batch_size_int: [4, 16, 4]

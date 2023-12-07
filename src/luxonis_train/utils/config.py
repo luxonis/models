@@ -89,7 +89,7 @@ class ModelConfig(BaseModel):
                 if name not in inputs:
                     outputs.append(name)
             self.outputs = outputs
-        if not self.outputs:
+        if self.nodes and not self.outputs:
             raise ValueError("No outputs specified.")
         return self
 
@@ -133,12 +133,6 @@ class DatasetConfig(BaseModel):
     train_view: str = "train"
     val_view: str = "val"
     test_view: str = "test"
-
-    @model_validator(mode="after")
-    def check_dataset_params(self):
-        if not self.dataset_name and not self.dataset_id:
-            raise ValueError("Must provide either `dataset_name` or `dataset_id`.")
-        return self
 
     @field_serializer("bucket_storage", "bucket_type")
     def get_enum_value(self, v: Enum, _) -> str:
@@ -296,7 +290,7 @@ class TunerConfig(BaseModel):
 class Config(LuxonisConfig):
     use_rich_text: bool = True
     model: ModelConfig
-    dataset: DatasetConfig
+    dataset: DatasetConfig = DatasetConfig()
     trainer: TrainerConfig = TrainerConfig()
     tracker: TrackerConfig = TrackerConfig()
     train: TrainConfig = TrainConfig()

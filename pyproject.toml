@@ -1,6 +1,6 @@
 [project]
 name = "luxonis-train"
-version = "0.0.1"
+version = "0.1.0"
 description = "Luxonis training framework for seamless training of various neural networks."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,25 +26,19 @@ dependencies = [
     "s3fs>=2023.0.0",
     "pycocotools>=2.0.7",
     "luxonis-ml[all] @ git+https://github.com/luxonis/luxonis-ml.git@b5fa82c",
-]
 
-[project.optional-dependencies]
-export = [
     "onnx>=1.12.0",
     "onnxsim>=0.4.10",
     "onnxruntime>=1.13.1",
     "blobconverter>=1.4.2",
-]
-tune = [
+
     "optuna>=3.2.0",
     "psycopg2-binary>=2.9.1",
 ]
-all = [
-    "luxonis-train[export]",
-    "luxonis-train[tune]",
-]
+
+[project.optional-dependencies]
 dev = [
-    "luxonis-train[all]",
+    "luxonis-train",
     "pre-commit>=3.2.1",
     "pytest>=7.4.3",
 ]

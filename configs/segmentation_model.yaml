@@ -33,6 +33,8 @@ train:
 
   optimizer:
     name: SGD
+    params:
+      lr: 0.02
 
   scheduler:
     name: ConstantLR

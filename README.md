@@ -8,23 +8,32 @@ Luxonis training framework (`luxonis-train`) is intended for training deep learn
 
 The project is in alpha state - please report any feedback.
 
-**Table of contents:**
+## Table Of Content
 
-- [Luxonis training library](#luxonis-training-library)
-  - [Installation](#installation)
-  - [Training](#training)
-  - [Customizations](#customizations)
-  - [Tuning](#tuning)
-  - [Exporting](#exporting)
-  - [Credentials](#credentials)
+- [Installation](#installation)
+- [Contributing](#contributing)
+- [Training](#training)
+- [Customizations](#customizations)
+- [Tuning](#tuning)
+- [Exporting](#exporting)
+- [Credentials](#credentials)
 
 ## Installation
 
 `luxonis-train` is hosted on PyPi and can be installed with `pip` as:
 
 ```bash
-pip install luxonis-train[all]
+pip install luxonis-train
 ```
+
+## Contributing
+
+If you want to contribute to the development, install the dev version of the package:
+```bash
+pip install luxonis-train[dev]
+```
+
+Consult the [Contribution guide](CONTRIBUTING.md) before making a pull request.
 
 ## Usage
 

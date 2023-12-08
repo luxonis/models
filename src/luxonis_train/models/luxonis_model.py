@@ -41,10 +41,6 @@ from luxonis_train.utils.types import Kwargs, Labels, Packet
 from .luxonis_output import LuxonisOutput
 
 
-
-
-
-
 class LuxonisModel(pl.LightningModule):
     """Class representing the entire model.
 

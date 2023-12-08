@@ -61,7 +61,7 @@ class Core:
         if self.cfg.use_rich_text:
             rich.traceback.install(suppress=[pl, torch])
 
-        self.rank = rank_zero_only.rank  # type: ignore
+        self.rank = rank_zero_only.rank
 
         self.tracker = LuxonisTrackerPL(
             rank=self.rank,

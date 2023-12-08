@@ -60,7 +60,7 @@ class Tuner(Core):
 
     def _objective(self, trial: optuna.trial.Trial):
         """Objective function used to optimize Optuna study."""
-        rank = rank_zero_only.rank  # type: ignore
+        rank = rank_zero_only.rank
         cfg_tracker = self.cfg.tracker
         tracker_params = cfg_tracker.model_dump()
         tracker = LuxonisTrackerPL(

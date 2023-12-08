@@ -5,8 +5,6 @@ License (BSD-3): https://github.com/pytorch/vision/blob/main/LICENSE
 """
 
 
-from typing import cast
-
 import torch.nn as nn
 from torch import Tensor
 
@@ -18,20 +16,22 @@ from .base_node import BaseNode
 
 
 class SegmentationHead(BaseNode[Tensor, Tensor]):
+    attach_index: int = -1
+    in_height: int
+    in_channels: int
+
     def __init__(self, **kwargs):
         """Basic segmentation FCN head.
 
         Note that it doesn't ensure that ouptut is same size as input.
         """
-        super().__init__(attach_index=-1, **kwargs)
+        super().__init__(**kwargs)
 
         original_height = self.original_in_shape[2]
-        num_up = infer_upscale_factor(
-            cast(int, self.in_height), original_height, strict=False
-        )
+        num_up = infer_upscale_factor(self.in_height, original_height, strict=False)
 
         modules = []
-        in_channels = cast(int, self.in_channels)
+        in_channels = self.in_channels
         for _ in range(int(num_up)):
             modules.append(
                 UpBlock(in_channels=in_channels, out_channels=in_channels // 2)

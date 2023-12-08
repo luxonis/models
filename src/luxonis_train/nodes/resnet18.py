@@ -12,6 +12,8 @@ from .base_node import BaseNode
 
 
 class ResNet18(BaseNode[Tensor, list[Tensor]]):
+    attach_index: int = -1
+
     def __init__(
         self,
         channels_list: list[int] | None = None,
@@ -23,10 +25,12 @@ class ResNet18(BaseNode[Tensor, list[Tensor]]):
         TODO: add more info
 
         Args:
+            channels_list (list[int], optional): List of channels to return.
+              If unset, defaults to [64, 128, 256, 512].
             download_weights (bool, optional): If True download weights from imagenet.
               Defaults to False.
         """
-        super().__init__(attach_index=-1, **kwargs)
+        super().__init__(**kwargs)
 
         self.backbone = torchvision.models.resnet18(
             weights="DEFAULT" if download_weights else None

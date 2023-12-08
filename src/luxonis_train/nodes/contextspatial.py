@@ -22,13 +22,15 @@ class ContextSpatial(BaseNode[Tensor, list[Tensor]]):
     TODO: DOCS
     """
 
+    attach_index: int = -1
+
     def __init__(self, context_backbone: str = "MobileNetV2", **kwargs):
         """Context spatial backbone.
 
         Args:
             context_backbone (str, optional): Backbone used. Defaults to 'MobileNetV2'.
         """
-        super().__init__(attach_index=-1, **kwargs)
+        super().__init__(**kwargs)
 
         self.context_path = ContextPath(NODES.get(context_backbone)(**kwargs))
         self.spatial_path = SpatialPath(3, 128)

@@ -15,13 +15,15 @@ class MicroNet(BaseNode[Tensor, list[Tensor]]):
     TODO: DOCS
     """
 
+    attach_index: int = -1
+
     def __init__(self, variant: Literal["M1", "M2", "M3"] = "M1", **kwargs):
         """MicroNet backbone.
 
         Args:
             variant (Literal["M1", "M2", "M3"], optional): Defaults to "M1".
         """
-        super().__init__(attach_index=-1, **kwargs)
+        super().__init__(**kwargs)
 
         if variant not in MICRONET_VARIANTS_SETTINGS:
             raise ValueError(

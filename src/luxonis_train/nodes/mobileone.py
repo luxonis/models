@@ -5,7 +5,7 @@ License (Apple): https://github.com/apple/ml-mobileone/blob/main/LICENSE
 """
 
 
-from typing import Literal, cast
+from typing import Literal
 
 import torch
 from torch import Tensor, nn
@@ -20,6 +20,9 @@ class MobileOne(BaseNode[Tensor, list[Tensor]]):
 
     TODO: add more details
     """
+
+    attach_index: int = -1
+    in_channels: int
 
     VARIANTS_SETTINGS: dict[str, dict] = {
         "s0": {"width_multipliers": (0.75, 1.0, 1.0, 2.0), "num_conv_branches": 4},
@@ -37,7 +40,7 @@ class MobileOne(BaseNode[Tensor, list[Tensor]]):
               which variant of the MobileOne network to use.
               For details, see <TODO: LINK>. Defaults to "s0".
         """
-        super().__init__(**kwargs, attach_index=-1)
+        super().__init__(**kwargs)
 
         if variant not in MobileOne.VARIANTS_SETTINGS.keys():
             raise ValueError(
@@ -54,7 +57,7 @@ class MobileOne(BaseNode[Tensor, list[Tensor]]):
         self.in_planes = min(64, int(64 * self.width_multipliers[0]))
 
         self.stage0 = MobileOneBlock(
-            in_channels=cast(int, self.in_channels),
+            in_channels=self.in_channels,
             out_channels=self.in_planes,
             kernel_size=3,
             stride=2,

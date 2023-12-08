@@ -6,7 +6,6 @@ License (MIT): https://github.com/DingXiaoH/RepVGG/blob/main/LICENSE
 
 
 from copy import deepcopy
-from typing import cast
 
 import torch.utils.checkpoint as checkpoint
 from torch import Tensor, nn
@@ -22,6 +21,8 @@ class RepVGG(BaseNode):
     TODO:
         add some info here
     """
+
+    in_channels: int
 
     VARIANTS_SETTINGS = {
         "A0": {
@@ -83,7 +84,7 @@ class RepVGG(BaseNode):
 
         self.in_planes = min(64, int(64 * width_multiplier[0]))
         self.stage0 = RepVGGBlock(
-            in_channels=cast(int, self.in_channels),
+            in_channels=self.in_channels,
             out_channels=self.in_planes,
             kernel_size=3,
             stride=2,

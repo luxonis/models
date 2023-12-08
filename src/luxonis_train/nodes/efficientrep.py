@@ -25,6 +25,8 @@ class EfficientRep(BaseNode[Tensor, list[Tensor]]):
     TODO: add more details
     """
 
+    attach_index: int = -1
+
     def __init__(
         self,
         channels_list: list[int] | None = None,
@@ -44,7 +46,7 @@ class EfficientRep(BaseNode[Tensor, list[Tensor]]):
             width_mul (float, optional): Width multiplier. Defaults to 0.25.
             **kwargs: Additional arguments to pass to the parent class.
         """
-        super().__init__(attach_index=-1, **kwargs)
+        super().__init__(**kwargs)
 
         channels_list = channels_list or [64, 128, 256, 512, 1024]
         num_repeats = num_repeats or [1, 6, 12, 18, 6]

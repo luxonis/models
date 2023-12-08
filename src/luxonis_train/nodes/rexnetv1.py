@@ -17,6 +17,8 @@ from .base_node import BaseNode
 
 
 class ReXNetV1_lite(BaseNode[Tensor, list[Tensor]]):
+    attach_index: int = -1
+
     def __init__(
         self,
         fix_head_stem: bool = False,
@@ -37,7 +39,7 @@ class ReXNetV1_lite(BaseNode[Tensor, list[Tensor]]):
             multiplier (float, optional): Channel dimension multiplier. Defaults to 1.0.
             kernel_conf (str, optional): Kernel sizes encoded as string. Defaults to '333333'.
         """
-        super().__init__(attach_index=-1, **kwargs)
+        super().__init__(**kwargs)
 
         self.out_indices = [1, 4, 10, 16]
         self.channels = [16, 48, 112, 184]

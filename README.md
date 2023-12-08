@@ -96,7 +96,6 @@ Registered components can be then referenced in the config file. Custom componen
 - Metric - [BaseMetric](src/luxonis_train/attached_modules/metrics/base_metric.py)
 - Visualizer - [BaseVisualizer](src/luxonis_train/attached_modules/visualizers/base_visualizer.py)
 - Callback - [Callback from lightning.pytorch.callbacks](lightning.pytorch.callbacks)
-  - This are referenced through Config in `train.callbacks.custom_callbacks` similarly as augmentations (list of dictionaries with module name and params)
 - Optimizer - [Optimizer from torch.optim](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer)
 - Scheduler - [LRScheduler from torch.optim.lr_scheduler](https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate)
 
@@ -116,7 +115,7 @@ class CustomOptimizer(Optimizer):
 
 class CustomLoss(BaseLoss):
     # This class is automatically registered under `CustomLoss` name.
-    def __init__(self, **kwargs):
+    def __init__(self, k_steps: int, **kwargs):
         super().__init__(**kwargs)
         ...
 ```

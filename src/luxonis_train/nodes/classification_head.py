@@ -7,6 +7,7 @@ from .base_node import BaseNode
 
 class ClassificationHead(BaseNode[Tensor, Tensor]):
     in_channels: int
+    attach_index: int = -1
 
     def __init__(
         self,
@@ -19,8 +20,7 @@ class ClassificationHead(BaseNode[Tensor, Tensor]):
             dropout_rate (float, optional): Dropout rate before last layer, range [0,1].
               Defaults to 0.2.
         """
-        # TODO: fix attach index
-        super().__init__(attach_index=-1, **kwargs)
+        super().__init__(**kwargs)
 
         self.head = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),

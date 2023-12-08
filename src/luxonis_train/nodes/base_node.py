@@ -83,13 +83,15 @@ class BaseNode(
             inner nodes.
     """
 
+    attach_index: AttachIndexType = "all"
+
     def __init__(
         self,
         *,
         input_shapes: list[Packet[Size]] | None = None,
         original_in_shape: Size | None = None,
         dataset_metadata: DatasetMetadata | None = None,
-        attach_index: AttachIndexType = "all",
+        attach_index: AttachIndexType | None = None,
         in_protocols: list[type[BaseModel]] | None = None,
         n_classes: int | None = None,
         in_sizes: Size | list[Size] | None = None,
@@ -117,7 +119,7 @@ class BaseNode(
         """
         super().__init__()
 
-        self.attach_index = attach_index
+        self.attach_index = attach_index or self.attach_index
         self.in_protocols = in_protocols or [FeaturesProtocol]
 
         self._input_shapes = input_shapes

@@ -15,6 +15,8 @@ class MobileNetV2(BaseNode[Tensor, list[Tensor]]):
     TODO: add more info
     """
 
+    attach_index: int = -1
+
     def __init__(self, download_weights: bool = False, **kwargs):
         """Constructor of the MobileNetV2 backbone.
 
@@ -22,7 +24,7 @@ class MobileNetV2(BaseNode[Tensor, list[Tensor]]):
             download_weights (bool, optional): If True download weights from imagenet.
             Defaults to False.
         """
-        super().__init__(attach_index=-1, **kwargs)
+        super().__init__(**kwargs)
 
         mobilenet_v2 = torchvision.models.mobilenet_v2(
             weights="DEFAULT" if download_weights else None

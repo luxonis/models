@@ -14,8 +14,7 @@ List of all the available metrics.
 Metrics from the [`torchmetrics`](https://lightning.ai/docs/torchmetrics/stable/) module.
 
 - [Accuracy](https://lightning.ai/docs/torchmetrics/stable/classification/accuracy.html)
-- [JaccardIndex](https://lightning.ai/docs/torchmetrics/stable/classification/jaccard_index.html)
-  - Intersection over union.
+- [JaccardIndex](https://lightning.ai/docs/torchmetrics/stable/classification/jaccard_index.html) -- Intersection over Union.
 - [F1Score](https://lightning.ai/docs/torchmetrics/stable/classification/f1_score.html)
 - [Precision](https://lightning.ai/docs/torchmetrics/stable/classification/precision.html)
 - [Recall](https://lightning.ai/docs/torchmetrics/stable/classification/recall.html)

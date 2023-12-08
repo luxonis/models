@@ -46,9 +46,9 @@ Adapted from [here](https://github.com/liyunsheng13/micronet).
 
 **Params**
 
-| Key     | Type                        | Default value | Description |
-| ------- | --------------------------- | ------------- | ----------- |
-| variant | Literal\["M1", "M2", "M3"\] | "M1"          |             |
+| Key     | Type                        | Default value | Description             |
+| ------- | --------------------------- | ------------- | ----------------------- |
+| variant | Literal\["M1", "M2", "M3"\] | "M1"          | Variant of the network. |
 
 ## RepVGG
 
@@ -56,9 +56,9 @@ Adapted from [here](https://github.com/DingXiaoH/RepVGG).
 
 **Params**
 
-| Key     | Type                        | Default value | Description |
-| ------- | --------------------------- | ------------- | ----------- |
-| variant | Literal\["A0", "A1", "A2"\] | "A0"          |             |
+| Key     | Type                        | Default value | Description             |
+| ------- | --------------------------- | ------------- | ----------------------- |
+| variant | Literal\["A0", "A1", "A2"\] | "A0"          | Variant of the network. |
 
 ## EfficientRep
 
@@ -95,9 +95,9 @@ Adapted from [here](https://github.com/apple/ml-mobileone).
 
 **Params**
 
-| Key     | Type                                    | Default value | Description |
-| ------- | --------------------------------------- | ------------- | ----------- |
-| variant | Literal\["s0", "s1", "s2", "s3", "s4"\] | "s0"          |             |
+| Key     | Type                                    | Default value | Description             |
+| ------- | --------------------------------------- | ------------- | ----------------------- |
+| variant | Literal\["s0", "s1", "s2", "s3", "s4"\] | "s0"          | Variant of the network. |
 
 ## MobileNetV2
 

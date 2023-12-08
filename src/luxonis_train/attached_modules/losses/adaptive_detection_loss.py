@@ -48,7 +48,8 @@ class AdaptiveDetectionLoss(BaseLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Ten
         n_warmup_epochs: int = 4,
         iou_type: IoUType = "giou",
         reduction: Literal["sum", "mean"] = "mean",
-        loss_weight: dict[str, float] | None = None,
+        class_loss_weight: float = 1.0,
+        iou_loss_weight: float = 2.5,
         **kwargs,
     ):
         """BBox loss from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
@@ -61,13 +62,14 @@ class AdaptiveDetectionLoss(BaseLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Ten
               that we switch to TAL assigner. Defaults to 4.
             iou_type (Literal["none", "giou", "diou", "ciou", "siou"], optional): IoU type used for
               bbox regression loss. Defaults to "giou".
-            loss_weight (dict[str, float], optional): Mapping for sub losses weights. Defautls to
-            {"class": 1.0, "iou": 2.5}.
+            reduction (Literal["sum", "mean"], optional): Defaults to "mean".
+            class_loss_weight (float, optional): Weight of classification loss.
+              Defaults to 1.0.
+            iou_loss_weight (float, optional): Weight of IoU loss. Defaults to 2.5.
         """
         super().__init__(
             required_labels=[LabelType.BOUNDINGBOX], protocol=Protocol, **kwargs
         )
-        loss_weight = loss_weight or {"class": 1.0, "iou": 2.5}
         self.iou_type: IoUType = iou_type
         self.reduction = reduction
         self.n_classes = self.node_attributes.n_classes
@@ -83,7 +85,8 @@ class AdaptiveDetectionLoss(BaseLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Ten
         )
 
         self.varifocal_loss = VarifocalLoss()
-        self.loss_weight = loss_weight
+        self.class_loss_weight = class_loss_weight
+        self.iou_loss_weight = iou_loss_weight
 
     def prepare(
         self, outputs: Packet[Tensor], labels: Labels
@@ -191,7 +194,7 @@ class AdaptiveDetectionLoss(BaseLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Ten
             bbox_format="xyxy",
         )[0]
 
-        loss = self.loss_weight["class"] * loss_cls + self.loss_weight["iou"] * loss_iou
+        loss = self.class_loss_weight * loss_cls + self.iou_loss_weight * loss_iou
 
         sub_losses = {"class": loss_cls.detach(), "iou": loss_iou.detach()}
 

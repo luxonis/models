@@ -18,8 +18,10 @@ class SigmoidFocalLoss(BaseLoss[Tensor, Tensor]):
         https://arxiv.org/abs/1708.02002
 
         Args:
-            alpha (float, optional): Defaults to 0.8.
-            gamma (float, optional): Defaults to 2.0.
+            alpha (float, optional): Weighting factor in range (0,1) to balance
+              positive vs negative examples or -1 for ignore. Defaults to 0.25.
+            gamma (float, optional): Exponent of the modulating factor (1 - p_t)
+              to balance easy vs hard examples. Defaults to 2.0.
             reduction (Literal["none", "mean", "sum"], optional): Defaults to "mean".
         """
         super().__init__(**kwargs)

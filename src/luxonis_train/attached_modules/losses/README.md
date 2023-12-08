@@ -53,21 +53,21 @@ Adapted from [here](https://pytorch.org/vision/stable/generated/torchvision.ops.
 
 **Params**
 
-| Key       | Type                             | Default value | Description |
-| --------- | -------------------------------- | ------------- | ----------- |
-| alpha     | float                            | 0.8           |             |
-| gamma     | float                            | 2.0           |             |
-| reduction | Literal\["none", "mean", "sum"\] | "mean"        |             |
+| Key       | Type                             | Default value | Description                                                                                |
+| --------- | -------------------------------- | ------------- | ------------------------------------------------------------------------------------------ |
+| alpha     | float                            | 0.25          | Weighting factor in range (0,1) to balance positive vs negative examples or -1 for ignore. |
+| gamma     | float                            | 2.0           | Exponent of the modulating factor $(1 - p_t)$ to balance easy vs hard examples             |
+| reduction | Literal\["none", "mean", "sum"\] | "mean"        | Specifies the reduction to apply to the output.                                            |
 
 ## SoftmaxFocalLoss
 
 **Params**
 
-| Key       | Type                             | Default value | Description                                                         |
-| --------- | -------------------------------- | ------------- | ------------------------------------------------------------------- |
-| alpha     | float \| list                    | 0.25          | Either a float for all channels or list of alphas for each channel. |
-| gamma     | float                            | 2.0           |                                                                     |
-| reduction | Literal\["none", "mean", "sum"\] | "mean"        |                                                                     |
+| Key       | Type                             | Default value | Description                                                                   |
+| --------- | -------------------------------- | ------------- | ----------------------------------------------------------------------------- |
+| alpha     | float \| list                    | 0.25          | Either a float for all channels or list of alphas for each channel.           |
+| gamma     | float                            | 2.0           | Exponent of the modulating factor (1 - p_t) to balance easy vs hard examples. |
+| reduction | Literal\["none", "mean", "sum"\] | "mean"        | Specifies the reduction to apply to the output.                               |
 
 ## AdaptiveDetectionLoss
 
@@ -75,11 +75,12 @@ Adapted from [here](https://arxiv.org/pdf/2209.02976.pdf).
 
 **Params**
 
-| Key             | Type                                              | Default value              | Description                                                                         |
-| --------------- | ------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------- |
-| n_warmup_epochs | int                                               | 4                          | Number of epochs where ATSS assigner is used, after that we switch to TAL assigner. |
-| iou_type        | Literal\["none", "giou", "diou", "ciou", "siou"\] | "giou"                     | IoU type used for bbox regression loss.                                             |
-| loss_weight     | Dict\[str, float\]                                | {"class:" 1.0, "iou": 2.5} | Mapping for sub losses weights.                                                     |
+| Key               | Type                                              | Default value | Description                                                                         |
+| ----------------- | ------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------- |
+| n_warmup_epochs   | int                                               | 4             | Number of epochs where ATSS assigner is used, after that we switch to TAL assigner. |
+| iou_type          | Literal\["none", "giou", "diou", "ciou", "siou"\] | "giou"        | IoU type used for bbox regression loss.                                             |
+| class_loss_weight | float                                             | 1.0           | Weight used for the classification part of the loss.                                |
+| iou_loss_weight   | float                                             | 2.5           | Weight used for the IoU part of the loss.                                           |
 
 ## ImplicitKeypointBBoxLoss
 

@@ -29,6 +29,7 @@ pip install luxonis-train
 ## Contributing
 
 If you want to contribute to the development, install the dev version of the package:
+
 ```bash
 pip install luxonis-train[dev]
 ```

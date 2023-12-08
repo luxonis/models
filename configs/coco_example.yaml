@@ -107,7 +107,7 @@ tracker:
 dataset:
   dataset_name: coco_test
   train_view: train
-  val_view: train
+  val_view: val
   test_view: test
 
 train:
@@ -117,9 +117,6 @@ train:
     train_rgb: True
     normalize:
       active: True
-      params:
-        mean: 0.3755
-        std: 0.2204
     augmentations:
       - name: Defocus
         params:

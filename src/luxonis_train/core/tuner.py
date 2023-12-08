@@ -1,4 +1,5 @@
 import os.path as osp
+from typing import Any
 
 import optuna
 import pytorch_lightning as pl
@@ -22,7 +23,7 @@ class Tuner(Core):
         """
         super().__init__(cfg, args)
 
-    def tune(self):
+    def tune(self) -> None:
         """Runs Optuna tunning of hyperparameters."""
 
         pruner = (
@@ -58,7 +59,7 @@ class Tuner(Core):
             timeout=self.cfg.tuner.timeout,
         )
 
-    def _objective(self, trial: optuna.trial.Trial):
+    def _objective(self, trial: optuna.trial.Trial) -> float:
         """Objective function used to optimize Optuna study."""
         rank = rank_zero_only.rank
         cfg_tracker = self.cfg.tracker
@@ -117,7 +118,7 @@ class Tuner(Core):
 
         return pl_trainer.callback_metrics["val/loss"].item()
 
-    def _get_trial_params(self, trial: optuna.trial.Trial):
+    def _get_trial_params(self, trial: optuna.trial.Trial) -> dict[str, Any]:
         """Get trial params based on specified config."""
         cfg_tuner = self.cfg.tuner.params
         new_params = {}

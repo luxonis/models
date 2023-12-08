@@ -26,7 +26,7 @@ class Inferer(Trainer):
         else:
             self.loader = self.pytorch_loader_val
 
-    def infer(self):
+    def infer(self) -> None:
         self.lightning_module.eval()
         for img, labels in self.loader:
             unnorm_img = get_unnormalized_images(self.cfg, img)[0]

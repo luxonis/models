@@ -193,7 +193,7 @@ class Core:
         self.test_augmentations = aug
 
     @rank_zero_only
-    def get_save_dir(self):
+    def get_save_dir(self) -> str:
         """Return path to directory where checkpoints are saved.
 
         Returns:
@@ -202,7 +202,7 @@ class Core:
         return self.run_save_dir
 
     @rank_zero_only
-    def get_error_message(self):
+    def get_error_message(self) -> str | None:
         """Return error message if one occurs while running in thread, otherwise None.
 
         Returns:
@@ -211,7 +211,7 @@ class Core:
         return self.error_message
 
     @rank_zero_only
-    def get_min_loss_checkpoint_path(self):
+    def get_min_loss_checkpoint_path(self) -> str:
         """Return best checkpoint path with respect to minimal validation loss.
 
         Returns:
@@ -220,7 +220,7 @@ class Core:
         return self.pl_trainer.checkpoint_callbacks[0].best_model_path  # type: ignore
 
     @rank_zero_only
-    def get_best_metric_checkpoint_path(self):
+    def get_best_metric_checkpoint_path(self) -> str:
         """Return best checkpoint path with respect to best validation metric.
 
         Returns:

@@ -28,7 +28,7 @@ class Trainer(Core):
             input_shape=self.loader_train.input_shape,
         )
 
-    def train(self, new_thread: bool = False):
+    def train(self, new_thread: bool = False) -> None:
         """Runs training.
 
         Args:
@@ -62,7 +62,9 @@ class Trainer(Core):
             )
             self.thread.start()
 
-    def test(self, new_thread: bool = False, view: Literal["test", "val"] = "test"):
+    def test(
+        self, new_thread: bool = False, view: Literal["test", "val"] = "test"
+    ) -> None:
         """Runs testing
         Args:
             new_thread (bool, optional): Runs training in new thread if set to True.
@@ -85,20 +87,20 @@ class Trainer(Core):
             self.thread.start()
 
     @rank_zero_only
-    def get_status(self):
+    def get_status(self) -> tuple[int, int]:
         """Get current status of training.
 
         Returns:
-            Tuple(int, int): First element is current epoch, second element is total
-                number of epochs
+            tuple[int, int]: First element is current epoch, second element is total
+              number of epochs.
         """
         return self.lightning_module.get_status()
 
     @rank_zero_only
-    def get_status_percentage(self):
+    def get_status_percentage(self) -> float:
         """Return percentage of current training, takes into account early stopping.
 
         Returns:
-            float: Percentage of current training in range 0-100
+            float: Percentage of current training in range 0-100.
         """
         return self.lightning_module.get_status_percentage()

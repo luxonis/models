@@ -75,10 +75,13 @@ class BaseVisualizer(
 
         Returns:
             Tensor | tuple[Tensor, Tensor] | tuple[Tensor, list[Tensor]] | list[Tensor]: Visualizations.
+
+        Raises:
+            IncompatibleException: If the inputs are not compatible with the module.
         """
         ...
 
-    def __call__(
+    def run(
         self,
         label_canvas: Tensor,
         prediction_canvas: Tensor,
@@ -87,6 +90,4 @@ class BaseVisualizer(
         idx: int = 0,
     ) -> Tensor | tuple[Tensor, Tensor] | tuple[Tensor, list[Tensor]]:
         self.validate(inputs, labels)
-        return super().__call__(
-            label_canvas, prediction_canvas, idx, *self.prepare(inputs, labels)
-        )
+        return self(label_canvas, prediction_canvas, idx, *self.prepare(inputs, labels))

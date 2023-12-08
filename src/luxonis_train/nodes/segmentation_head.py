@@ -5,9 +5,10 @@ License (BSD-3): https://github.com/pytorch/vision/blob/main/LICENSE
 """
 
 
+from typing import cast
+
 import torch.nn as nn
 from torch import Tensor
-from typeguard import check_type
 
 from luxonis_train.nodes.blocks import UpBlock
 from luxonis_train.utils.general import infer_upscale_factor
@@ -18,22 +19,19 @@ from .base_node import BaseNode
 
 class SegmentationHead(BaseNode[Tensor, Tensor]):
     def __init__(self, **kwargs):
-        """Basic segmentation FCN head. Note that it doesn't ensure that ouptut is same
-        size as input.
+        """Basic segmentation FCN head.
 
-        Args:
-            n_classes (int): NUmber of classes
-            head attaches to. Defaults to -1.
+        Note that it doesn't ensure that ouptut is same size as input.
         """
         super().__init__(attach_index=-1, **kwargs)
 
         original_height = self.original_in_shape[2]
         num_up = infer_upscale_factor(
-            check_type(self.in_height, int), original_height, strict=False
+            cast(int, self.in_height), original_height, strict=False
         )
 
         modules = []
-        in_channels = check_type(self.in_channels, int)
+        in_channels = cast(int, self.in_channels)
         for _ in range(int(num_up)):
             modules.append(
                 UpBlock(in_channels=in_channels, out_channels=in_channels // 2)

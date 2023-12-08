@@ -49,7 +49,7 @@ class MultiVisualizer(BaseVisualizer[Packet[Tensor], Labels]):
         labels: Labels,
     ) -> tuple[Tensor, Tensor]:
         for visualizer in self.visualizers:
-            match visualizer(label_canvas, prediction_canvas, outputs, labels, idx):
+            match visualizer.run(label_canvas, prediction_canvas, outputs, labels, idx):
                 case Tensor(data=prediction_viz):
                     prediction_canvas = prediction_viz
                 case (Tensor(data=label_viz), Tensor(data=prediction_viz)):

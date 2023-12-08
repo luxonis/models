@@ -1,7 +1,6 @@
 from abc import abstractmethod
 
 from torch import Tensor
-from typeguard import typechecked
 from typing_extensions import TypeVarTuple, Unpack
 
 from luxonis_train.attached_modules import BaseAttachedModule
@@ -45,7 +44,6 @@ class BaseLoss(
     """
 
     @abstractmethod
-    @typechecked
     def forward(self, *args: Unpack[Ts]) -> Tensor | tuple[Tensor, dict[str, Tensor]]:
         """Forward pass of the loss function.
 
@@ -59,7 +57,7 @@ class BaseLoss(
         """
         ...
 
-    def __call__(
+    def run(
         self, inputs: Packet[Tensor], labels: Labels
     ) -> Tensor | tuple[Tensor, dict[str, Tensor]]:
         """Calls the loss function.
@@ -74,6 +72,9 @@ class BaseLoss(
             Tensor | tuple[Tensor, dict[str, Tensor]]: The main loss and optional
               a dictionary of sublosses (for logging).
               Only the main loss is used for backpropagation.
+
+        Raises:
+            IncompatibleException: If the inputs are not compatible with the module.
         """
         self.validate(inputs, labels)
-        return super().__call__(*self.prepare(inputs, labels))
+        return self(*self.prepare(inputs, labels))

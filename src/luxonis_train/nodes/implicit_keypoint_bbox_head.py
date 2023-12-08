@@ -7,11 +7,10 @@ https://arxiv.org/pdf/2207.02696.pdf`.
 
 import logging
 import math
-from typing import Literal
+from typing import Literal, cast
 
 import torch
 from torch import Tensor, nn
-from typeguard import check_type
 
 from luxonis_train.nodes.blocks import (
     KeypointBlock,
@@ -96,7 +95,7 @@ class ImplicitKeypointBBoxHead(BaseNode):
         self.anchor_grid = self.anchors.clone().view(self.num_heads, 1, -1, 1, 1, 2)
 
         self.channel_list, self.stride = self._fit_to_num_heads(
-            check_type(self.in_channels, list[int])
+            cast(list[int], self.in_channels)
         )
 
         self.learnable_mul_add_conv = nn.ModuleList(
@@ -130,7 +129,8 @@ class ImplicitKeypointBBoxHead(BaseNode):
         self.anchor_grid = self.anchor_grid.to(inputs[0].device)
 
         for i in range(self.num_heads):
-            feat = check_type(
+            feat = cast(
+                Tensor,
                 torch.cat(
                     (
                         self.learnable_mul_add_conv[i](inputs[i]),
@@ -138,7 +138,6 @@ class ImplicitKeypointBBoxHead(BaseNode):
                     ),
                     axis=1,
                 ),  # type: ignore
-                Tensor,
             )
 
             batch_size, _, feature_height, feature_width = feat.shape
@@ -226,7 +225,7 @@ class ImplicitKeypointBBoxHead(BaseNode):
         stride = torch.tensor(
             [
                 self.original_in_shape[2] / h
-                for h in check_type(self.in_height, list[int])[: self.num_heads]
+                for h in cast(list[int], self.in_height)[: self.num_heads]
             ],
             dtype=torch.int,
         )

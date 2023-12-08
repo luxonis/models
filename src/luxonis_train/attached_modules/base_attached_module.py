@@ -165,6 +165,9 @@ class BaseAttachedModule(
         Args:
             inputs (Packet[Tensor]): Inputs to the module.
             labels (Labels): Labels from the dataset.
+
+        Raises:
+            IncompatibleException: If the inputs are not compatible with the module.
         """
         for label in self.required_labels:
             if label not in labels:

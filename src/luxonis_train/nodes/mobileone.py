@@ -5,11 +5,10 @@ License (Apple): https://github.com/apple/ml-mobileone/blob/main/LICENSE
 """
 
 
-from typing import Literal
+from typing import Literal, cast
 
 import torch
 from torch import Tensor, nn
-from typeguard import check_type
 
 from luxonis_train.nodes.blocks import ConvModule, SqueezeExciteBlock
 
@@ -55,7 +54,7 @@ class MobileOne(BaseNode[Tensor, list[Tensor]]):
         self.in_planes = min(64, int(64 * self.width_multipliers[0]))
 
         self.stage0 = MobileOneBlock(
-            in_channels=check_type(self.in_channels, int),
+            in_channels=cast(int, self.in_channels),
             out_channels=self.in_planes,
             kernel_size=3,
             stride=2,

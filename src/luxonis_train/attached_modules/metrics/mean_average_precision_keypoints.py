@@ -12,7 +12,6 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from torch import Tensor
 from torchvision.ops import box_convert
-from typeguard import typechecked
 
 from luxonis_train.utils.types import (
     BBoxProtocol,
@@ -95,7 +94,6 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
         self.add_state("groundtruth_crowds", default=[], dist_reduce_fx=None)
         self.add_state("groundtruth_keypoints", default=[], dist_reduce_fx=None)
 
-    @typechecked
     def prepare(self, outputs: Packet[Tensor], labels: Labels):
         kpts = labels[LabelType.KEYPOINT]
         boxes = labels[LabelType.BOUNDINGBOX]
@@ -140,7 +138,6 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
 
         return output_list_kpt_map, label_list_kpt_map
 
-    @typechecked
     def update(
         self, preds: list[dict[str, Tensor]], target: list[dict[str, Tensor]]
     ) -> None:
@@ -201,7 +198,6 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
                 item.get("iscrowd", torch.zeros_like(item["labels"]))
             )
 
-    @typechecked
     def compute(self) -> tuple[Tensor, dict[str, Tensor]]:
         """Torchmetric compute function."""
         coco_target, coco_preds = COCO(), COCO()
@@ -244,7 +240,6 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
             "kpt_mar_large": torch.tensor([stats[9]], dtype=torch.float32),
         }
 
-    @typechecked
     def _get_coco_format(
         self,
         boxes: list[Tensor],
@@ -324,7 +319,6 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
         classes = [{"id": i, "name": str(i)} for i in self._get_classes()]
         return {"images": images, "annotations": annotations, "categories": classes}
 
-    @typechecked
     def _get_safe_item_values(self, item: dict[str, Tensor]) -> tuple[Tensor, Tensor]:
         """Convert and return the boxes."""
         boxes = self._fix_empty_tensors(item["boxes"])
@@ -333,7 +327,6 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
         keypoints = self._fix_empty_tensors(item["keypoints"])
         return boxes, keypoints
 
-    @typechecked
     def _get_classes(self) -> list[int]:
         """Return a list of unique classes found in ground truth and detection data."""
         if len(self.pred_labels) > 0 or len(self.groundtruth_labels) > 0:
@@ -346,7 +339,6 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
         return []
 
     @staticmethod
-    @typechecked
     def _fix_empty_tensors(input_tensor: Tensor) -> Tensor:
         """Empty tensors can cause problems in DDP mode, this methods corrects them."""
         if input_tensor.numel() == 0 and input_tensor.ndim == 1:

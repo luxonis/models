@@ -6,6 +6,7 @@ from typing_extensions import TypeVarTuple, Unpack
 
 from luxonis_train.attached_modules import BaseAttachedModule
 from luxonis_train.utils.registry import METRICS
+from luxonis_train.utils.types import Labels, Packet
 
 Ts = TypeVarTuple("Ts")
 
@@ -73,3 +74,18 @@ class BaseMetric(
                   cannot be used as the main metric of the model.
         """
         ...
+
+    def run_update(self, outputs: Packet[Tensor], labels: Labels) -> None:
+        """Calls the metric's update method.
+
+        Validates and prepares the inputs, then calls the metric's update method.
+
+        Args:
+            outputs (Packet[Tensor]): The outputs of the model.
+            labels (Labels): The labels of the model.
+
+        Raises:
+            IncompatibleException: If the inputs are not compatible with the module.
+        """
+        self.validate(outputs, labels)
+        self.update(*self.prepare(outputs, labels))

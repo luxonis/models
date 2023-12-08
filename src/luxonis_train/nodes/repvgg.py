@@ -6,10 +6,10 @@ License (MIT): https://github.com/DingXiaoH/RepVGG/blob/main/LICENSE
 
 
 from copy import deepcopy
+from typing import cast
 
 import torch.utils.checkpoint as checkpoint
 from torch import Tensor, nn
-from typeguard import check_type
 
 from luxonis_train.nodes.blocks import RepVGGBlock
 
@@ -83,7 +83,7 @@ class RepVGG(BaseNode):
 
         self.in_planes = min(64, int(64 * width_multiplier[0]))
         self.stage0 = RepVGGBlock(
-            in_channels=check_type(self.in_channels, int),
+            in_channels=cast(int, self.in_channels),
             out_channels=self.in_planes,
             kernel_size=3,
             stride=2,

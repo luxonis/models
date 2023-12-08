@@ -222,7 +222,7 @@ class LuxonisModel(pl.LightningModule):
                     dataset_metadata=self.dataset_metadata,
                     **node_kwargs,
                 )
-                node_outputs = node(node_dummy_inputs)
+                node_outputs = node.run(node_dummy_inputs)
 
                 dummy_outputs[node_name] = node_outputs
                 initiated_nodes[node_name] = node
@@ -280,16 +280,16 @@ class LuxonisModel(pl.LightningModule):
                 input_names = [f"__{node_name}_input__"]
 
             node_inputs = [computed[pred] for pred in input_names]
-            outputs = node(node_inputs)
+            outputs = node.run(node_inputs)
             computed[node_name] = outputs
 
             if compute_loss and node_name in self.losses and labels is not None:
                 for loss_name, loss in self.losses[node_name].items():
-                    losses[node_name][loss_name] = loss(outputs, labels)
+                    losses[node_name][loss_name] = loss.run(outputs, labels)
 
             if compute_metrics and node_name in self.metrics and labels is not None:
                 for metric in self.metrics[node_name].values():
-                    metric.update(*metric.prepare(outputs, labels))
+                    metric.run_update(outputs, labels)
 
             if (
                 compute_visualizations
@@ -299,7 +299,7 @@ class LuxonisModel(pl.LightningModule):
             ):
                 for viz_name, visualizer in self.visualizers[node_name].items():
                     viz = combine_visualizations(
-                        visualizer(
+                        visualizer.run(
                             image,
                             image,
                             outputs,

@@ -4,8 +4,9 @@ Adapted from `https://github.com/taveraantonio/BiseNetv1`.
 License: NOT SPECIFIED.
 """
 
+from typing import cast
+
 from torch import Tensor, nn
-from typeguard import check_type
 
 from luxonis_train.nodes.blocks import ConvModule
 from luxonis_train.utils.general import infer_upscale_factor
@@ -35,12 +36,12 @@ class BiSeNetHead(BaseNode[Tensor, Tensor]):
 
         original_height = self.original_in_shape[2]
         upscale_factor = 2 ** infer_upscale_factor(
-            check_type(self.in_height, int), original_height
+            cast(int, self.in_height), original_height
         )
         out_channels = self.dataset_metadata.n_classes * upscale_factor * upscale_factor
 
         self.conv_3x3 = ConvModule(
-            check_type(self.in_channels, int),
+            cast(int, self.in_channels),
             intermediate_channels,
             3,
             1,

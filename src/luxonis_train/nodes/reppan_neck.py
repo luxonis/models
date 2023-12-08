@@ -7,10 +7,9 @@ It has the balance of feature fusion ability and hardware efficiency.
 """
 
 
-from typing import Literal
+from typing import Literal, cast
 
 from torch import Tensor, nn
-from typeguard import check_type
 
 from luxonis_train.nodes.blocks import RepDownBlock, RepUpBlock
 from luxonis_train.utils.general import make_divisible
@@ -57,9 +56,9 @@ class RepPANNeck(BaseNode[list[Tensor], list[Tensor]]):
 
         self.up_blocks = nn.ModuleList()
 
-        in_channels = check_type(self.in_channels, list[int])[-1]
+        in_channels = cast(list[int], self.in_channels)[-1]
         out_channels = channels_list[0]
-        in_channels_next = check_type(self.in_channels, list[int])[-2]
+        in_channels_next = cast(list[int], self.in_channels)[-2]
         curr_num_repeats = num_repeats[0]
         up_out_channel_list = [in_channels]  # used in DownBlocks
 
@@ -78,7 +77,7 @@ class RepPANNeck(BaseNode[list[Tensor], list[Tensor]]):
 
             in_channels = out_channels
             out_channels = channels_list[i]
-            in_channels_next = check_type(self.in_channels, list[int])[-1 - (i + 1)]
+            in_channels_next = cast(list[int], self.in_channels)[-1 - (i + 1)]
             curr_num_repeats = num_repeats[i]
 
         self.down_blocks = nn.ModuleList()

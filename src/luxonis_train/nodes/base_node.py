@@ -4,7 +4,6 @@ from typing import Any, Generic, TypeVar
 from luxonis_ml.utils.registry import AutoRegisterMeta
 from pydantic import BaseModel, ValidationError
 from torch import Size, Tensor, nn
-from typeguard import TypeCheckError, check_type
 
 from luxonis_train.utils.general import DatasetMetadata, validate_packet
 from luxonis_train.utils.registry import NODES
@@ -46,7 +45,7 @@ class BaseNode(
     send to `wrap` method, which wraps the output into a `Packet`, which is the
     output of the node.
 
-    The `__call__` method combines the `unwrap`, `forward` and `wrap` methods
+    The `run` method combines the `unwrap`, `forward` and `wrap` methods
     together with input validation.
 
 
@@ -316,18 +315,18 @@ class BaseNode(
             Packet[Tensor]: Wrapped output.
         """
 
-        if isinstance(output, Tensor):
-            outputs: list[Tensor] = [output]
-        else:
-            try:
-                outputs = check_type(output, list[Tensor])
-            except TypeCheckError as e:
+        match output:
+            case Tensor(data=out):
+                outputs = [out]
+            case list(tensors) if all(isinstance(t, Tensor) for t in tensors):
+                outputs = tensors
+            case _:
                 raise IncompatibleException(
                     "Default `wrap` expects a single tensor or a list of tensors."
-                ) from e
+                )
         return {"features": outputs}
 
-    def __call__(self, inputs: list[Packet[Tensor]]) -> Packet[Tensor]:
+    def run(self, inputs: list[Packet[Tensor]]) -> Packet[Tensor]:
         """Combines the forward pass with the wrapping and unwrapping of the inputs.
 
         Additionally validates the inputs against `in_protocols`.
@@ -338,9 +337,12 @@ class BaseNode(
         Returns:
             Packet[Tensor]: Outputs of the module as a dictionary of list of tensors:
                 `{"features": [Tensor, ...], "segmentation": [Tensor]}`
+
+        Raises:
+            IncompatibleException: If the inputs are not compatible with the node.
         """
         unwrapped = self.unwrap(self.validate(inputs))
-        outputs = super().__call__(unwrapped)
+        outputs = self(unwrapped)
         return self.wrap(outputs)
 
     def dump_params(self) -> dict[str, Any]:

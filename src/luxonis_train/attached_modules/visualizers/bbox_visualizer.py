@@ -6,6 +6,7 @@ from luxonis_train.utils.types import BBoxProtocol, LabelType
 
 from .base_visualizer import BaseVisualizer
 from .utils import (
+    Color,
     draw_bounding_box_labels,
     draw_bounding_boxes,
     get_color,
@@ -22,9 +23,7 @@ class BBoxVisualizer(BaseVisualizer[Tensor, Tensor]):
         self,
         labels: dict[int, str] | list[str] | None = None,
         draw_labels: bool = True,
-        colors: dict[str, tuple[int, int, int] | str]
-        | list[tuple[int, int, int] | str]
-        | None = None,
+        colors: dict[str, Color] | list[Color] | None = None,
         fill: bool = False,
         width: int | None = None,
         font: str | None = None,
@@ -37,8 +36,7 @@ class BBoxVisualizer(BaseVisualizer[Tensor, Tensor]):
             labels (dict[int, str] | list[str], optional): Either a dictionary mapping
               class indices to names, or a list of names. If list is provided, the
               label mapping is done by index. By default, no labels are drawn.
-            colors (dict[int, tuple[int, int, int] | str]
-                    | list[tuple[int, int, int] | str], optional):
+            colors (dict[int, Color] | list[Color], optional):
               Either a dictionary mapping class indices to colors, or a list of colors.
               If list is provided, the color mapping is done by index.
               By default, random colors are used.

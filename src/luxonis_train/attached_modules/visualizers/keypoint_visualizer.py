@@ -8,6 +8,7 @@ from luxonis_train.utils.types import (
 
 from .base_visualizer import BaseVisualizer
 from .utils import (
+    Color,
     draw_keypoint_labels,
     draw_keypoints,
 )
@@ -18,22 +19,23 @@ class KeypointVisualizer(BaseVisualizer[list[Tensor], Tensor]):
         self,
         visibility_threshold: float = 0.5,
         connectivity: list[tuple[int, int]] | None = None,
-        visible_color: str = "red",
-        nonvisible_color: str | None = None,
+        visible_color: Color = "red",
+        nonvisible_color: Color | None = None,
         **kwargs,
     ):
         """
 
         Args:
             visibility_threshold (float): Threshold for visibility of keypoints.
-                If the visibility of a keypoint is below this threshold, it is
-                considered as not visible. Defaults to 0.5.
+              If the visibility of a keypoint is below this threshold, it is
+              considered as not visible. Defaults to 0.5.
             connectivity (list[tuple[int, int]] | None): List of tuples of
-                keypoint indices that define the connections in the skeleton.
-                Defaults to None.
-            visible_color (str): Color of visible keypoints. Defaults to "red".
-            nonvisible_color (str | None): Color of nonvisible keypoints.
-                If None, nonvisible keypoints are not drawn. Defaults to None.
+              keypoint indices that define the connections in the skeleton.
+              Defaults to None.
+            visible_color (Color): Color of visible keypoints.
+              Either a string or a tuple of RGB values. Defaults to "red".
+            nonvisible_color (Color | None): Color of nonvisible keypoints.
+              If None, nonvisible keypoints are not drawn. Defaults to None.
         """
         super().__init__(required_labels=[LabelType.KEYPOINT], **kwargs)
         self.visibility_threshold = visibility_threshold

@@ -4,6 +4,7 @@ from luxonis_train.utils.types import Labels, LabelType, Packet, SegmentationPro
 
 from .base_visualizer import BaseVisualizer
 from .utils import (
+    Color,
     draw_segmentation_labels,
     draw_segmentation_masks,
     seg_output_to_bool,
@@ -11,7 +12,7 @@ from .utils import (
 
 
 class SegmentationVisualizer(BaseVisualizer[Tensor, Tensor]):
-    def __init__(self, color: str = "#5050FF", alpha: float = 0.6, **kwargs):
+    def __init__(self, color: Color = "#5050FF", alpha: float = 0.6, **kwargs):
         """
 
         Args:

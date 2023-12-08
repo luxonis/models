@@ -414,6 +414,11 @@ class BaseNode(
             case "all":
                 return lst
             case int(i):
+                i = _normalize_index(i)
+                if i >= len(lst):
+                    raise ValueError(
+                        f"Attach index {i} is out of range for list of length {len(lst)}."
+                    )
                 return lst[_normalize_index(i)]
             case (int(i), int(j)):
                 return lst[_normalize_slice(i, j)]

@@ -2,7 +2,7 @@
 
 List of all the available loss functions.
 
-## Table Of Content
+## Table Of Contents
 
 - [CrossEntropyLoss](#crossentropyloss)
 - [BCEWithLogitsLoss](#bcewithlogitsloss)

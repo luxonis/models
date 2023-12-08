@@ -1,6 +1,6 @@
 # Visualizers
 
-## Table Of Content
+## Table Of Contents
 
 - [BBoxVisualizer](#bboxvisualizer)
 - [ClassificationVisualizer](#classificationvisualizer)

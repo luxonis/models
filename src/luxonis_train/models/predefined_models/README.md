@@ -3,7 +3,7 @@
 In addition to definig the model by hand, we offer a list of simple predefined
 models which can be used instead.
 
-## Table Of Content
+## Table Of Contents
 
 - [SegmentationModel](#segmentationmodel)
 - [DetectionModel](#detectionmodel)

@@ -4,7 +4,7 @@ The configuration is defined in a yaml file, which you must provide.
 The configuration file consists of a few major blocks that are described below.
 You can create your own config or use/edit one of the examples.
 
-## Table Of Content
+## Table Of Contents
 
 - [Top-level Options](#top-level-options)
 - [Model](#model)

@@ -8,7 +8,7 @@ Luxonis training framework (`luxonis-train`) is intended for training deep learn
 
 The project is in alpha state - please report any feedback.
 
-## Table Of Content
+## Table Of Contents
 
 - [Installation](#installation)
 - [Contributing](#contributing)

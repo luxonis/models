@@ -3,7 +3,7 @@
 Nodes are the basic building structures of the model. They can be connected together
 arbitrarily as long as the two nodes are compatible with each other.
 
-## Table Of Content
+## Table Of Contents
 
 - [ResNet18](#resnet18)
 - [MicroNet](#micronet)

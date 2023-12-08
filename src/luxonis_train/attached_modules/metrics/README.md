@@ -2,7 +2,7 @@
 
 List of all the available metrics.
 
-## Table Of Content
+## Table Of Contents
 
 - [Torchmetrics](#torchmetrics)
 - [ObjectKeypointSimilarity](#objectkeypointsimilarity)

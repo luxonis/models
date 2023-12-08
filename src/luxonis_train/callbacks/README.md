@@ -2,7 +2,7 @@
 
 List of all supported callbacks.
 
-## Table Of Content
+## Table Of Contents
 
 - [PytorchLightning Callbacks](#pytorchlightning-callbacks)
 - [ExportOnTrainEnd](#exportontrainend)

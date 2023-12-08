@@ -22,7 +22,8 @@ If applicable, add screenshots to help explain your problem.
 **To Reproduce**
 Context to reproduce the behavior (if relevant to the issue):
 - What config file you used
-- Instructions to recreate the used dataset
+- Can the issue be reproduced with one of the example datasets?
+  - If not, provide instructions to recreate the used dataset
 - What script or command were used to run the pipeline
 
 **Additional context**

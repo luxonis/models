@@ -1,7 +1,6 @@
 import logging
 from collections import defaultdict
 from collections.abc import Mapping
-from pprint import pprint
 from typing import Literal, cast
 
 import pytorch_lightning as pl
@@ -715,16 +714,16 @@ class LuxonisModel(pl.LightningModule):
     ) -> None:
         """Prints validation metrics in the console."""
 
+        self.logging_logger.info(f"{stage} loss: {loss:.4f}")
+
         if self.cfg.use_rich_text:
             self._progress_bar.print_results(stage=stage, loss=loss, metrics=metrics)
         else:
-            print(f"\n----- {stage} -----")
-            print(f"Loss: {loss}")
-            print("Metrics:")
-            pprint(metrics)
-            print("----------")
-
-        self.logging_logger.info(f"{stage} loss: {loss:.4f}")
+            for node_name, node_metrics in metrics.items():
+                for metric_name, metric_value in node_metrics.items():
+                    self.logging_logger.info(
+                        f"{stage} metric: {node_name}/{metric_name}: {metric_value:.4f}"
+                    )
 
         if self.main_metric is not None:
             main_metric_node, main_metric_name = self.main_metric.split("/")

@@ -101,15 +101,6 @@ class ModelConfig(BaseModel):
     }
 
 
-class TrainerConfig(BaseModel):
-    accelerator: Literal["auto", "cpu", "gpu"] = "auto"
-    devices: int | list[int] | str = "auto"
-    strategy: Literal["auto", "ddp"] = "auto"
-    num_sanity_val_steps: int = 2
-    profiler: Literal["simple", "advanced"] | None = None
-    verbose: bool = True
-
-
 class TrackerConfig(BaseModel):
     project_name: str | None = None
     project_id: str | None = None
@@ -202,8 +193,15 @@ class SchedulerConfig(BaseModel):
     params: dict[str, Any] = {}
 
 
-class TrainConfig(BaseModel):
+class TrainerConfig(BaseModel):
     preprocessing: PreprocessingConfig = PreprocessingConfig()
+
+    accelerator: Literal["auto", "cpu", "gpu"] = "auto"
+    devices: int | list[int] | str = "auto"
+    strategy: Literal["auto", "ddp"] = "auto"
+    num_sanity_val_steps: int = 2
+    profiler: Literal["simple", "advanced"] | None = None
+    verbose: bool = True
 
     batch_size: int = 32
     accumulate_grad_batches: int = 1
@@ -291,9 +289,8 @@ class Config(LuxonisConfig):
     use_rich_text: bool = True
     model: ModelConfig
     dataset: DatasetConfig = DatasetConfig()
-    trainer: TrainerConfig = TrainerConfig()
     tracker: TrackerConfig = TrackerConfig()
-    train: TrainConfig = TrainConfig()
+    trainer: TrainerConfig = TrainerConfig()
     exporter: ExportConfig = ExportConfig()
     tuner: TunerConfig = TunerConfig()
     ENVIRON: Environ = Environ()

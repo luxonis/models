@@ -23,19 +23,19 @@ class TestOnTrainEnd(pl.Callback):
             dataset,
             view=pl_module.cfg.dataset.test_view,
             augmentations=ValAugmentations(
-                image_size=pl_module.cfg.train.preprocessing.train_image_size,
+                image_size=pl_module.cfg.trainer.preprocessing.train_image_size,
                 augmentations=[
                     i.model_dump()
-                    for i in pl_module.cfg.train.preprocessing.augmentations
+                    for i in pl_module.cfg.trainer.preprocessing.augmentations
                 ],
-                train_rgb=pl_module.cfg.train.preprocessing.train_rgb,
-                keep_aspect_ratio=pl_module.cfg.train.preprocessing.keep_aspect_ratio,
+                train_rgb=pl_module.cfg.trainer.preprocessing.train_rgb,
+                keep_aspect_ratio=pl_module.cfg.trainer.preprocessing.keep_aspect_ratio,
             ),
         )
         pytorch_loader_test = DataLoader(
             loader_test,
-            batch_size=pl_module.cfg.train.batch_size,
-            num_workers=pl_module.cfg.train.num_workers,
+            batch_size=pl_module.cfg.trainer.batch_size,
+            num_workers=pl_module.cfg.trainer.num_workers,
             collate_fn=collate_fn,
         )
         trainer.test(pl_module, pytorch_loader_test)

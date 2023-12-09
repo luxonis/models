@@ -54,7 +54,7 @@ class Exporter(Core):
             export_path.parent.mkdir(parents=True, exist_ok=True)
         self.export_path = str(export_path)
 
-        normalize_params = self.cfg.train.preprocessing.normalize.params
+        normalize_params = self.cfg.trainer.preprocessing.normalize.params
         if self.cfg.exporter.scale_values is not None:
             self.scale_values = self.cfg.exporter.scale_values
         else:
@@ -84,7 +84,7 @@ class Exporter(Core):
             "scale_values": self.scale_values,
             "mean_values": self.mean_values,
             "reverse_input_channels": self.cfg.exporter.reverse_input_channels,
-            "use_bgr": not self.cfg.train.preprocessing.train_rgb,
+            "use_bgr": not self.cfg.trainer.preprocessing.train_rgb,
             "input_shape": list(self.input_shape),
             "data_type": self.cfg.exporter.data_type,
             "output": [{"name": name} for name in self.output_names],

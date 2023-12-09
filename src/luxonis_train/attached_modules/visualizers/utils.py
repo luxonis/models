@@ -209,9 +209,9 @@ def unnormalize(
 
 
 def get_unnormalized_images(cfg: Config, images: Tensor) -> Tensor:
-    normalize_params = cfg.train.preprocessing.normalize.params
+    normalize_params = cfg.trainer.preprocessing.normalize.params
     mean = std = None
-    if cfg.train.preprocessing.normalize.active:
+    if cfg.trainer.preprocessing.normalize.active:
         mean = normalize_params.get("mean", [0.485, 0.456, 0.406])
         std = normalize_params.get("std", [0.229, 0.224, 0.225])
     return preprocess_images(

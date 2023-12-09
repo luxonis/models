@@ -55,7 +55,7 @@ if __name__ == "__main__":
             raise ValueError("Override options should be a list of key-value pairs")
         cfg.override_config(dict(zip(opts[::2], opts[1::2])))
 
-    image_size = cfg.train.preprocessing.train_image_size
+    image_size = cfg.trainer.preprocessing.train_image_size
 
     dataset = LuxonisDataset(
         dataset_name=cfg.dataset.dataset_name,
@@ -68,19 +68,19 @@ if __name__ == "__main__":
         TrainAugmentations(
             image_size=image_size,
             augmentations=[
-                i.model_dump() for i in cfg.train.preprocessing.augmentations
+                i.model_dump() for i in cfg.trainer.preprocessing.augmentations
             ],
-            train_rgb=cfg.train.preprocessing.train_rgb,
-            keep_aspect_ratio=cfg.train.preprocessing.keep_aspect_ratio,
+            train_rgb=cfg.trainer.preprocessing.train_rgb,
+            keep_aspect_ratio=cfg.trainer.preprocessing.keep_aspect_ratio,
         )
         if args.view == "train"
         else ValAugmentations(
             image_size=image_size,
             augmentations=[
-                i.model_dump() for i in cfg.train.preprocessing.augmentations
+                i.model_dump() for i in cfg.trainer.preprocessing.augmentations
             ],
-            train_rgb=cfg.train.preprocessing.train_rgb,
-            keep_aspect_ratio=cfg.train.preprocessing.keep_aspect_ratio,
+            train_rgb=cfg.trainer.preprocessing.train_rgb,
+            keep_aspect_ratio=cfg.trainer.preprocessing.keep_aspect_ratio,
         )
     )
 

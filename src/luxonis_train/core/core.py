@@ -86,20 +86,20 @@ class Core:
         rank_zero_module.log = self.logger
 
         self.train_augmentations = TrainAugmentations(
-            image_size=self.cfg.train.preprocessing.train_image_size,
+            image_size=self.cfg.trainer.preprocessing.train_image_size,
             augmentations=[
-                i.model_dump() for i in self.cfg.train.preprocessing.augmentations
+                i.model_dump() for i in self.cfg.trainer.preprocessing.augmentations
             ],
-            train_rgb=self.cfg.train.preprocessing.train_rgb,
-            keep_aspect_ratio=self.cfg.train.preprocessing.keep_aspect_ratio,
+            train_rgb=self.cfg.trainer.preprocessing.train_rgb,
+            keep_aspect_ratio=self.cfg.trainer.preprocessing.keep_aspect_ratio,
         )
         self.val_augmentations = ValAugmentations(
-            image_size=self.cfg.train.preprocessing.train_image_size,
+            image_size=self.cfg.trainer.preprocessing.train_image_size,
             augmentations=[
-                i.model_dump() for i in self.cfg.train.preprocessing.augmentations
+                i.model_dump() for i in self.cfg.trainer.preprocessing.augmentations
             ],
-            train_rgb=self.cfg.train.preprocessing.train_rgb,
-            keep_aspect_ratio=self.cfg.train.preprocessing.keep_aspect_ratio,
+            train_rgb=self.cfg.trainer.preprocessing.train_rgb,
+            keep_aspect_ratio=self.cfg.trainer.preprocessing.keep_aspect_ratio,
         )
 
         self.pl_trainer = pl.Trainer(
@@ -107,9 +107,9 @@ class Core:
             devices=self.cfg.trainer.devices,
             strategy=self.cfg.trainer.strategy,
             logger=self.tracker,
-            max_epochs=self.cfg.train.epochs,
-            accumulate_grad_batches=self.cfg.train.accumulate_grad_batches,
-            check_val_every_n_epoch=self.cfg.train.validation_interval,
+            max_epochs=self.cfg.trainer.epochs,
+            accumulate_grad_batches=self.cfg.trainer.accumulate_grad_batches,
+            check_val_every_n_epoch=self.cfg.trainer.validation_interval,
             num_sanity_val_steps=self.cfg.trainer.num_sanity_val_steps,
             profiler=self.cfg.trainer.profiler,  # for debugging purposes,
             # NOTE: this is likely PL bug,
@@ -142,18 +142,18 @@ class Core:
 
         self.pytorch_loader_val = torch.utils.data.DataLoader(
             self.loader_val,
-            batch_size=self.cfg.train.batch_size,
-            num_workers=self.cfg.train.num_workers,
+            batch_size=self.cfg.trainer.batch_size,
+            num_workers=self.cfg.trainer.num_workers,
             collate_fn=collate_fn,
         )
         self.pytorch_loader_test = torch.utils.data.DataLoader(
             self.loader_test,
-            batch_size=self.cfg.train.batch_size,
-            num_workers=self.cfg.train.num_workers,
+            batch_size=self.cfg.trainer.batch_size,
+            num_workers=self.cfg.trainer.num_workers,
             collate_fn=collate_fn,
         )
         sampler = None
-        if self.cfg.train.use_weighted_sampler:
+        if self.cfg.trainer.use_weighted_sampler:
             classes_count = self.dataset.get_classes()[1]
             if len(classes_count) == 0:
                 self.logger.warning(
@@ -167,10 +167,10 @@ class Core:
         self.pytorch_loader_train = torch.utils.data.DataLoader(
             self.loader_train,
             shuffle=True,
-            batch_size=self.cfg.train.batch_size,
-            num_workers=self.cfg.train.num_workers,
+            batch_size=self.cfg.trainer.batch_size,
+            num_workers=self.cfg.trainer.num_workers,
             collate_fn=collate_fn,
-            drop_last=self.cfg.train.skip_last_batch,
+            drop_last=self.cfg.trainer.skip_last_batch,
             sampler=sampler,
         )
         self.error_message = None

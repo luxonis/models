@@ -461,7 +461,7 @@ class LuxonisModel(pl.LightningModule):
                 training_step_output[
                     f"loss/{node_name}/{loss_name}"
                 ] = loss.detach().cpu()
-                if self.cfg.train.log_sub_losses and sublosses:
+                if self.cfg.trainer.log_sub_losses and sublosses:
                     for subloss_name, subloss_value in sublosses.items():
                         training_step_output[
                             f"loss/{node_name}/{loss_name}/{subloss_name}"
@@ -512,18 +512,18 @@ class LuxonisModel(pl.LightningModule):
 
     def get_status(self) -> tuple[int, int]:
         """Returns current epoch and number of all epochs."""
-        return self.current_epoch, self.cfg.train.epochs
+        return self.current_epoch, self.cfg.trainer.epochs
 
     def get_status_percentage(self) -> float:
         """Returns percentage of current training, takes into account early stopping."""
         if self._trainer.early_stopping_callback:
             # model haven't yet stop from early stopping callback
             if self._trainer.early_stopping_callback.stopped_epoch == 0:
-                return (self.current_epoch / self.cfg.train.epochs) * 100
+                return (self.current_epoch / self.cfg.trainer.epochs) * 100
             else:
                 return 100.0
         else:
-            return (self.current_epoch / self.cfg.train.epochs) * 100
+            return (self.current_epoch / self.cfg.trainer.epochs) * 100
 
     def _evaluation_step(
         self,
@@ -597,7 +597,7 @@ class LuxonisModel(pl.LightningModule):
                 dirpath=self.min_val_loss_checkpoints_path,
                 filename=f"{model_name}_loss={{val/loss:.4f}}_{{epoch:02d}}",
                 auto_insert_metric_name=False,
-                save_top_k=self.cfg.train.save_top_k,
+                save_top_k=self.cfg.trainer.save_top_k,
                 mode="min",
             )
         )
@@ -611,7 +611,7 @@ class LuxonisModel(pl.LightningModule):
                     filename=f"{model_name}_{main_metric}={{val/metric/{self.main_metric}:.4f}}"
                     f"_loss={{val/loss:.4f}}_{{epoch:02d}}",
                     auto_insert_metric_name=False,
-                    save_top_k=self.cfg.train.save_top_k,
+                    save_top_k=self.cfg.trainer.save_top_k,
                     mode="max",
                 )
             )
@@ -622,7 +622,7 @@ class LuxonisModel(pl.LightningModule):
         if self.cfg.use_rich_text:
             callbacks.append(RichModelSummary(max_depth=2))
 
-        for callback in self.cfg.train.callbacks:
+        for callback in self.cfg.trainer.callbacks:
             if callback.active:
                 callbacks.append(CALLBACKS.get(callback.name)(**callback.params))
 
@@ -632,8 +632,8 @@ class LuxonisModel(pl.LightningModule):
         self,
     ) -> tuple[list[torch.optim.Optimizer], list[nn.Module]]:
         """Configures model optimizers and schedulers."""
-        cfg_optimizer = self.cfg.train.optimizer
-        cfg_scheduler = self.cfg.train.scheduler
+        cfg_optimizer = self.cfg.trainer.optimizer
+        cfg_scheduler = self.cfg.trainer.scheduler
 
         optim_params = cfg_optimizer.params | {
             "params": filter(lambda p: p.requires_grad, self.parameters()),
@@ -735,7 +735,7 @@ class LuxonisModel(pl.LightningModule):
     def _is_train_eval_epoch(self) -> bool:
         """Checks if train eval should be performed on current epoch based on configured
         train_metrics_interval."""
-        train_metrics_interval = self.cfg.train.train_metrics_interval
+        train_metrics_interval = self.cfg.trainer.train_metrics_interval
         # add +1 to current_epoch because starting epoch is at 0
         return (
             train_metrics_interval != -1

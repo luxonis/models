@@ -87,14 +87,6 @@ model:
     - name: BBoxVisualizer
       attached_to: EfficientBBoxHead
 
-trainer:
-  accelerator: auto
-  devices: auto
-  strategy: auto
-  num_sanity_val_steps: 0
-  profiler: null
-  verbose: True
-
 tracker:
   project_name: coco_test
   run_name: &model_name null
@@ -110,7 +102,26 @@ dataset:
   val_view: val
   test_view: test
 
-train:
+trainer:
+  accelerator: auto
+  devices: auto
+  strategy: auto
+
+  num_sanity_val_steps: 1
+  profiler: null
+  verbose: True
+  batch_size: 4
+  accumulate_grad_batches: 1
+  epochs: &epochs 200
+  num_workers: 8
+  train_metrics_interval: -1
+  validation_interval: 10
+  num_log_images: 8
+  skip_last_batch: True
+  main_head_index: 0
+  log_sub_losses: True
+  save_top_k: 3
+
   preprocessing:
     train_image_size: [&height 256, &width 320]
     keep_aspect_ratio: False
@@ -130,18 +141,6 @@ train:
         params:
           out_width: *width
           out_height: *height
-
-  batch_size: 4
-  accumulate_grad_batches: 1
-  epochs: &epochs 200
-  num_workers: 8
-  train_metrics_interval: -1
-  validation_interval: 10
-  num_log_images: 8
-  skip_last_batch: True
-  main_head_index: 0
-  log_sub_losses: True
-  save_top_k: 3
 
   callbacks:
     - name: LearningRateMonitor

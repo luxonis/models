@@ -195,7 +195,7 @@ def is_acyclic(graph: dict[str, list[str]]) -> bool:
     return True
 
 
-def validate_packet(data: Packet, protocol: type[BaseModel]) -> Packet:
+def validate_packet(data: Packet[Tensor], protocol: type[BaseModel]) -> Packet[Tensor]:
     return protocol(**data).model_dump()
 
 
@@ -207,7 +207,7 @@ def traverse_graph(
     graph: dict[str, list[str]], nodes: dict[str, T]
 ) -> Generator[tuple[str, T, list[str], set[str]], None, None]:
     unprocessed_nodes = set(nodes.keys())
-    processed = set()
+    processed: set[str] = set()
 
     while unprocessed_nodes:
         unprocessed_nodes_copy = unprocessed_nodes.copy()

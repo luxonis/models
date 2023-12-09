@@ -197,7 +197,7 @@ class BaseNode(
         if self._in_sizes is not None:
             return self._in_sizes
 
-        features = self.input_shapes[0]["features"]
+        features = self.input_shapes[0].get("features")
         if features is None:
             raise IncompatibleException(
                 f"Feature field is missing in {self.__class__.__name__}. "
@@ -359,7 +359,7 @@ class BaseNode(
             "dataset_metadata": self.dataset_metadata,
         }
 
-    def validate(self, data: list[Packet]) -> list[Packet]:
+    def validate(self, data: list[Packet[Tensor]]) -> list[Packet[Tensor]]:
         """Validates the inputs against `in_protocols`."""
         if len(data) != len(self.in_protocols):
             raise IncompatibleException(

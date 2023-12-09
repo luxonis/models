@@ -130,15 +130,15 @@ class Tuner(Core):
             match key_type, value:
                 case "categorical", list(lst):
                     new_value = trial.suggest_categorical(key_name, lst)
-                case "float", [float(low), float(high), *step]:
-                    step = step[0] if step else None
+                case "float", [float(low), float(high), *tail]:
+                    step = tail[0] if tail else None
                     if step is not None and not isinstance(step, float):
                         raise ValueError(
                             f"Step for float type must be float, but got {step}"
                         )
                     new_value = trial.suggest_float(key_name, low, high, step=step)
-                case "int", [int(low), int(high), *step]:
-                    step = step[0] if step else 1
+                case "int", [int(low), int(high), *tail]:
+                    step = tail[0] if tail else 1
                     if not isinstance(step, int):
                         raise ValueError(
                             f"Step for int type must be int, but got {step}"

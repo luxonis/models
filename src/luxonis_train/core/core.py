@@ -40,23 +40,21 @@ class Core:
             opts (list[str]): argument dict provided through command line, used for config overriding
         """
 
-        if isinstance(cfg, Config):
-            self.cfg = cfg
-        else:
-            self.cfg = Config(cfg)  # type: ignore
-
-        opts = opts or []
-
+        overrides = {}
         if opts:
             if len(opts) % 2 != 0:
                 raise ValueError("Override options should be a list of key-value pairs")
 
             # NOTE: has to be done like this for torchx to work
-            overrides = {}
-            if opts:
-                for i in range(0, len(opts), 2):
-                    overrides[opts[i]] = opts[i + 1]
-            self.cfg.override_config(overrides)
+            for i in range(0, len(opts), 2):
+                overrides[opts[i]] = opts[i + 1]
+
+        if isinstance(cfg, Config):
+            self.cfg = cfg
+        else:
+            self.cfg = Config.load_config(cfg, overrides)
+
+        opts = opts or []
 
         if self.cfg.use_rich_text:
             rich.traceback.install(suppress=[pl, torch])

@@ -4,8 +4,7 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 
 from luxonis_ml.data import BucketStorage, BucketType
-from luxonis_ml.utils import Config as LuxonisConfig
-from luxonis_ml.utils import Environ, setup_logging
+from luxonis_ml.utils import Environ, LuxonisConfig, LuxonisFileSystem, setup_logging
 from pydantic import BaseModel, Field, field_serializer, model_validator
 
 from luxonis_train.utils.general import is_acyclic
@@ -324,9 +323,18 @@ class Config(LuxonisConfig):
                 setup_logging(use_rich=True)
         return data
 
-    def _validate(self) -> None:
-        """Performs any additional validation on the top level after the fact."""
-        if self._fs is not None and self._fs.is_mlflow:
+    @classmethod
+    def load_config(
+        cls,
+        cfg: str | dict[str, Any] | None = None,
+        overrides: dict[str, Any] | None = None,
+    ):
+        instance = super().load_config(cfg, overrides)
+        if not isinstance(cfg, str):
+            return instance
+        fs = LuxonisFileSystem(cfg)
+        if fs.is_mlflow:
             logger.info("Setting `project_id` and `run_id` to config's MLFlow run")
-            self.tracker.project_id = self._fs.experiment_id
-            self.tracker.run_id = self._fs.run_id
+            instance.tracker.project_id = fs.experiment_id
+            instance.tracker.run_id = fs.run_id
+        return instance

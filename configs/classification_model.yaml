@@ -18,7 +18,7 @@ model:
 dataset:
   dataset_name: cifar10_test
 
-train:
+trainer:
   preprocessing:
     train_image_size: [&height 128, &width 128]
     keep_aspect_ratio: False

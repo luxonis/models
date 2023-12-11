@@ -13,10 +13,9 @@ You can create your own config or use/edit one of the examples.
     - [Losses](#losses)
     - [Metrics](#metrics)
     - [Visualizers](#visualizers)
-- [Trainer](#trainer)
 - [Tracker](#tracker)
 - [Dataset](#dataset)
-- [Train](#train)
+- [Trainer](#train)
   - [Preprocessing](#preprocessing)
   - [Optimizer](#optimizer)
   - [Scheduler](#scheduler)
@@ -105,19 +104,6 @@ You can see the list of all currently supported visualizers and their parameters
 
 Visualizers have no specific configuration.
 
-## Trainer
-
-This block configures everything connected to PytrochLightning Trainer object.
-
-| Key                  | Type                                    | Default value | Description                                                                                                                                      |
-| -------------------- | --------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| accelerator          | Literal\["auto", "cpu", "gpu"\]         | "auto"        | What accelerator to use for training.                                                                                                            |
-| devices              | int \| list\[int\] \| str               | "auto"        | Either specify how many devices to use (int), list specific devices, or use "auto" for automatic configuration based on the selected accelerator |
-| strategy             | Literal\["auto", "ddp"\]                | "auto"        | What strategy to use for training.                                                                                                               |
-| num_sanity_val_steps | int                                     | 2             | Number of sanity validation steps performed before training.                                                                                     |
-| profiler             | Literal\["simple", "advanced"\] \| None | None          | PL profiler for GPU/CPU/RAM utilization analysis                                                                                                 |
-| verbose              | bool                                    | True          | Print all intermediate results to console.                                                                                                       |
-
 ## Tracker
 
 This library uses [LuxonisTrackerPL](https://github.com/luxonis/luxonis-ml/blob/b2399335efa914ef142b1b1a5db52ad90985c539/src/luxonis_ml/ops/tracker.py#L152).
@@ -151,21 +137,27 @@ To store and load the data we use LuxonisDataset and LuxonisLoader. For specific
 | test_view      | str                                      | test                | view to use for testing                        |
 | json_mode      | bool                                     | False               | load using JSON annotations instead of MongoDB |
 
-## Train
+## Trainer
 
 Here you can change everything related to actual training of the model.
 
-| Key                     | Type | Default value | Description                                                                          |
-| ----------------------- | ---- | ------------- | ------------------------------------------------------------------------------------ |
-| batch_size              | int  | 32            | batch size used for training                                                         |
-| accumulate_grad_batches | int  | 1             | number of batches for gradient accumulation                                          |
-| use_weighted_sampler    | bool | False         | bool if use WeightedRandomSampler for training, only works with classification tasks |
-| epochs                  | int  | 100           | number of training epochs                                                            |
-| num_workers             | int  | 2             | number of workers for data loading                                                   |
-| train_metrics_interval  | int  | -1            | frequency of computing metrics on train data, -1 if don't perform                    |
-| validation_interval     | int  | 1             | frequency of computing metrics on validation data                                    |
-| num_log_images          | int  | 4             | maximum number of images to visualize and log                                        |
-| skip_last_batch         | bool | True          | whether to skip last batch while training                                            |
+| Key                     | Type                                    | Default value | Description                                                                                                                                      |
+| ----------------------- | --------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| batch_size              | int                                     | 32            | batch size used for training                                                                                                                     |
+| accumulate_grad_batches | int                                     | 1             | number of batches for gradient accumulation                                                                                                      |
+| use_weighted_sampler    | bool                                    | False         | bool if use WeightedRandomSampler for training, only works with classification tasks                                                             |
+| epochs                  | int                                     | 100           | number of training epochs                                                                                                                        |
+| num_workers             | int                                     | 2             | number of workers for data loading                                                                                                               |
+| train_metrics_interval  | int                                     | -1            | frequency of computing metrics on train data, -1 if don't perform                                                                                |
+| validation_interval     | int                                     | 1             | frequency of computing metrics on validation data                                                                                                |
+| num_log_images          | int                                     | 4             | maximum number of images to visualize and log                                                                                                    |
+| skip_last_batch         | bool                                    | True          | whether to skip last batch while training                                                                                                        |
+| accelerator             | Literal\["auto", "cpu", "gpu"\]         | "auto"        | What accelerator to use for training.                                                                                                            |
+| devices                 | int \| list\[int\] \| str               | "auto"        | Either specify how many devices to use (int), list specific devices, or use "auto" for automatic configuration based on the selected accelerator |
+| strategy                | Literal\["auto", "ddp"\]                | "auto"        | What strategy to use for training.                                                                                                               |
+| num_sanity_val_steps    | int                                     | 2             | Number of sanity validation steps performed before training.                                                                                     |
+| profiler                | Literal\["simple", "advanced"\] \| None | None          | PL profiler for GPU/CPU/RAM utilization analysis                                                                                                 |
+| verbose                 | bool                                    | True          | Print all intermediate results to console.                                                                                                       |
 
 ### Preprocessing
 
@@ -259,9 +251,9 @@ Example of params for tuner block:
 ```yaml
 tuner:
   params:
-    train.optimizer.name_categorical: ["Adam", "SGD"]
-    train.optimizer.params.lr_float: [0.0001, 0.001]
-    train.batch_size_int: [4, 16, 4]
+    trainer.optimizer.name_categorical: ["Adam", "SGD"]
+    trainer.optimizer.params.lr_float: [0.0001, 0.001]
+    trainer.batch_size_int: [4, 16, 4]
 ```
 
 ### Storage

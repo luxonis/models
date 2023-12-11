@@ -17,7 +17,7 @@ class Inferer(Trainer):
         view: Literal["train", "test", "val"],
     ):
         opts = list(opts or [])
-        opts += ["train.batch_size", "1"]
+        opts += ["trainer.batch_size", "1"]
         super().__init__(cfg, opts)
         if view == "train":
             self.loader = self.pytorch_loader_train

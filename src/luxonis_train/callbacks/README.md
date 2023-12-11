@@ -44,9 +44,9 @@ Metadata include all defined hyperparameters together with git hashes of `luxoni
 
 **Params**
 
-| Key         | Type        | Default value | Description                                                                                                           |
-| ----------- | ----------- | ------------- | --------------------------------------------------------------------------------------------------------------------- |
-| hyperparams | list\[str\] | \[\]          | List of hyperparameters to log. The hyperparameters are provided as config keys in dot notation. E.g. "train.epochs". |
+| Key         | Type        | Default value | Description                                                                                                             |
+| ----------- | ----------- | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| hyperparams | list\[str\] | \[\]          | List of hyperparameters to log. The hyperparameters are provided as config keys in dot notation. E.g. "trainer.epochs". |
 
 ## TestOnTrainEnd
 

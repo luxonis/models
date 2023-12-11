@@ -52,7 +52,7 @@ class Core:
         if isinstance(cfg, Config):
             self.cfg = cfg
         else:
-            self.cfg = Config.load_config(cfg, overrides)
+            self.cfg = Config.get_config(cfg, overrides)
 
         opts = opts or []
 

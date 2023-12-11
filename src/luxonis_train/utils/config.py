@@ -324,12 +324,12 @@ class Config(LuxonisConfig):
         return data
 
     @classmethod
-    def load_config(
+    def get_config(
         cls,
         cfg: str | dict[str, Any] | None = None,
         overrides: dict[str, Any] | None = None,
     ):
-        instance = super().load_config(cfg, overrides)
+        instance = super().get_config(cfg, overrides)
         if not isinstance(cfg, str):
             return instance
         fs = LuxonisFileSystem(cfg)

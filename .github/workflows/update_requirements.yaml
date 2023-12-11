@@ -21,6 +21,7 @@ jobs:
 
     - name: Run autogeneration script
       run: |
+        pip install toml
         python tools/autogenerate_requirements.py
 
     - name: Commit and push if changes

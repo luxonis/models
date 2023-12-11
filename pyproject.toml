@@ -40,6 +40,7 @@ dev = [
     "luxonis-train",
     "pre-commit>=3.2.1",
     "pytest>=7.4.3",
+    "toml>=0.10.2",
 ]
 
 [project.urls]

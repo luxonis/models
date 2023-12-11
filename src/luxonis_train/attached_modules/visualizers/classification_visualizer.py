@@ -1,7 +1,7 @@
-# TODO: docs
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from torch import Tensor
 
 from .base_visualizer import BaseVisualizer
@@ -59,36 +59,40 @@ class ClassificationVisualizer(BaseVisualizer[Tensor, Tensor]):
         self,
         label_canvas: Tensor,
         prediction_canvas: Tensor,
-        idx: int,
-        prediction: Tensor,
-        label: Tensor,
+        predictions: Tensor,
+        labels: Tensor,
     ) -> Tensor | tuple[Tensor, Tensor]:
-        prediction = prediction[idx]
-        gt = self._get_class_name(label[idx])
-        arr = torch_img_to_numpy(label_canvas)
-        curr_class = self._get_class_name(prediction)
-        arr = cv2.putText(
-            arr,
-            f"GT: {gt}",
-            (5, 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            self.font_scale,
-            self.color,
-            self.thickness,
-        )
-        arr = cv2.putText(
-            arr,
-            f"Pred: {curr_class}",
-            (5, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            self.font_scale,
-            self.color,
-            self.thickness,
-        )
-        overlay = numpy_to_torch_img(arr)
-        if self.include_plot:
-            plot = self._generate_plot(
-                prediction, prediction_canvas.shape[2], prediction_canvas.shape[1]
+        overlay = torch.zeros_like(label_canvas)
+        plots = torch.zeros_like(prediction_canvas)
+        for i in range(len(overlay)):
+            prediction = predictions[i]
+            gt = self._get_class_name(labels[i])
+            arr = torch_img_to_numpy(label_canvas[i].clone())
+            curr_class = self._get_class_name(prediction)
+            arr = cv2.putText(
+                arr,
+                f"GT: {gt}",
+                (5, 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.font_scale,
+                self.color,
+                self.thickness,
             )
-            return overlay, plot
+            arr = cv2.putText(
+                arr,
+                f"Pred: {curr_class}",
+                (5, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.font_scale,
+                self.color,
+                self.thickness,
+            )
+            overlay[i] = numpy_to_torch_img(arr)
+            if self.include_plot:
+                plots[i] = self._generate_plot(
+                    prediction, prediction_canvas.shape[3], prediction_canvas.shape[2]
+                )
+
+        if self.include_plot:
+            return overlay, plots
         return overlay

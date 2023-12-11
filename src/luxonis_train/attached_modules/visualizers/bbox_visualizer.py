@@ -1,5 +1,6 @@
 import logging
 
+import torch
 from torch import Tensor
 
 from luxonis_train.utils.types import BBoxProtocol, LabelType
@@ -73,8 +74,7 @@ class BBoxVisualizer(BaseVisualizer[Tensor, Tensor]):
         self,
         label_canvas: Tensor,
         prediction_canvas: Tensor,
-        idx: int,
-        prediction: Tensor,
+        predictions: Tensor,
         targets: Tensor,
     ) -> tuple[Tensor, Tensor]:
         """Creates a visualization of the bounding box predictions and labels.
@@ -88,49 +88,54 @@ class BBoxVisualizer(BaseVisualizer[Tensor, Tensor]):
             targets (Tensor): The target bounding boxes.
 
         Returns:
-            tuple[Tensor, Tensor]: A tuple containing the canvas with the labels
-            and the canvas with the predictions.
+            tuple[Tensor, Tensor]: A tuple of the label and prediction visualizations.
         """
-        prediction = prediction[idx]
-        targets = targets[targets[:, 0] == idx]
-        prediction_classes = prediction[:, 5].int()
+        labels_viz = torch.zeros_like(label_canvas)
+        predictions_viz = torch.zeros_like(prediction_canvas)
 
-        target_classes = targets[:, 1].int()
-        *_, H, W = label_canvas.shape
-        width = self.width or max(1, int(min(H, W) / 100))
-        labels_viz = draw_bounding_box_labels(
-            label_canvas.clone(),
-            targets[:, 2:],
-            labels=[self.labels[int(c)] for c in target_classes]
-            if self.draw_labels and self.labels
-            else None,
-            colors=[self.colors[self.labels[int(c)]] for c in target_classes]
-            if self.colors
-            else None,
-            fill=self.fill,
-            width=width,
-            font=self.font,
-            font_size=self.font_size,
-        ).to(prediction_canvas.device)
+        for i in range(len(predictions)):
+            prediction = predictions[i]
+            target = targets[targets[:, 0] == i]
+            prediction_classes = prediction[:, 5].int()
 
-        try:
-            prediction_viz = draw_bounding_boxes(
-                prediction_canvas.clone(),
-                prediction[:, :4],
-                labels=[self.labels[int(c)] for c in prediction_classes]
+            target_classes = target[:, 1].int()
+            *_, H, W = label_canvas.shape
+            width = self.width or max(1, int(min(H, W) / 100))
+            labels_viz[i] = draw_bounding_box_labels(
+                label_canvas[i].clone(),
+                target[:, 2:],
+                labels=[self.labels[int(c)] for c in target_classes]
                 if self.draw_labels and self.labels
                 else None,
-                colors=[self.colors[self.labels[int(c)]] for c in prediction_classes]
+                colors=[self.colors[self.labels[int(c)]] for c in target_classes]
                 if self.colors
                 else None,
                 fill=self.fill,
                 width=width,
                 font=self.font,
                 font_size=self.font_size,
-            )
-        except ValueError as e:
-            logging.getLogger(__name__).warning(
-                f"Failed to draw bounding boxes: {e}. Skipping visualization."
-            )
-            prediction_viz = prediction_canvas
-        return labels_viz, prediction_viz.to(labels_viz.device)
+            ).to(prediction_canvas.device)
+
+            try:
+                predictions_viz[i] = draw_bounding_boxes(
+                    prediction_canvas[i].clone(),
+                    prediction[:, :4],
+                    labels=[self.labels[int(c)] for c in prediction_classes]
+                    if self.draw_labels and self.labels
+                    else None,
+                    colors=[
+                        self.colors[self.labels[int(c)]] for c in prediction_classes
+                    ]
+                    if self.colors
+                    else None,
+                    fill=self.fill,
+                    width=width,
+                    font=self.font,
+                    font_size=self.font_size,
+                )
+            except ValueError as e:
+                logging.getLogger(__name__).warning(
+                    f"Failed to draw bounding boxes: {e}. Skipping visualization."
+                )
+                predictions_viz = prediction_canvas
+        return labels_viz, predictions_viz.to(labels_viz.device)

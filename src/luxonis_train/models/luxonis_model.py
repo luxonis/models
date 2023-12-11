@@ -128,6 +128,8 @@ class LuxonisModel(pl.LightningModule):
         self.visualizers: dict[str, dict[str, BaseVisualizer]] = defaultdict(dict)
         self.logging_logger = logging.getLogger(__name__)
 
+        self._logged_images = 0
+
         frozen_nodes: list[str] = []
         nodes: dict[str, tuple[type[BaseNode], Kwargs]] = {}
 
@@ -478,17 +480,13 @@ class LuxonisModel(pl.LightningModule):
         self.training_step_outputs.append(training_step_output)
         return loss
 
-    def validation_step(
-        self, val_batch: tuple[Tensor, Labels], batch_idx: int
-    ) -> dict[str, Tensor]:
+    def validation_step(self, val_batch: tuple[Tensor, Labels]) -> dict[str, Tensor]:
         """Performs one step of validation with provided batch."""
-        return self._evaluation_step("val", val_batch, batch_idx)
+        return self._evaluation_step("val", val_batch)
 
-    def test_step(
-        self, test_batch: tuple[Tensor, Labels], batch_idx: int
-    ) -> dict[str, Tensor]:
+    def test_step(self, test_batch: tuple[Tensor, Labels]) -> dict[str, Tensor]:
         """Performs one step of testing with provided batch."""
-        return self._evaluation_step("test", test_batch, batch_idx)
+        return self._evaluation_step("test", test_batch)
 
     def on_train_epoch_end(self) -> None:
         """Performs train epoch end operations."""
@@ -526,18 +524,16 @@ class LuxonisModel(pl.LightningModule):
             return (self.current_epoch / self.cfg.trainer.epochs) * 100
 
     def _evaluation_step(
-        self,
-        mode: Literal["test", "val"],
-        batch: tuple[Tensor, Labels],
-        batch_idx: int,
+        self, mode: Literal["test", "val"], batch: tuple[Tensor, Labels]
     ) -> dict[str, Tensor]:
         inputs, labels = batch
-        images = get_unnormalized_images(self.cfg, inputs)
+        images = None
+        if self._logged_images < self.cfg.trainer.num_log_images:
+            images = get_unnormalized_images(self.cfg, inputs)
         outputs = self.forward(
             inputs,
             labels,
-            # TODO: support batch visualizations
-            image=images[0],
+            image=images,
             compute_metrics=True,
             compute_visualizations=True,
         )
@@ -545,13 +541,20 @@ class LuxonisModel(pl.LightningModule):
         _, step_output = self.process_losses(outputs.losses)
         self.validation_step_outputs.append(step_output)
 
+        logged_images = self._logged_images
         for node_name, visualizations in outputs.visualizations.items():
-            for viz_name, viz in visualizations.items():
-                self.logger.log_image(
-                    f"{mode}/visualizations/{node_name}/{viz_name}/{batch_idx}",
-                    viz.detach().cpu().numpy().transpose(1, 2, 0),
-                    step=self.current_epoch,
-                )
+            for viz_name, viz_batch in visualizations.items():
+                logged_images = self._logged_images
+                for viz in viz_batch:
+                    if logged_images >= self.cfg.trainer.num_log_images:
+                        break
+                    self.logger.log_image(
+                        f"{mode}/visualizations/{node_name}/{viz_name}/{logged_images}",
+                        viz.detach().cpu().numpy().transpose(1, 2, 0),
+                        step=self.current_epoch,
+                    )
+                    logged_images += 1
+        self._logged_images = logged_images
 
         return step_output
 
@@ -582,6 +585,7 @@ class LuxonisModel(pl.LightningModule):
             )
 
         self.validation_step_outputs.clear()
+        self._logged_images = 0
 
     def configure_callbacks(self) -> list[pl.Callback]:
         """Configures Pytorch Lightning callbacks."""

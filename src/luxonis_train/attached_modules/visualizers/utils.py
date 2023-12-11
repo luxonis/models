@@ -328,9 +328,9 @@ def combine_visualizations(
                 "Valid options are: 'width', 'height', 'exact'."
             )
 
-        _, h1, w1 = fst.shape
+        *_, h1, w1 = fst.shape
 
-        _, h2, w2 = snd.shape
+        *_, h2, w2 = snd.shape
 
         if keep_size == "larger":
             target_width = max(w1, w2)
@@ -388,7 +388,7 @@ def combine_visualizations(
             return viz
         case (Tensor(data=viz_labels), Tensor(data=viz_predictions)):
             viz_labels, viz_predictions = resize_to_match(viz_labels, viz_predictions)
-            return torch.cat([viz_labels, viz_predictions], dim=2)
+            return torch.cat([viz_labels, viz_predictions], dim=-1)
 
         case (Tensor(data=_), [*viz]) if isinstance(viz, list) and all(
             isinstance(v, Tensor) for v in viz

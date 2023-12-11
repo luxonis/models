@@ -1,3 +1,4 @@
+import torch
 from torch import Tensor
 
 from luxonis_train.utils.types import Labels, LabelType, Packet, SegmentationProtocol
@@ -34,20 +35,35 @@ class SegmentationVisualizer(BaseVisualizer[Tensor, Tensor]):
         self,
         label_canvas: Tensor,
         prediction_canvas: Tensor,
-        idx: int,
-        prediction: Tensor,
+        predictions: Tensor,
         targets: Tensor,
     ) -> tuple[Tensor, Tensor]:
-        masks = seg_output_to_bool(prediction[idx])
-        masks = masks.to(prediction_canvas.device)
-        label_viz = draw_segmentation_labels(
-            label_canvas.clone(),
-            targets[idx],
-            alpha=self.alpha,
-            colors=self.color,
-        ).to(label_canvas.device)
+        """Creates a visualization of the segmentation predictions and labels.
 
-        prediction_viz = draw_segmentation_masks(
-            prediction_canvas.clone(), masks, alpha=self.alpha, colors=self.color
-        )
-        return label_viz, prediction_viz
+        Args:
+            label_canvas (Tensor): The canvas to draw the labels on.
+            prediction_canvas (Tensor): The canvas to draw the predictions on.
+            predictions (Tensor): The predictions to visualize.
+            targets (Tensor): The targets to visualize.
+
+        Returns:
+            tuple[Tensor, Tensor]: A tuple of the label and prediction visualizations.
+        """
+        labels_viz = torch.zeros_like(label_canvas)
+        predictions_viz = torch.zeros_like(prediction_canvas)
+        for i in range(len(labels_viz)):
+            prediction = predictions[i]
+            target = targets[i]
+            mask = seg_output_to_bool(prediction)
+            mask = mask.to(prediction_canvas.device)
+            labels_viz[i] = draw_segmentation_labels(
+                label_canvas[i].clone(),
+                target,
+                alpha=self.alpha,
+                colors=self.color,
+            ).to(label_canvas.device)
+
+            predictions_viz[i] = draw_segmentation_masks(
+                prediction_canvas[i].clone(), mask, alpha=self.alpha, colors=self.color
+            )
+        return labels_viz, predictions_viz

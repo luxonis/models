@@ -52,7 +52,6 @@ class BaseVisualizer(
         self,
         label_canvas: Tensor,
         prediction_canvas: Tensor,
-        idx: int,
         *args: Unpack[Ts],
     ) -> Tensor | tuple[Tensor, Tensor] | tuple[Tensor, list[Tensor]] | list[Tensor]:
         """Forward pass of the visualizer.
@@ -70,7 +69,6 @@ class BaseVisualizer(
         Args:
             label_canvas (Tensor): An image to draw the labels on.
             prediction_canvas (Tensor): An image to draw the predictions on.
-            idx (int): Index of the image in the batch.
             *args: Prepared inputs from the `prepare` method.
 
         Returns:
@@ -87,7 +85,6 @@ class BaseVisualizer(
         prediction_canvas: Tensor,
         inputs: Packet[Tensor],
         labels: Labels,
-        idx: int = 0,
     ) -> Tensor | tuple[Tensor, Tensor] | tuple[Tensor, list[Tensor]]:
         self.validate(inputs, labels)
-        return self(label_canvas, prediction_canvas, idx, *self.prepare(inputs, labels))
+        return self(label_canvas, prediction_canvas, *self.prepare(inputs, labels))

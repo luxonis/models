@@ -3,8 +3,8 @@ name: Autogenerate Requirements
 on:
   pull_request:
     branches: [dev, main]
-    paths:
-      - 'pyproject.toml'
+    # paths:
+    #   - 'pyproject.toml'
 
 jobs:
   update-requirements:

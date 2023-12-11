@@ -16,15 +16,15 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
+**Environment (please complete the following information):**
  - OS: [e.g. iOS]
+ - Package version: [e.g. 0.1.0]
 
 **To Reproduce**
-Context to reproduce the behavior (if relevant to the issue):
-- What config file you used
-- Can the issue be reproduced with one of the example datasets?
-  - If not, provide instructions to recreate the used dataset
-- What script or command were used to run the pipeline
+Please provide a minimal reproducible example. This would include:
+- Config file
+- Script to generate the dataset in case the issue cannot be reproduced using one of our [example](../../examples) datasets
+- Sript to run the pipeline
 
 **Additional context**
 Add any other context about the problem here.

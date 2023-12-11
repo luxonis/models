@@ -39,24 +39,18 @@ class ExportOnTrainEnd(pl.Callback):
                 "Please make sure that ModelCheckpoint callback is present "
                 "and at least one validation epoch has been performed."
             )
-        opts = ["model.weights", best_model_path]
+        cfg: Config = pl_module.cfg
+        cfg.model.weights = best_model_path
         if self.upload_to_mlflow:
             if pl_module.cfg.tracker.is_mlflow:
                 tracker = cast(LuxonisTrackerPL, trainer.logger)
                 new_upload_directory = f"mlflow://{tracker.project_id}/{tracker.run_id}"
-                opts += ["exporter.upload_directory", new_upload_directory]
+                cfg.exporter.upload_directory = new_upload_directory
             else:
                 logging.getLogger(__name__).warning(
                     "`upload_to_mlflow` is set to True, "
                     "but there is  no MLFlow active run, skipping."
                 )
-        cfg: Config = pl_module.cfg
-        data = cfg.model_dump()
-        del data["ENVIRON"]
-        cfg.clear_instance()
-        exporter = Exporter(
-            cfg=data,
-            opts=opts,
-        )
+        exporter = Exporter(cfg=cfg)
         onnx_path = str(Path(best_model_path).parent.with_suffix(".onnx"))
         exporter.export(onnx_path=onnx_path)

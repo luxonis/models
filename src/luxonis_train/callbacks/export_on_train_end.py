@@ -4,6 +4,7 @@ from typing import cast
 
 import pytorch_lightning as pl
 
+from luxonis_train.utils.config import Config
 from luxonis_train.utils.registry import CALLBACKS
 from luxonis_train.utils.tracker import LuxonisTrackerPL
 
@@ -32,6 +33,12 @@ class ExportOnTrainEnd(pl.Callback):
         ]
         # NOTE: assume that first checkpoint callback is based on val loss
         best_model_path = model_checkpoint_callbacks[0].best_model_path
+        if not best_model_path:
+            raise RuntimeError(
+                "No best model path found. "
+                "Please make sure that ModelCheckpoint callback is present "
+                "and at least one validation epoch has been performed."
+            )
         opts = ["model.weights", best_model_path]
         if self.upload_to_mlflow:
             if pl_module.cfg.tracker.is_mlflow:
@@ -43,8 +50,12 @@ class ExportOnTrainEnd(pl.Callback):
                     "`upload_to_mlflow` is set to True, "
                     "but there is  no MLFlow active run, skipping."
                 )
+        cfg: Config = pl_module.cfg
+        data = cfg.model_dump()
+        del data["ENVIRON"]
+        cfg.clear_instance()
         exporter = Exporter(
-            cfg=pl_module.cfg,
+            cfg=data,
             opts=opts,
         )
         onnx_path = str(Path(best_model_path).parent.with_suffix(".onnx"))

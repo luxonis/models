@@ -32,11 +32,10 @@ jobs:
       run: |
         git config --global user.name 'GitHub Actions'
         git config --global user.email 'actions@github.com'
-        git diff --quiet requirements.txt
-        if [ $? -ne 0 ]; then
+        git diff --quiet requirements.txt || {
           git add requirements.txt
           git commit -m "[Automated] Updated requirements.txt"
-        fi
+        }
 
     - name: Push changes
       uses: ad-m/github-push-action@master

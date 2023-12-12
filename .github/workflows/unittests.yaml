@@ -32,8 +32,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -e .[all]
-        pip install -r requirements-dev.txt
+        pip install -e .[dev]
 
     - name: Run tests with coverage
       run: pytest --cov=src/luxonis_train --cov-report xml tests

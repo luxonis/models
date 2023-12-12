@@ -1,5 +1,3 @@
-from typing import cast
-
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -25,8 +23,8 @@ class TaskAlignedAssigner(nn.Module):
         """Initializes the assigner.
 
         Args:
+            n_classes (int): Number of classes in the dataset.
             topk (int, optional): Number of anchors considere in selection. Defaults to 13.
-            n_classes (int, optional): Number of classes in the dataset. Defaults to 80.
             alpha (float, optional): Defaults to 1.0.
             beta (float, optional): Defaults to 6.0.
             eps (float, optional): Defaults to 1e-9.
@@ -52,16 +50,16 @@ class TaskAlignedAssigner(nn.Module):
         """Assigner's forward method which generates final assignments.
 
         Args:
-            pred_scores (Tensor): Predicted scores [bs, n_achors, 1]
-            pred_bboxes (Tensor): Predicted bboxes [bs, n_acnhors, 4]
-            anchor_points (Tensor): Anchor points [n_acnhors, 2]
+            pred_scores (Tensor): Predicted scores [bs, n_anchors, 1]
+            pred_bboxes (Tensor): Predicted bboxes [bs, n_anchors, 4]
+            anchor_points (Tensor): Anchor points [n_anchors, 2]
             gt_labels (Tensor): Initial GT labels [bs, n_max_boxes, 1]
             gt_bboxes (Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
             mask_gt (Tensor): Mask for valid GTs [bs, n_max_boxes, 1]
 
         Returns:
             Tuple[Tensor, Tensor, Tensor, Tensor]: Assigned labels of shape [bs, n_anchors],
-                assigned bboxes of shape [bs, n_anchors, 4], assigned scores of shape [bs, n_anchors, 1]
+                assigned bboxes of shape [bs, n_anchors, 4], assigned scores of shape [bs, n_anchors, n_classes]
                 and output mask of shape [bs, n_anchors]
         """
         self.bs = pred_scores.size(0)
@@ -127,7 +125,7 @@ class TaskAlignedAssigner(nn.Module):
         """Calculates anchor alignment metric and IoU between GTs and predicted bboxes.
 
         Args:
-            pred_scores (Tensor): Tensor of shape [bs, n_anchors, 1]
+            pred_scores (Tensor): Tensor of shape [bs, n_anchors, n_classes]
             pred_bboxes (Tensor): Tensor of shape [bs, n_anchors, 4]
             gt_labels (Tensor): Tensor of shape [bs, n_max_boxes, 1]
             gt_bboxes (Tensor): Tensor of shape [bs, n_max_boxes, 4]
@@ -162,9 +160,9 @@ class TaskAlignedAssigner(nn.Module):
             metrics, self.topk, dim=-1, largest=largest
         )
         if topk_mask is None:
-            topk_mask = (
-                cast(Tensor, topk_metrics.max(dim=-1, keepdim=True)) > self.eps
-            ).tile([1, 1, self.topk])
+            topk_mask = (topk_metrics.max(dim=-1, keepdim=True)[0] > self.eps).tile(
+                [1, 1, self.topk]
+            )
         topk_idxs = torch.where(topk_mask, topk_idxs, torch.zeros_like(topk_idxs))
         is_in_topk = F.one_hot(topk_idxs, num_anchors).sum(dim=-2)
         is_in_topk = torch.where(

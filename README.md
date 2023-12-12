@@ -2,6 +2,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Style](https://github.com/luxonis/models/actions/workflows/pre-commit.yaml/badge.svg)
+![UnitTests](https://github.com/luxonis/luxonis-ml/actions/workflows/unittests.yaml/badge.svg)
+![Coverage](media/coverage_badge.svg)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![PyBadge](media/pybadge.svg)
 

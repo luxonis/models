@@ -154,8 +154,8 @@ def bbox_iou(
     """Computes IoU between two sets of bounding boxes.
 
     Args:
-        bbox1 (Tensor): First set of bboxes [N, 6]
-        bbox2 (Tensor): Second set of bboxes [M, 6]
+        bbox1 (Tensor): First set of bboxes [N, 4]
+        bbox2 (Tensor): Second set of bboxes [M, 4]
         box_format (Literal["xyxy", "xywh", "cxcywh"], optional): Input bbox format.
           Defaults to "xyxy".
         iou_type (Literal["none", "giou", "diou", "ciou", "siou"], optional): IoU type.

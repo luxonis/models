@@ -18,8 +18,8 @@ class ATSSAssigner(nn.Module):
         https://github.com/fcjian/TOOD/blob/master/mmdet/core/bbox/assigners/atss_assigner.py
 
         Args:
+            n_classes (int, optional): Number of classes in the dataset.
             topk (int, optional): Number of anchors considere in selection. Defaults to 9.
-            n_classes (int, optional): Number of classes in the dataset. Defaults to 80.
         """
         super().__init__()
 
@@ -47,7 +47,7 @@ class ATSSAssigner(nn.Module):
 
         Returns:
             tuple[Tensor, Tensor, Tensor, Tensor]: Assigned labels of shape [bs, n_anchors],
-                assigned bboxes of shape [bs, n_anchors, 4], assigned scores of shape [bs, n_anchors, 1]
+                assigned bboxes of shape [bs, n_anchors, 4], assigned scores of shape [bs, n_anchors, n_classes]
                 and output positive mask of shape [bs, n_anchors]
         """
 

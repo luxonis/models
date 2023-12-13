@@ -83,13 +83,12 @@ model:
     - name: SegmentationVisualizer
       attached_to: SegmentationHead
       params:
-        color: "#FF5055"
+        colors: "#FF5055"
     - name: BBoxVisualizer
       attached_to: EfficientBBoxHead
 
 tracker:
   project_name: coco_test
-  run_name: &model_name null
   save_directory: output
   is_tensorboard: True
   is_wandb: False

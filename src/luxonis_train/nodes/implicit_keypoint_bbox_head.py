@@ -25,6 +25,8 @@ from luxonis_train.utils.types import LabelType, Packet
 
 from .base_node import BaseNode
 
+logger = logging.getLogger(__name__)
+
 
 class ImplicitKeypointBBoxHead(BaseNode):
     """Head for object and keypoint detection.
@@ -59,12 +61,11 @@ class ImplicitKeypointBBoxHead(BaseNode):
             initialization. Defaults to True.
         """
         super().__init__(task_type=LabelType.KEYPOINT, **kwargs)
-        self.logger = logging.getLogger(__name__)
 
         if anchors is None:
-            self.logger.info("No anchors provided, generating them automatically.")
+            logger.info("No anchors provided, generating them automatically.")
             anchors, recall = self.dataset_metadata.autogenerate_anchors(num_heads)
-            self.logger.info(f"Anchors generated. Best possible recall: {recall:.2f}")
+            logger.info(f"Anchors generated. Best possible recall: {recall:.2f}")
 
         self.conf_thres = conf_thres
         self.iou_thres = iou_thres
@@ -261,6 +262,6 @@ class ImplicitKeypointBBoxHead(BaseNode):
         delta_a = a[-1] - a[0]
         delta_s = self.stride[-1] - self.stride[0]
         if delta_a.sign() != delta_s.sign():
-            self.logger.warning("Reversing anchor order")
+            logger.warning("Reversing anchor order")
             self.anchors[:] = self.anchors.flip(0)
             self.anchor_grid[:] = self.anchor_grid.flip(0)

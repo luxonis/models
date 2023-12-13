@@ -28,17 +28,18 @@ class Inferer(Trainer):
 
     def infer(self) -> None:
         self.lightning_module.eval()
-        for img, labels in self.loader:
-            unnorm_img = get_unnormalized_images(self.cfg, img)[0]
+        for inputs, labels in self.loader:
+            images = get_unnormalized_images(self.cfg, inputs)
             outputs = self.lightning_module.forward(
-                img, labels, image=unnorm_img, compute_visualizations=True
+                inputs, labels, images=images, compute_visualizations=True
             )
 
             for node_name, visualizations in outputs.visualizations.items():
-                for viz_name, viz in visualizations.items():
-                    viz_arr = viz.detach().cpu().numpy().transpose(1, 2, 0)
-                    viz_arr = cv2.cvtColor(viz_arr, cv2.COLOR_RGB2BGR)
-                    name = f"{node_name}/{viz_name}"
-                    cv2.imshow(name, viz_arr)
+                for viz_name, viz_batch in visualizations.items():
+                    for i, viz in enumerate(viz_batch):
+                        viz_arr = viz.detach().cpu().numpy().transpose(1, 2, 0)
+                        viz_arr = cv2.cvtColor(viz_arr, cv2.COLOR_RGB2BGR)
+                        name = f"{node_name}/{viz_name}/{i}"
+                        cv2.imshow(name, viz_arr)
             if cv2.waitKey(0) == ord("q"):
                 exit()

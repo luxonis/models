@@ -235,7 +235,7 @@ class LuxonisModel(pl.LightningModule):
         self,
         inputs: Tensor,
         labels: Labels | None = None,
-        image: Tensor | None = None,
+        images: Tensor | None = None,
         *,
         compute_loss: bool = True,
         compute_metrics: bool = False,
@@ -296,14 +296,14 @@ class LuxonisModel(pl.LightningModule):
             if (
                 compute_visualizations
                 and node_name in self.visualizers
-                and image is not None
+                and images is not None
                 and labels is not None
             ):
                 for viz_name, visualizer in self.visualizers[node_name].items():
                     viz = combine_visualizations(
                         visualizer.run(
-                            image,
-                            image,
+                            images,
+                            images,
                             outputs,
                             labels,
                         ),
@@ -533,7 +533,7 @@ class LuxonisModel(pl.LightningModule):
         outputs = self.forward(
             inputs,
             labels,
-            image=images,
+            images=images,
             compute_metrics=True,
             compute_visualizations=True,
         )
@@ -665,24 +665,26 @@ class LuxonisModel(pl.LightningModule):
         if "state_dict" not in checkpoint:
             raise ValueError("Checkpoint does not contain state_dict.")
         state_dict = {}
+        self_state_dict = self.state_dict()
         for key, value in checkpoint["state_dict"].items():
-            if key not in self.state_dict().keys():
+            if key not in self_state_dict.keys():
                 self.logging_logger.warning(
                     f"Key `{key}` from checkpoint not found in model state dict."
                 )
             else:
                 state_dict[key] = value
 
-        for key in self.state_dict():
+        for key in self_state_dict:
             if key not in state_dict.keys():
                 self.logging_logger.warning(f"Key `{key}` was not found in checkpoint.")
             else:
                 try:
-                    self.state_dict()[key].copy_(state_dict[key])
+                    self_state_dict[key].copy_(state_dict[key])
                 except Exception:
                     self.logging_logger.warning(
                         f"Key `{key}` from checkpoint could not be loaded into model."
                     )
+
         self.logging_logger.info(f"Loaded checkpoint from {path}.")
 
     def _init_attached_module(

@@ -1,3 +1,4 @@
+import colorsys
 import io
 from typing import Literal
 
@@ -221,17 +222,32 @@ def get_unnormalized_images(cfg: Config, images: Tensor) -> Tensor:
     )
 
 
-def get_color(seed: int = 42) -> tuple[int, int, int]:
+def number_to_hsl(seed: int) -> tuple[float, float, float]:
+    """Map a number to a distinct HSL color."""
+    # Use a prime number to spread the hues more evenly
+    # and ensure they are visually distinguishable
+    hue = (seed * 157) % 360
+    saturation = 0.8  # Fixed saturation
+    lightness = 0.5  # Fixed lightness
+    return (hue, saturation, lightness)
+
+
+def hsl_to_rgb(hsl: tuple[float, float, float]) -> Color:
+    """Convert HSL color to RGB."""
+    r, g, b = colorsys.hls_to_rgb(hsl[0] / 360, hsl[2], hsl[1])
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+def get_color(seed: int) -> Color:
     """Generates a random color from a seed.
 
     Args:
-        seed (int): Seed to use for the random generator.
+        seed (int): Seed to use for the generator.
 
     Returns:
-        tuple[int, int, int]: Random color.
+        Color: Generated color.
     """
-    seed += 1
-    return (seed * 123457) % 255, (seed * 321) % 255, (seed * 654) % 255
+    return hsl_to_rgb(number_to_hsl(seed + 45))
 
 
 # TODO: Support native visualizations

@@ -49,39 +49,71 @@ class KeypointVisualizer(BaseVisualizer[list[Tensor], Tensor]):
     ) -> tuple[list[Tensor], Tensor]:
         return output["keypoints"], label[LabelType.KEYPOINT]
 
+    @staticmethod
+    def draw_predictions(
+        canvas: Tensor,
+        predictions: list[Tensor],
+        nonvisible_color: Color | None = None,
+        visibility_threshold: float = 0.5,
+        **kwargs,
+    ) -> Tensor:
+        viz = torch.zeros_like(canvas)
+        for i in range(len(canvas)):
+            prediction = predictions[i][:, 1:]
+            mask = prediction[..., 2] < visibility_threshold
+            visible_kpts = prediction[..., :2] * (~mask).unsqueeze(-1).float()
+            viz[i] = draw_keypoints(
+                canvas[i].clone(),
+                visible_kpts[..., :2],
+                **kwargs,
+            )
+            if nonvisible_color is not None:
+                kwargs.pop("colors", None)
+                nonvisible_kpts = prediction[..., :2] * mask.unsqueeze(-1).float()
+                viz[i] = draw_keypoints(
+                    viz[i].clone(),
+                    nonvisible_kpts[..., :2],
+                    colors=nonvisible_color,
+                    **kwargs,
+                )
+
+        return viz
+
+    @staticmethod
+    def draw_targets(canvas: Tensor, targets: Tensor, **kwargs) -> Tensor:
+        viz = torch.zeros_like(canvas)
+        for i in range(len(canvas)):
+            target = targets[targets[:, 0] == i][:, 1:]
+            viz[i] = draw_keypoint_labels(
+                canvas[i].clone(),
+                target,
+                **kwargs,
+            )
+
+        return viz
+
     def forward(
         self,
         label_canvas: Tensor,
         prediction_canvas: Tensor,
         predictions: list[Tensor],
         targets: Tensor,
+        **kwargs,
     ) -> tuple[Tensor, Tensor]:
-        labels_viz = torch.zeros_like(label_canvas)
-        predictions_viz = torch.zeros_like(prediction_canvas)
-        for i in range(len(labels_viz)):
-            prediction = predictions[i][:, 1:]
-            target = targets[targets[:, 0] == i][:, 1:]
-            mask = prediction[..., 2] < self.visibility_threshold
-            visible_kpts = prediction[..., :2] * (~mask).unsqueeze(-1).float()
-            predictions_viz[i] = draw_keypoints(
-                prediction_canvas[i].clone(),
-                visible_kpts[..., :2],
-                colors=self.visible_color,
-                connectivity=self.connectivity,
-            )
-            if self.nonvisible_color is not None:
-                nonvisible_kpts = prediction[..., :2] * mask.unsqueeze(-1).float()
-                predictions_viz[i] = draw_keypoints(
-                    predictions_viz[i].clone(),
-                    nonvisible_kpts[..., :2],
-                    colors=self.nonvisible_color,
-                    connectivity=self.connectivity,
-                )
-            labels_viz[i] = draw_keypoint_labels(
-                label_canvas[i].clone(),
-                target,
-                colors=self.visible_color,
-                connectivity=self.connectivity,
-            )
-
-        return labels_viz, predictions_viz
+        target_viz = self.draw_targets(
+            label_canvas,
+            targets,
+            colors=self.visible_color,
+            connectivity=self.connectivity,
+            **kwargs,
+        )
+        pred_viz = self.draw_predictions(
+            prediction_canvas,
+            predictions,
+            connectivity=self.connectivity,
+            colors=self.visible_color,
+            nonvisible_color=self.nonvisible_color,
+            visibility_threshold=self.visibility_threshold,
+            **kwargs,
+        )
+        return target_viz, pred_viz

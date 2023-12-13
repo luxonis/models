@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import torch
 from torch import Tensor
 
@@ -68,13 +70,13 @@ class KeypointVisualizer(BaseVisualizer[list[Tensor], Tensor]):
                 **kwargs,
             )
             if nonvisible_color is not None:
-                kwargs.pop("colors", None)
+                _kwargs = deepcopy(kwargs)
+                _kwargs["colors"] = nonvisible_color
                 nonvisible_kpts = prediction[..., :2] * mask.unsqueeze(-1).float()
                 viz[i] = draw_keypoints(
                     viz[i].clone(),
                     nonvisible_kpts[..., :2],
-                    colors=nonvisible_color,
-                    **kwargs,
+                    **_kwargs,
                 )
 
         return viz

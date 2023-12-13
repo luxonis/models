@@ -192,6 +192,7 @@ class BBoxVisualizer(BaseVisualizer[list[Tensor], Tensor]):
             predictions,
             label_dict=self.labels,
             color_dict=self.colors,
+            draw_labels=self.draw_labels,
             fill=self.fill,
             font=self.font,
             font_size=self.font_size,

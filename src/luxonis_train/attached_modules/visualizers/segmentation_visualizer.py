@@ -114,14 +114,15 @@ class SegmentationVisualizer(BaseVisualizer[Tensor, Tensor]):
         targets_vis = self.draw_targets(
             label_canvas,
             targets,
-            self.colors,
+            colors=self.colors,
             alpha=self.alpha,
             background_class=self.background_class,
+            **kwargs,
         )
         predictions_vis = self.draw_predictions(
             prediction_canvas,
             predictions,
-            self.colors,
+            colors=self.colors,
             alpha=self.alpha,
             background_class=self.background_class,
             **kwargs,

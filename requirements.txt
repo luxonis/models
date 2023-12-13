@@ -14,6 +14,7 @@ onnxruntime>=1.13.1
 onnxsim>=0.4.10
 optuna>=3.2.0
 psycopg2-binary>=2.9.1
+typer>=0.9.0
 
 # dev
 coverage-badge>=1.1.0

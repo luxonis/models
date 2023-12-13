@@ -5,6 +5,7 @@ description = "Luxonis training framework for seamless training of various neura
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
+authors = [{ name = "Luxonis", email = "support@luxonis.com" }]
 maintainers = [{ name = "Luxonis", email = "support@luxonis.com" }]
 keywords = ["ml", "training", "luxonis", "oak"]
 dynamic = ["dependencies", "optional-dependencies"]

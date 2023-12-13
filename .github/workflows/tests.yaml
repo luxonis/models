@@ -37,7 +37,7 @@ jobs:
         pip install -e .[dev]
 
     - name: Run tests with coverage
-      run: pytest --cov=src/luxonis_train --cov-report xml tests
+      run: pytest --cov=luxonis_train --cov-report xml tests
 
     - name: Generate coverage badge
       run: coverage-badge -o media/coverage_badge.svg -f

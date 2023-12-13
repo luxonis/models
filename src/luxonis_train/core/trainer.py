@@ -68,7 +68,7 @@ class Trainer(Core):
             self.thread.start()
 
     def test(
-        self, new_thread: bool = False, view: Literal["test", "val"] = "test"
+        self, new_thread: bool = False, view: Literal["train", "val", "test"] = "test"
     ) -> None:
         """Runs testing
         Args:
@@ -80,6 +80,8 @@ class Trainer(Core):
             loader = self.pytorch_loader_test
         elif view == "val":
             loader = self.pytorch_loader_val
+        elif view == "train":
+            loader = self.pytorch_loader_train
 
         if not new_thread:
             self.pl_trainer.test(self.lightning_module, loader)

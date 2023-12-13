@@ -13,12 +13,12 @@ The project is in alpha state - please report any feedback.
 ## Table Of Contents
 
 - [Installation](#installation)
-- [Contributing](#contributing)
 - [Training](#training)
 - [Customizations](#customizations)
 - [Tuning](#tuning)
 - [Exporting](#exporting)
 - [Credentials](#credentials)
+- [Contributing](#contributing)
 
 ## Installation
 
@@ -28,15 +28,8 @@ The project is in alpha state - please report any feedback.
 pip install luxonis-train
 ```
 
-## Contributing
-
-If you want to contribute to the development, install the dev version of the package:
-
-```bash
-pip install luxonis-train[dev]
-```
-
-Consult the [Contribution guide](CONTRIBUTING.md) before making a pull request.
+This command will also create a `luxonis_train` executable in your `PATH`.
+See `luxonis_train --help` for more information.
 
 ## Usage
 
@@ -49,13 +42,13 @@ configuration files, see [Configuration](./configs/README.md).
 Once you've created your `config.yaml` file you can train the model using this command:
 
 ```bash
-python3 -m luxonis_train train --config config.yaml
+luxonis_train train --config config.yaml
 ```
 
 If you wish to manually override some config parameters you can do this by providing the key-value pairs. Example of this is:
 
 ```bash
-python3 -m luxonis_train train --config config.yaml trainer.batch_size 8 trainer.epochs 10
+luxonis_train train --config config.yaml trainer.batch_size 8 trainer.epochs 10
 ```
 
 where key and value are space separated and sub-keys are dot (`.`) separated. If the configuration field is a list, then key/sub-key should be a number (e.g. `trainer.preprocessing.augmentations.0.name RotateCustom`).
@@ -68,7 +61,7 @@ To use tuning, you have to specify [tuner](configs/README.md#tuner) section in t
 To start the tuning, run
 
 ```bash
-python3 -m luxonis_train tune --config config.yaml
+luxonis_train tune --config config.yaml
 ```
 
 You can see an example tuning configuration [here](configs/example_tuning.yaml).
@@ -82,7 +75,7 @@ To use the exporter, you have to specify the [exporter](configs/README.md#export
 Once you have the config file ready you can export the model using
 
 ```bash
-python3 -m luxonis_train export --config config.yaml
+luxonis_train export --config config.yaml
 ```
 
 You can see an example export configuration [here](configs/example_export.yaml).
@@ -179,3 +172,13 @@ POSTGRES_HOST=**********
 POSTGRES_PORT=**********
 POSTGRES_DB=**********
 ```
+
+## Contributing
+
+If you want to contribute to the development, install the dev version of the package:
+
+```bash
+pip install luxonis-train[dev]
+```
+
+Consult the [Contribution guide](CONTRIBUTING.md) before making a pull request.

@@ -1,66 +1,79 @@
-import argparse
+from enum import Enum
 from pathlib import Path
+from typing import Annotated, Optional
+
+import typer
 
 from luxonis_train.core import Exporter, Inferer, Trainer, Tuner
 
-
-def add_subparser(
-    subparsers: argparse._SubParsersAction, name: str, help: str
-) -> argparse.ArgumentParser:
-    """Add a subparser to the parser."""
-    parser = subparsers.add_parser(
-        name, help=help, formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument(
-        "--config", type=Path, help="Path to the configuration file", required=True
-    )
-    parser.add_argument("opts", nargs=argparse.REMAINDER, help="Additional options")
-
-    return parser
+app = typer.Typer(help="Luxonis Train CLI", add_completion=False)
 
 
-# Create the top-level parser
-parser = argparse.ArgumentParser(
-    prog="luxonis_train", formatter_class=argparse.ArgumentDefaultsHelpFormatter
-)
-subparsers = parser.add_subparsers(dest="command", help="commands")
+class View(str, Enum):
+    train = "train"
+    val = "val"
+    test = "test"
 
-add_subparser(subparsers, "train", "run the training")
-eval_parser = add_subparser(subparsers, "eval", "run the evaluation")
-eval_parser.add_argument(
-    "--view",
-    type=str,
-    choices=["train", "val", "test"],
-    default="val",
-    help="View mode",
-)
-infer_parser = add_subparser(subparsers, "infer", "run the inference")
-infer_parser.add_argument(
-    "--view",
-    type=str,
-    choices=["train", "val", "test"],
-    default="val",
-    help="View mode",
-)
-add_subparser(subparsers, "tune", "run hyperparameter tuning")
-add_subparser(subparsers, "export", "export the model")
+    def __str__(self):
+        return self.value
+
+
+ConfigType = Annotated[
+    Optional[Path],
+    typer.Option(
+        help="Path to the configuration file.",
+        show_default=False,
+    ),
+]
+
+OptsType = Annotated[
+    Optional[list[str]],
+    typer.Argument(
+        help="A list of optional CLI overrides of the config file.",
+        show_default=False,
+    ),
+]
+
+ViewType = Annotated[
+    View,
+    typer.Option(
+        help="Which dataset view to use.",
+    ),
+]
+
+
+@app.command()
+def train(config: ConfigType = None, opts: OptsType = None):
+    """Start training."""
+    Trainer(str(config), opts).train()
+
+
+@app.command()
+def eval(config: ConfigType = None, view: ViewType = View.val, opts: OptsType = None):
+    """Evaluate model."""
+    Trainer(str(config), opts).test(view=view.name)
+
+
+@app.command()
+def tune(config: ConfigType = None, opts: OptsType = None):
+    """Start hyperparameter tuning."""
+    Tuner(str(config), opts).tune()
+
+
+@app.command()
+def export(config: ConfigType = None, opts: OptsType = None):
+    """Export model."""
+    Exporter(str(config), opts).export()
+
+
+@app.command()
+def infer(config: ConfigType = None, view: ViewType = View.val, opts: OptsType = None):
+    """Run inference."""
+    Inferer(str(config), opts, view=view.name).infer()
 
 
 def main():
-    args = parser.parse_args()
-
-    if args.command == "train":
-        Trainer(str(args.config), args.opts).train()
-    elif args.command == "eval":
-        Trainer(str(args.config), args.opts).test(view=args.view)
-    elif args.command == "tune":
-        Tuner(str(args.config), args.opts).tune()
-    elif args.command == "export":
-        Exporter(str(args.config), args.opts).export()
-    elif args.command == "infer":
-        Inferer(str(args.config), args.opts, view=args.view).infer()
-    else:
-        parser.print_help()
+    app()
 
 
 if __name__ == "__main__":

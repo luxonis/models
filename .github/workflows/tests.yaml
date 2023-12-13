@@ -6,7 +6,7 @@ on:
     paths:
       - 'src/**.py'
       - 'tests/**'
-      - .github/workflows/unittests.yaml
+      - .github/workflows/tests.yaml
 
 jobs:
   build:

@@ -43,10 +43,13 @@ def test_forward():
     assert torch.equal(
         bboxes, torch.zeros_like(bboxes)
     )  # All bboxes should be zero as there are no GT boxes
-    assert scores.shape == (
-        batch_size,
-        num_anchors,
-        num_classes,
+    assert (
+        scores.shape
+        == (
+            batch_size,
+            num_anchors,
+            num_classes,
+        )
     )  # TODO: We have this in doc string: Returns: ... assigned scores of shape [bs, n_anchors, 1],
     # it returns tensor of shape [bs, n_anchors, n_classes] instead
     assert torch.equal(

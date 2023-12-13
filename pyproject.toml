@@ -42,6 +42,7 @@ dev = [
     "pre-commit>=3.2.1",
     "pytest-cov>=4.1.0",
     "toml>=0.10.2",
+    "nbscript>=0.1.0",
 ]
 
 [project.urls]
@@ -59,7 +60,7 @@ where = ["src"]
 target-version = "py310"
 
 [tool.ruff.lint]
-ignore = ["F403", "B028", "B905", "D1"]
+ignore = ["F403", "B028", "B905", "D1", "W191"]
 select = ["E4", "E7", "E9", "F", "W", "B", "I"]
 
 [tool.ruff.pydocstyle]

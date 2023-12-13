@@ -14,8 +14,8 @@ from luxonis_ml.utils import environ
 
 Path(environ.LUXONISML_BASE_PATH).mkdir(exist_ok=True)
 
-def create_dataset(name: str) -> LuxonisDataset:
 
+def create_dataset(name: str) -> LuxonisDataset:
     if LuxonisDataset.exists(name):
         dataset = LuxonisDataset(name)
         dataset.delete_dataset()

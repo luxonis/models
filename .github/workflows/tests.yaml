@@ -37,10 +37,16 @@ jobs:
         pip install -e .[dev]
 
     - name: Run tests with coverage
-      run: pytest --cov=src/luxonis_train --cov-report xml tests
+      run: pytest --cov=src/luxonis_train --cov-report json tests/unittests
 
-    - name: Generate coverage badge
-      run: coverage-badge -o media/coverage_badge.svg -f
+    - name: Update Coverage Badge
+      # GitHub actions: default branch variable
+      # https://stackoverflow.com/questions/64781462/github-actions-default-branch-variable
+      # if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      uses: we-cli/coverage-badge-action@main
+
+    # - name: Generate coverage badge
+    #   run: coverage-badge -o media/coverage_badge.svg -f
 
     - name: Generate coverage report
       uses: orgoro/coverage@v3.1
@@ -48,16 +54,16 @@ jobs:
           coverageFile: coverage.xml
           token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Commit coverage badge
-      run: |
-        git config --global user.name 'GitHub Actions'
-        git config --global user.email 'actions@github.com'
-        git diff --quiet media/coverage_badge.svg || {
-          git add media/coverage_badge.svg
-          git commit -m "[Automated] Updated coverage badge"
-        }
-
-    - name: Push changes
-      uses: ad-m/github-push-action@master
-      with:
-        branch: ${{ github.head_ref }}
+    # - name: Commit coverage badge
+    #   run: |
+    #     git config --global user.name 'GitHub Actions'
+    #     git config --global user.email 'actions@github.com'
+    #     git diff --quiet media/coverage_badge.svg || {
+    #       git add media/coverage_badge.svg
+    #       git commit -m "[Automated] Updated coverage badge"
+    #     }
+    #
+    # - name: Push changes
+    #   uses: ad-m/github-push-action@master
+    #   with:
+    #     branch: ${{ github.head_ref }}

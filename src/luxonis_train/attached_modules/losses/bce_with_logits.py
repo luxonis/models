@@ -100,9 +100,9 @@ class BCEWithLogitsLoss(BaseLoss[Tensor, Tensor]):
         )
 
     def forward(self, predictions: Tensor, target: Tensor) -> Tensor:
-        if predictions.ndim != target.ndim:
+        if predictions.shape != target.shape:
             raise RuntimeError(
-                f"Target tensor dimension ({target.ndim}) and preds tensor "
-                f"dimension ({predictions.ndim}) should be the same."
+                f"Target tensor dimension ({target.shape}) and preds tensor "
+                f"dimension ({predictions.shape}) should be the same."
             )
         return self.criterion(predictions, target)

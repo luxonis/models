@@ -21,4 +21,4 @@ pre-commit>=3.2.1
 pytest-cov>=4.1.0
 toml>=0.10.2
 nbscript>=0.1.0
-jupyterlab>=4.1.0
+jupyterlab>=4.0.9

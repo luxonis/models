@@ -1,23 +1,49 @@
+import logging
+
 import torchmetrics
 
 from .base_metric import BaseMetric
 
+logger = logging.getLogger(__name__)
+
 
 class TorchMetricWrapper(BaseMetric):
     def __init__(self, **kwargs):
-        node_attributes = kwargs.pop("node_attributes", None)
-        protocol = kwargs.pop("protocol", None)
-        required_labels = kwargs.pop("required_labels", None)
         super().__init__(
-            node_attributes=node_attributes,
-            protocol=protocol,
-            required_labels=required_labels,
+            node=kwargs.pop("node", None),
+            protocol=kwargs.pop("protocol", None),
+            required_labels=kwargs.pop("required_labels", None),
         )
-        self.task = kwargs.get("task")
+        task = kwargs.get("task")
+
+        if task is None:
+            if self.node.n_classes > 1:
+                task = "multiclass"
+            else:
+                task = "binary"
+            logger.warning(
+                f"Task type not specified for {self.__class__.__name__}, "
+                f"assuming {task}."
+            )
+            kwargs["task"] = task
+        self.task = task
+
         if self.task == "multiclass":
-            kwargs["num_classes"] = node_attributes["dataset_metadata"].n_classes
+            if "num_classes" not in kwargs:
+                if self.node is None:
+                    raise ValueError(
+                        "Either `node` or `num_classes` must be provided to "
+                        "multiclass torchmetrics."
+                    )
+                kwargs["num_classes"] = self.node.n_classes
         elif self.task == "multilabel":
-            kwargs["num_labels"] = node_attributes["dataset_metadata"].n_classes
+            if "num_labels" not in kwargs:
+                if self.node is None:
+                    raise ValueError(
+                        "Either `node` or `num_labels` must be provided to "
+                        "multilabel torchmetrics."
+                    )
+                kwargs["num_labels"] = self.node.n_classes
 
         self.metric = self.Metric(**kwargs)
 

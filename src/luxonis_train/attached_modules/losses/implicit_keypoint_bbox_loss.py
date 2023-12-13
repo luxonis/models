@@ -7,6 +7,7 @@ from torchvision.ops import box_convert
 from typing_extensions import Annotated
 
 from luxonis_train.attached_modules.losses.keypoint_loss import KeypointLoss
+from luxonis_train.nodes import ImplicitKeypointBBoxHead
 from luxonis_train.utils.boxutils import (
     compute_iou_loss,
     match_to_anchor,
@@ -14,6 +15,7 @@ from luxonis_train.utils.boxutils import (
 )
 from luxonis_train.utils.types import (
     BaseProtocol,
+    IncompatibleException,
     Labels,
     LabelType,
     Packet,
@@ -41,15 +43,7 @@ class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
     https://arxiv.org/ftp/arxiv/papers/2204/2204.06806.pdf
     """
 
-    class NodeAttributes(BaseLoss.NodeAttributes):
-        n_classes: int
-        n_keypoints: int
-        n_anchors: int
-        num_heads: int
-        box_offset: int
-        anchors: Tensor
-
-    node_attributes: NodeAttributes
+    node: ImplicitKeypointBBoxHead
 
     def __init__(
         self,
@@ -95,12 +89,17 @@ class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
             **kwargs,
         )
 
-        self.n_classes = self.node_attributes.n_classes
-        self.n_keypoints = self.node_attributes.n_keypoints
-        self.n_anchors = self.node_attributes.n_anchors
-        self.num_heads = self.node_attributes.num_heads
-        self.box_offset = self.node_attributes.box_offset
-        self.anchors = self.node_attributes.anchors
+        if not isinstance(self.node, ImplicitKeypointBBoxHead):
+            raise IncompatibleException(
+                f"Loss `{self.__class__.__name__}` is only "
+                "compatible with nodes of type `ImplicitKeypointBBoxHead`."
+            )
+        self.n_classes = self.node.n_classes
+        self.n_keypoints = self.node.n_keypoints
+        self.n_anchors = self.node.n_anchors
+        self.num_heads = self.node.num_heads
+        self.box_offset = self.node.box_offset
+        self.anchors = self.node.anchors
         self.balance = balance or [4.0, 1.0, 0.4]
         if len(self.balance) < self.num_heads:
             raise ValueError(

@@ -70,7 +70,7 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
             **kwargs,
         )
 
-        self.n_keypoints = self.node_attributes.dataset_metadata.n_keypoints
+        self.n_keypoints = self.node.n_keypoints
 
         if kpt_sigmas is not None and len(kpt_sigmas) != self.n_keypoints:
             raise ValueError("Expected kpt_sigmas to be of shape (num_keypoints).")
@@ -107,7 +107,7 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
 
         output_list_kpt_map = []
         label_list_kpt_map = []
-        image_size = self.node_attributes.original_in_shape[2:]
+        image_size = self.node.original_in_shape[2:]
 
         output_kpts: list[Tensor] = outputs["keypoints"]
         output_bboxes: list[Tensor] = outputs["boxes"]

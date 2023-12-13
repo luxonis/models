@@ -3,21 +3,25 @@ from typing import Literal
 import torch
 import torch.nn.functional as F
 from pydantic import Field
-from torch import Size, Tensor, nn
+from torch import Tensor, nn
 from torchvision.ops import box_convert
 from typing_extensions import Annotated
 
-from luxonis_train.utils.assigners import (
-    ATSSAssigner,
-    TaskAlignedAssigner,
-)
+from luxonis_train.nodes import EfficientBBoxHead
+from luxonis_train.utils.assigners import ATSSAssigner, TaskAlignedAssigner
 from luxonis_train.utils.boxutils import (
     IoUType,
     anchors_for_fpn_features,
     compute_iou_loss,
     dist2bbox,
 )
-from luxonis_train.utils.types import BaseProtocol, Labels, LabelType, Packet
+from luxonis_train.utils.types import (
+    BaseProtocol,
+    IncompatibleException,
+    Labels,
+    LabelType,
+    Packet,
+)
 
 from .base_loss import BaseLoss
 
@@ -29,14 +33,7 @@ class Protocol(BaseProtocol):
 
 
 class AdaptiveDetectionLoss(BaseLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]):
-    class NodeAttributes(BaseLoss.NodeAttributes):
-        stride: Tensor
-        original_in_shape: Size
-        grid_cell_size: float
-        grid_cell_offset: float
-        n_classes: int
-
-    node_attributes: NodeAttributes
+    node: EfficientBBoxHead
 
     class NodePacket(Packet[Tensor]):
         features: list[Tensor]
@@ -70,13 +67,19 @@ class AdaptiveDetectionLoss(BaseLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Ten
         super().__init__(
             required_labels=[LabelType.BOUNDINGBOX], protocol=Protocol, **kwargs
         )
+
+        if not isinstance(self.node, EfficientBBoxHead):
+            raise IncompatibleException(
+                f"Loss `{self.__class__.__name__}` is only "
+                "compatible with nodes of type `EfficientBBoxHead`."
+            )
         self.iou_type: IoUType = iou_type
         self.reduction = reduction
-        self.n_classes = self.node_attributes.n_classes
-        self.stride = self.node_attributes.stride
-        self.grid_cell_size = self.node_attributes.grid_cell_size
-        self.grid_cell_offset = self.node_attributes.grid_cell_offset
-        self.original_img_size = self.node_attributes.original_in_shape[2:]
+        self.n_classes = self.node.n_classes
+        self.stride = self.node.stride
+        self.grid_cell_size = self.node.grid_cell_size
+        self.grid_cell_offset = self.node.grid_cell_offset
+        self.original_img_size = self.node.original_in_shape[2:]
 
         self.n_warmup_epochs = n_warmup_epochs
         self.atts_assigner = ATSSAssigner(topk=9, n_classes=self.n_classes)

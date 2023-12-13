@@ -102,7 +102,7 @@ class MeanAveragePrecision(BaseMetric, detection.MeanAveragePrecision):
         label = labels[LabelType.BOUNDINGBOX]
         output_nms = outputs["boxes"]
 
-        image_size = self.node_attributes.original_in_shape[2:]
+        image_size = self.node.original_in_shape[2:]
 
         output_list: list[dict[str, Tensor]] = []
         label_list: list[dict[str, Tensor]] = []

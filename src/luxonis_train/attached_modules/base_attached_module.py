@@ -3,14 +3,14 @@ from typing import Generic
 
 from luxonis_ml.utils.registry import AutoRegisterMeta
 from pydantic import ValidationError
-from torch import Size, Tensor, nn
+from torch import Tensor, nn
 from typing_extensions import TypeVarTuple, Unpack
 
-from luxonis_train.utils.general import DatasetMetadata, validate_packet
+from luxonis_train.nodes import BaseNode
+from luxonis_train.utils.general import validate_packet
 from luxonis_train.utils.types import (
     BaseProtocol,
     IncompatibleException,
-    Kwargs,
     Labels,
     LabelType,
     Packet,
@@ -40,8 +40,7 @@ class BaseAttachedModule(
     Attributes:
         required_labels (list[LabelType]): List of labels required by this model.
         protocol (type[BaseProtocol]): Schema for validating inputs to the module.
-        node_attributes (NodeAttributes): Attributes of the node that
-          this module is attached to.
+        node (BaseNode): Reference to the node this module is attached to.
 
     Interface:
         prepare(outputs: Packet[Tensor], labels: Labels
@@ -51,72 +50,45 @@ class BaseAttachedModule(
           `forward(*prepare(outputs, labels))`.
     """
 
-    class NodeAttributes(BaseProtocol):
-        """Contains attributes of the node that this module is attached to.
-
-        Common attributes for all nodes are defined here.
-
-        A subclass of `LuxonisAttachedModule` can define its own `NodeAttributes`
-        class. In that case, the subclass' `NodeAttributes` should inherit from
-        `LuxonisAttachedModule.NodeAttributes` and only define additional attributes.
-
-        Definition of custom `NodeAttributes` is not required, but if provided,
-        the passed node attributes will be validated against the `NodeAttributes`
-        schema.
-
-
-        Attributes:
-            original_in_shape (Size): Shape of the input to the entire model.
-            dataset_metadata (DatasetMetadata): Metadata of the dataset.
-        """
-
-        original_in_shape: Size
-        dataset_metadata: DatasetMetadata
-
     def __init__(
         self,
         *,
-        node_attributes: Kwargs | NodeAttributes | None = None,
+        node: BaseNode | None = None,
         protocol: type[BaseProtocol] | None = None,
         required_labels: list[LabelType] | None = None,
     ):
         """Initializes the module.
 
         Args:
-            node_attributes (Kwargs, optional): Attributes of the node that this module is attached to.
-              Defaults to None.
+            node (BaseNode, optional): Reference to the node that this module is
+              attached to. Defaults to None.
             protocol (type[BaseProtocol], optional): Protocol that the node attributes must conform to.
               Defaults to None.
             required_labels (list[LabelType], optional): List of labels that this module requires.
               Defaults to None.
         """
+        super().__init__()
         self.required_labels = required_labels or []
         self.protocol = protocol
-        try:
-            if isinstance(node_attributes, dict):
-                self._node_attributes = self.NodeAttributes(**node_attributes)
-            else:
-                self._node_attributes = node_attributes
-        except ValidationError as e:
-            raise IncompatibleException.from_validation_error(
-                e, self.__class__.__name__
-            ) from e
+        self._node = node
         self._epoch = 0
-        super().__init__()
 
     @property
-    def node_attributes(self) -> NodeAttributes:
+    def node(self) -> BaseNode:
         """Attributes of the node that this module is attached to.
 
         Returns:
-            NodeAttributes: Attributes of the node that this module is attached to.
+            BaseNode: Reference to the node that this module is attached to.
+
+        Raises:
+            RuntimeError: If the node was not provided during initialization.
         """
-        if self._node_attributes is None:
+        if self._node is None:
             raise RuntimeError(
-                "Attempt to access `node_attributes`, but they were not "
+                "Attempt to access `node` reference, but it was not "
                 "provided during initialization."
             )
-        return self._node_attributes
+        return self._node
 
     def prepare(self, inputs: Packet[Tensor], labels: Labels) -> tuple[Unpack[Ts]]:
         """Prepares node outputs for the forward pass of the module.

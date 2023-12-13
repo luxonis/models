@@ -1,6 +1,6 @@
 from torch import Tensor, nn
 
-from luxonis_train.utils.types import Packet
+from luxonis_train.utils.types import LabelType, Packet
 
 from .base_node import BaseNode
 
@@ -20,13 +20,13 @@ class ClassificationHead(BaseNode[Tensor, Tensor]):
             dropout_rate (float, optional): Dropout rate before last layer, range [0,1].
               Defaults to 0.2.
         """
-        super().__init__(**kwargs)
+        super().__init__(task_type=LabelType.CLASSIFICATION, **kwargs)
 
         self.head = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
             nn.Dropout(dropout_rate),
-            nn.Linear(self.in_channels, self.dataset_metadata.n_classes),
+            nn.Linear(self.in_channels, self.n_classes),
         )
 
     def forward(self, inputs: Tensor) -> Tensor:

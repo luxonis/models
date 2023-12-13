@@ -8,7 +8,7 @@ from torch import Size, Tensor
 from torch.utils.data import DataLoader
 
 from luxonis_train.utils.boxutils import anchors_from_dataset
-from luxonis_train.utils.types import Packet
+from luxonis_train.utils.types import LabelType, Packet
 
 
 # TODO: could be moved to luxonis-ml?
@@ -27,19 +27,65 @@ class DatasetMetadata:
     def __init__(
         self,
         *,
-        class_names: list[str] | None = None,
+        classes: dict[LabelType, list[str]] | None = None,
+        n_classes: int | None = None,
+        n_keypoints: int | None = None,
         keypoint_names: list[str] | None = None,
         connectivity: list[tuple[int, int]] | None = None,
         loader: DataLoader | None = None,
-        _n_classes: int | None = None,
-        _n_keypoints: int | None = None,
     ):
-        self.class_names = class_names or []
-        self.keypoint_names = keypoint_names or []
-        self.connectivity = connectivity or []
-        self.loader = loader
-        self._n_classes = _n_classes
-        self._n_keypoints = _n_keypoints
+        if classes is None and n_classes is not None:
+            classes = {
+                LabelType(lbl): [str(i) for i in range(n_classes)]
+                for lbl in LabelType.__members__
+            }
+        self._classes = classes
+        self._keypoint_names = keypoint_names
+        self._connectivity = connectivity
+        self._n_keypoints = n_keypoints
+        if self._n_keypoints is None and self._keypoint_names is not None:
+            self._n_keypoints = len(self._keypoint_names)
+        self._loader = loader
+
+    @property
+    def classes(self) -> dict[LabelType, list[str]]:
+        """Dictionary mapping label types to lists of class names."""
+        if self._classes is None:
+            raise ValueError(
+                "Trying to access `classes`, byt they were not"
+                "provided during initialization."
+            )
+        return self._classes
+
+    def n_classes(self, label_type: LabelType | None) -> int:
+        if label_type is not None:
+            if label_type not in self.classes:
+                raise ValueError(
+                    f"Task type {label_type.name} is not present in the dataset."
+                )
+            return len(self.classes[label_type])
+        n_classes = len(list(self.classes.values())[0])
+        for classes in self.classes.values():
+            if len(classes) != n_classes:
+                raise ValueError(
+                    "The dataset contains different number of classes for different tasks."
+                )
+        return n_classes
+
+    def class_names(self, label_type: LabelType | None) -> list[str]:
+        if label_type is not None:
+            if label_type not in self.classes:
+                raise ValueError(
+                    f"Task type {label_type.name} is not present in the dataset."
+                )
+            return self.classes[label_type]
+        class_names = list(self.classes.values())[0]
+        for classes in self.classes.values():
+            if classes != class_names:
+                raise ValueError(
+                    "The dataset contains different class names for different tasks."
+                )
+        return class_names
 
     def autogenerate_anchors(self, n_heads: int) -> tuple[list[list[float]], float]:
         """Automatically generates anchors for the provided dataset.
@@ -62,16 +108,6 @@ class DatasetMetadata:
         )
         return proposed_anchors.reshape(-1, 6).tolist(), recall
 
-    @property
-    def n_classes(self) -> int:
-        """Number of classes in the dataset."""
-        return self._n_classes or len(self.class_names)
-
-    @property
-    def n_keypoints(self) -> int:
-        """Number of keypoints in the dataset."""
-        return self._n_keypoints or len(self.keypoint_names)
-
     def set_loader(self, loader: DataLoader) -> None:
         """Sets the dataset loader.
 
@@ -90,16 +126,8 @@ class DatasetMetadata:
         Returns:
             DatasetMetadata: Metadata about the dataset.
         """
-        class_names, classes = dataset.get_classes()
+        _, classes = dataset.get_classes()
         skeletons = dataset.get_skeletons()
-        for task, task_classes in classes.items():
-            if sorted(task_classes) != sorted(class_names):
-                raise NotImplementedError(
-                    f"Task {task} defines a different set of classes than "
-                    "the other tasks. This is not yet supported. "
-                    f"Task classes: {task_classes}. "
-                    f"Total classes: {class_names}."
-                )
 
         keypoint_names = None
         connectivity = None
@@ -116,7 +144,7 @@ class DatasetMetadata:
             )
 
         return cls(
-            class_names=class_names,
+            classes=classes,
             keypoint_names=keypoint_names,
             connectivity=connectivity,
         )

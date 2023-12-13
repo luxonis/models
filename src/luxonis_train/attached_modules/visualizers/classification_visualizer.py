@@ -28,7 +28,6 @@ class ClassificationVisualizer(BaseVisualizer[Tensor, Tensor]):
                 probabilities in the visualization. Defaults to False.
         """
         super().__init__(**kwargs)
-        self.class_names = self.node_attributes.dataset_metadata.class_names
         self.include_plot = include_plot
         self.font_scale = font_scale
         self.color = color
@@ -36,17 +35,17 @@ class ClassificationVisualizer(BaseVisualizer[Tensor, Tensor]):
 
     def _get_class_name(self, pred: Tensor) -> str:
         idx = int((pred.argmax()).item())
-        if self.class_names is None:
+        if self.node.class_names is None:
             return str(idx)
-        return self.class_names[idx]
+        return self.node.class_names[idx]
 
     def _generate_plot(self, prediction: Tensor, width: int, height: int) -> Tensor:
         prediction = prediction.softmax(-1).detach().cpu().numpy()
         fig, ax = plt.subplots(figsize=(width / 100, height / 100))
         ax.bar(np.arange(len(prediction)), prediction)
         ax.set_xticks(np.arange(len(prediction)))
-        if self.class_names is not None:
-            ax.set_xticklabels(self.class_names, rotation=90)
+        if self.node.class_names is not None:
+            ax.set_xticklabels(self.node.class_names, rotation=90)
         else:
             ax.set_xticklabels(np.arange(1, len(prediction) + 1))
         ax.set_ylim(0, 1)

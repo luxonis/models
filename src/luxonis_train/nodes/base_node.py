@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 from luxonis_ml.utils.registry import AutoRegisterMeta
 from pydantic import BaseModel, ValidationError
@@ -11,6 +11,7 @@ from luxonis_train.utils.types import (
     AttachIndexType,
     FeaturesProtocol,
     IncompatibleException,
+    LabelType,
     Packet,
 )
 
@@ -95,8 +96,9 @@ class BaseNode(
         in_protocols: list[type[BaseModel]] | None = None,
         n_classes: int | None = None,
         in_sizes: Size | list[Size] | None = None,
+        task_type: LabelType | None = None,
     ):
-        """Constructor for the `LuxonisModule`.
+        """Constructor for the `BaseNode`.
 
         Args:
             input_shapes (list[Packet[Size]] | None): List of input shapes for the module.
@@ -121,13 +123,14 @@ class BaseNode(
 
         self.attach_index = attach_index or self.attach_index
         self.in_protocols = in_protocols or [FeaturesProtocol]
+        self.task_type = task_type
 
         self._input_shapes = input_shapes
         self._original_in_shape = original_in_shape
         if n_classes is not None:
             if dataset_metadata is not None:
                 raise ValueError("Cannot set both `dataset_metadata` and `n_classes`.")
-            dataset_metadata = DatasetMetadata(_n_classes=n_classes)
+            dataset_metadata = DatasetMetadata(n_classes=n_classes)
         self._dataset_metadata = dataset_metadata
         self._export = False
         self._epoch = 0
@@ -138,6 +141,16 @@ class BaseNode(
             f"{self.__class__.__name__} is trying to access `{name}`, "
             "but it was not set during initialization. "
         )
+
+    @property
+    def n_classes(self) -> int:
+        """Getter for the number of classes."""
+        return self.dataset_metadata.n_classes(self.task_type)
+
+    @property
+    def class_names(self) -> list[str]:
+        """Getter for the class names."""
+        return self.dataset_metadata.class_names(self.task_type)
 
     @property
     def input_shapes(self) -> list[Packet[Size]]:
@@ -346,18 +359,6 @@ class BaseNode(
         unwrapped = self.unwrap(self.validate(inputs))
         outputs = self(unwrapped)
         return self.wrap(outputs)
-
-    def dump_params(self) -> dict[str, Any]:
-        """Dumps the parameters of the module.
-
-        Returns:
-            dict[str, Any]: Dictionary of parameters.
-        """
-        return self.__dict__ | {
-            "input_shapes": self.input_shapes,
-            "original_in_shape": self.original_in_shape,
-            "dataset_metadata": self.dataset_metadata,
-        }
 
     def validate(self, data: list[Packet[Tensor]]) -> list[Packet[Tensor]]:
         """Validates the inputs against `in_protocols`."""

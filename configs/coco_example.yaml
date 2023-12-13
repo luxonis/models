@@ -157,8 +157,6 @@ trainer:
         verbose: true
     - name: DeviceStatsMonitor
     - name: ExportOnTrainEnd
-      params:
-        upload_to_mlflow: true
     - name: TestOnTrainEnd
 
   optimizer:

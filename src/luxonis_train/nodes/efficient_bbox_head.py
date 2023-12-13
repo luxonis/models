@@ -16,7 +16,7 @@ from luxonis_train.utils.boxutils import (
     dist2bbox,
     non_max_suppression,
 )
-from luxonis_train.utils.types import Packet
+from luxonis_train.utils.types import LabelType, Packet
 
 from .base_node import BaseNode
 
@@ -33,7 +33,6 @@ class EfficientBBoxHead(
 
     def __init__(
         self,
-        n_classes: int | None = None,
         n_heads: Literal[2, 3, 4] = 3,
         conf_thres: float = 0.25,
         iou_thres: float = 0.45,
@@ -48,11 +47,10 @@ class EfficientBBoxHead(
             attach_index (int | tuple[int, int] | Literal["all"], optional): Index of
               previous output that the head attaches to. Defaults to "all".
         """
-        super().__init__(**kwargs)
+        super().__init__(task_type=LabelType.BOUNDINGBOX, **kwargs)
 
         self.n_heads = n_heads
 
-        self.n_classes = n_classes or self.dataset_metadata.n_classes
         self.conf_thres = conf_thres
         self.iou_thres = iou_thres
 

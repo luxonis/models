@@ -21,7 +21,7 @@ from luxonis_train.utils.boxutils import (
     process_bbox_predictions,
     process_keypoints_predictions,
 )
-from luxonis_train.utils.types import Packet
+from luxonis_train.utils.types import LabelType, Packet
 
 from .base_node import BaseNode
 
@@ -58,7 +58,7 @@ class ImplicitKeypointBBoxHead(BaseNode):
             init_coco_biases (bool, optional): Whether to use COCO bias and weight
             initialization. Defaults to True.
         """
-        super().__init__(**kwargs)
+        super().__init__(task_type=LabelType.KEYPOINT, **kwargs)
         self.logger = logging.getLogger(__name__)
 
         if anchors is None:
@@ -69,19 +69,14 @@ class ImplicitKeypointBBoxHead(BaseNode):
         self.conf_thres = conf_thres
         self.iou_thres = iou_thres
 
-        self.n_keypoints = n_keypoints or self.dataset_metadata.n_keypoints
-        self.n_classes = self.dataset_metadata.n_classes
+        n_keypoints = n_keypoints or self.dataset_metadata._n_keypoints
 
-        if self.n_keypoints == 0:
+        if n_keypoints is None:
             raise ValueError(
                 "Number of keypoints must be specified either in the constructor or "
                 "in the dataset metadata."
             )
-        if self.n_classes == 0:
-            raise ValueError(
-                "Number of classes must be specified either in the constructor or "
-                "in the dataset metadata."
-            )
+        self.n_keypoints = n_keypoints
         self.num_heads = num_heads
 
         self.box_offset = 5

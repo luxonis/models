@@ -50,9 +50,12 @@ class ObjectKeypointSimilarity(
             required_labels=[LabelType.KEYPOINT], protocol=KeypointProtocol, **kwargs
         )
 
-        self.n_keypoints = (
-            n_keypoints or self.node_attributes.dataset_metadata.n_keypoints
-        )
+        if n_keypoints is None and self.node is None:
+            raise ValueError(
+                f"Either `n_keypoints` or `node` must be provided "
+                f"to {self.__class__.__name__}."
+            )
+        self.n_keypoints = n_keypoints or self.node.n_keypoints
         if kpt_sigmas is not None and len(kpt_sigmas) != self.n_keypoints:
             raise ValueError("Expected kpt_sigmas to be of shape (num_keypoints).")
         self.kpt_sigmas = kpt_sigmas or torch.ones(self.n_keypoints) / self.n_keypoints
@@ -77,7 +80,7 @@ class ObjectKeypointSimilarity(
 
         output_list_oks = []
         label_list_oks = []
-        image_size = self.node_attributes.original_in_shape[2:]
+        image_size = self.node.original_in_shape[2:]
 
         for i, pred_kpt in enumerate(outputs["keypoints"]):
             output_list_oks.append({"keypoints": pred_kpt})

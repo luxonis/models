@@ -9,7 +9,7 @@ from torch import Tensor, nn
 
 from luxonis_train.nodes.blocks import ConvModule
 from luxonis_train.utils.general import infer_upscale_factor
-from luxonis_train.utils.types import Packet
+from luxonis_train.utils.types import LabelType, Packet
 
 from .base_node import BaseNode
 
@@ -35,11 +35,11 @@ class BiSeNetHead(BaseNode[Tensor, Tensor]):
             intermediate_channels (int, optional): How many intermediate channels to
               use. Defaults to 64.
         """
-        super().__init__(**kwargs)
+        super().__init__(task_type=LabelType.SEGMENTATION, **kwargs)
 
         original_height = self.original_in_shape[2]
         upscale_factor = 2 ** infer_upscale_factor(self.in_height, original_height)
-        out_channels = self.dataset_metadata.n_classes * upscale_factor * upscale_factor
+        out_channels = self.n_classes * upscale_factor * upscale_factor
 
         self.conv_3x3 = ConvModule(self.in_channels, intermediate_channels, 3, 1, 1)
         self.conv_1x1 = nn.Conv2d(intermediate_channels, out_channels, 1, 1, 0)

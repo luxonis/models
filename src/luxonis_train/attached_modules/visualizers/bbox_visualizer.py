@@ -71,12 +71,31 @@ class BBoxVisualizer(BaseVisualizer[list[Tensor], Tensor]):
 
     @staticmethod
     def draw_targets(
-        canvas: Tensor, targets: Tensor, width: int | None = None, **kwargs
+        canvas: Tensor,
+        targets: Tensor,
+        width: int | None = None,
+        colors: list[Color] | None = None,
+        labels: list[str] | None = None,
+        label_dict: dict[int, str] | None = None,
+        color_dict: dict[str, Color] | None = None,
+        draw_labels: bool = True,
+        **kwargs,
     ) -> Tensor:
         viz = torch.zeros_like(canvas)
 
         for i in range(len(canvas)):
             target = targets[targets[:, 0] == i]
+            target_classes = target[:, 1].int()
+            cls_labels = labels or (
+                [label_dict[int(c)] for c in target_classes]
+                if draw_labels and label_dict is not None
+                else None
+            )
+            cls_colors = colors or (
+                [color_dict[label_dict[int(c)]] for c in target_classes]
+                if color_dict is not None and label_dict is not None
+                else None
+            )
 
             *_, H, W = canvas.shape
             width = width or max(1, int(min(H, W) / 100))
@@ -84,6 +103,8 @@ class BBoxVisualizer(BaseVisualizer[list[Tensor], Tensor]):
                 canvas[i].clone(),
                 target[:, 2:],
                 width=width,
+                labels=cls_labels,
+                colors=cls_colors,
                 **kwargs,
             ).to(canvas.device)
 
@@ -91,12 +112,31 @@ class BBoxVisualizer(BaseVisualizer[list[Tensor], Tensor]):
 
     @staticmethod
     def draw_predictions(
-        canvas: Tensor, predictions: list[Tensor], width: int | None = None, **kwargs
+        canvas: Tensor,
+        predictions: list[Tensor],
+        width: int | None = None,
+        colors: list[Color] | None = None,
+        labels: list[str] | None = None,
+        label_dict: dict[int, str] | None = None,
+        color_dict: dict[str, Color] | None = None,
+        draw_labels: bool = True,
+        **kwargs,
     ) -> Tensor:
         viz = torch.zeros_like(canvas)
 
         for i in range(len(canvas)):
             prediction = predictions[i]
+            prediction_classes = prediction[..., 5].int()
+            cls_labels = labels or (
+                [label_dict[int(c)] for c in prediction_classes]
+                if draw_labels and label_dict is not None
+                else None
+            )
+            cls_colors = colors or (
+                [color_dict[label_dict[int(c)]] for c in prediction_classes]
+                if color_dict is not None and label_dict is not None
+                else None
+            )
 
             *_, H, W = canvas.shape
             width = width or max(1, int(min(H, W) / 100))
@@ -105,6 +145,8 @@ class BBoxVisualizer(BaseVisualizer[list[Tensor], Tensor]):
                     canvas[i].clone(),
                     prediction[:, :4],
                     width=width,
+                    labels=cls_labels,
+                    colors=cls_colors,
                     **kwargs,
                 )
             except ValueError as e:
@@ -134,39 +176,25 @@ class BBoxVisualizer(BaseVisualizer[list[Tensor], Tensor]):
         Returns:
             tuple[Tensor, Tensor]: A tuple of the label and prediction visualizations.
         """
-        target_classes = targets[..., 1].int()
-        target_labels = (
-            [self.labels[int(c)] for c in target_classes]
-            if self.draw_labels and self.labels
-            else None
-        )
-        target_colors = (
-            [self.colors[self.labels[int(c)]] for c in target_classes]
-            if self.colors
-            else None
-        )
-        prediction_classes = predictions[0][..., 5].int()
-        pred_labels = (
-            [self.labels[int(c)] for c in prediction_classes]
-            if self.draw_labels and self.labels
-            else None
-        )
-        pred_colors = (
-            [self.colors[self.labels[int(c)]] for c in prediction_classes]
-            if self.colors
-            else None
-        )
         targets_viz = self.draw_targets(
             label_canvas,
             targets,
-            labels=target_labels,
-            colors=target_colors,
+            color_dict=self.colors,
+            label_dict=self.labels,
+            draw_labels=self.draw_labels,
             fill=self.fill,
             font=self.font,
             font_size=self.font_size,
             width=self.width,
         )
         predictions_viz = self.draw_predictions(
-            prediction_canvas, predictions, labels=pred_labels, colors=pred_colors
+            prediction_canvas,
+            predictions,
+            label_dict=self.labels,
+            color_dict=self.colors,
+            fill=self.fill,
+            font=self.font,
+            font_size=self.font_size,
+            width=self.width,
         )
         return targets_viz, predictions_viz.to(targets_viz.device)

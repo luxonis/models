@@ -33,6 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -e .[dev]
+        mkdir ~/luxonis_ml
 
     - name: Run tests with coverage
       run: pytest --cov=src/luxonis_train --cov-report xml tests

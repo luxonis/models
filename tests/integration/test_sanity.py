@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+
 from luxonis_train.core import Exporter, Trainer
 from luxonis_train.utils import Config
 

@@ -1,4 +1,5 @@
 import torch
+
 from luxonis_train.utils.assigners.utils import (
     batch_iou,
     candidates_in_gt,

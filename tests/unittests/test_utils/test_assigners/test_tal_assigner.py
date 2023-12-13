@@ -1,4 +1,5 @@
 import torch
+
 from luxonis_train.utils.assigners.tal_assigner import TaskAlignedAssigner
 
 

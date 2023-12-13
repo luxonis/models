@@ -1,4 +1,5 @@
 import torch
+
 from luxonis_train.utils.assigners.atts_assigner import ATSSAssigner
 
 

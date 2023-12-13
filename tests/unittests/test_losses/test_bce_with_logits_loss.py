@@ -1,5 +1,6 @@
 import pytest
 import torch
+
 from luxonis_train.attached_modules.losses import BCEWithLogitsLoss
 
 torch.manual_seed(42)

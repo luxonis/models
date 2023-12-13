@@ -28,7 +28,7 @@ class Core:
     def __init__(
         self,
         cfg: str | dict[str, Any] | Config,
-        opts: list[str] | tuple[str, ...] | None = None,
+        opts: list[str] | tuple[str, ...] | dict[str, Any] | None = None,
     ):
         """Constructs a new Core instance.
 
@@ -42,12 +42,17 @@ class Core:
 
         overrides = {}
         if opts:
-            if len(opts) % 2 != 0:
-                raise ValueError("Override options should be a list of key-value pairs")
+            if isinstance(opts, dict):
+                overrides = opts
+            else:
+                if len(opts) % 2 != 0:
+                    raise ValueError(
+                        "Override options should be a list of key-value pairs"
+                    )
 
-            # NOTE: has to be done like this for torchx to work
-            for i in range(0, len(opts), 2):
-                overrides[opts[i]] = opts[i + 1]
+                # NOTE: has to be done like this for torchx to work
+                for i in range(0, len(opts), 2):
+                    overrides[opts[i]] = opts[i + 1]
 
         if isinstance(cfg, Config):
             self.cfg = cfg

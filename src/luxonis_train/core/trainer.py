@@ -1,9 +1,10 @@
 import threading
-from typing import Literal
+from typing import Any, Literal
 
 from pytorch_lightning.utilities import rank_zero_only  # type: ignore
 
 from luxonis_train.models import LuxonisModel
+from luxonis_train.utils.config import Config
 
 from .core import Core
 
@@ -12,7 +13,11 @@ class Trainer(Core):
     """Main API which is used to create the model, setup pytorch lightning environment
     and perform training based on provided arguments and config."""
 
-    def __init__(self, cfg: str | dict, opts: list[str] | tuple[str, ...] | None):
+    def __init__(
+        self,
+        cfg: str | dict[str, Any] | Config,
+        opts: list[str] | tuple[str, ...] | dict[str, Any] | None = None,
+    ):
         """Constructs a new Trainer instance.
 
         Args:

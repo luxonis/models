@@ -29,7 +29,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

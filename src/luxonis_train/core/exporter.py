@@ -22,7 +22,7 @@ class Exporter(Core):
     def __init__(
         self,
         cfg: str | dict[str, Any] | Config,
-        opts: list[str] | tuple[str, ...] | None = None,
+        opts: list[str] | tuple[str, ...] | dict[str, Any] | None = None,
     ):
         """Constructs a new Exporter instance.
 

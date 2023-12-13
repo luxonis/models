@@ -292,7 +292,7 @@ class Config(LuxonisConfig):
     trainer: TrainerConfig = TrainerConfig()
     exporter: ExportConfig = ExportConfig()
     tuner: TunerConfig = TunerConfig()
-    ENVIRON: Environ = Environ()
+    ENVIRON: Environ = Field(Environ(), exclude=True)
 
     @model_validator(mode="before")
     @classmethod

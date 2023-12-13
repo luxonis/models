@@ -1,4 +1,4 @@
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from luxonis_ml.data import LuxonisDataset, ValAugmentations
 from torch.utils.data import DataLoader
 

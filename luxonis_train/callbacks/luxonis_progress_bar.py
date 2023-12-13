@@ -1,8 +1,8 @@
 from collections.abc import Mapping
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import rich
-from pytorch_lightning.callbacks import RichProgressBar
+from lightning.pytorch.callbacks import RichProgressBar
 from rich.table import Table
 
 from luxonis_train.utils.registry import CALLBACKS

@@ -1,8 +1,8 @@
 import os.path as osp
 import subprocess
 
+import lightning.pytorch as pl
 import pkg_resources
-import pytorch_lightning as pl
 import yaml
 
 from luxonis_train.utils.registry import CALLBACKS

@@ -1,7 +1,7 @@
 import threading
 from typing import Any, Literal
 
-from pytorch_lightning.utilities import rank_zero_only  # type: ignore
+from lightning.pytorch.utilities import rank_zero_only  # type: ignore
 
 from luxonis_train.models import LuxonisModel
 from luxonis_train.utils.config import Config

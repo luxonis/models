@@ -3,13 +3,13 @@ from collections import defaultdict
 from collections.abc import Mapping
 from typing import Literal, cast
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
-from pytorch_lightning.callbacks import (
+from lightning.pytorch.callbacks import (
     ModelCheckpoint,
     RichModelSummary,
 )
-from pytorch_lightning.utilities import rank_zero_only  # type: ignore
+from lightning.pytorch.utilities import rank_zero_only  # type: ignore
 from torch import Size, Tensor, nn
 
 from luxonis_train.attached_modules import (

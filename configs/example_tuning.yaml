@@ -14,7 +14,7 @@ model:
 dataset:
   dataset_name: coco_test
 
-train:
+trainer:
   preprocessing:
     train_image_size: [&height 256, &width 320]
     keep_aspect_ratio: False

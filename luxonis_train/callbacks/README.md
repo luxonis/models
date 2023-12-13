@@ -12,7 +12,7 @@ List of all supported callbacks.
 
 ## PytorchLightning Callbacks
 
-List of supported callbacks from `pytorch_lightning`.
+List of supported callbacks from `lightning.pytorch`.
 
 - [DeviceStatsMonitor](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.DeviceStatsMonitor.html#lightning.pytorch.callbacks.DeviceStatsMonitor)
 - [ EarlyStopping ](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.EarlyStopping.html#lightning.pytorch.callbacks.EarlyStopping)

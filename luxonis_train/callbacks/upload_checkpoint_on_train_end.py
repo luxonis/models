@@ -1,6 +1,6 @@
 import logging
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from luxonis_ml.utils.filesystem import LuxonisFileSystem
 
 from luxonis_train.utils.registry import CALLBACKS

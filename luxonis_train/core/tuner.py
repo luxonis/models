@@ -1,13 +1,14 @@
 import os.path as osp
 from typing import Any
 
+import lightning.pytorch as pl
 import optuna
-import pytorch_lightning as pl
+from lightning.pytorch.utilities import rank_zero_only  # type: ignore
 from optuna.integration import PyTorchLightningPruningCallback
-from pytorch_lightning.utilities import rank_zero_only  # type: ignore
 
 from luxonis_train.callbacks import LuxonisProgressBar
 from luxonis_train.models import LuxonisModel
+from luxonis_train.utils import Config
 from luxonis_train.utils.tracker import LuxonisTrackerPL
 
 from .core import Core
@@ -73,14 +74,16 @@ class Tuner(Core):
         run_save_dir = osp.join(cfg_tracker.save_directory, tracker.run_name)
 
         curr_params = self._get_trial_params(trial)
-        self.cfg.override_config(curr_params)
+        curr_params["model.predefined_model"] = None
+        Config.clear_instance()
+        cfg = Config.get_config(self.cfg.model_dump(), curr_params)
 
         tracker.log_hyperparams(curr_params)
 
-        self.cfg.save_data(osp.join(run_save_dir, "config.yaml"))
+        cfg.save_data(osp.join(run_save_dir, "config.yaml"))
 
         lightning_module = LuxonisModel(
-            cfg=self.cfg,
+            cfg=cfg,
             dataset_metadata=self.dataset_metadata,
             save_dir=run_save_dir,
             input_shape=self.loader_train.input_shape,
@@ -93,20 +96,22 @@ class Tuner(Core):
         )
         callbacks.append(pruner_callback)
         pl_trainer = pl.Trainer(
-            accelerator=self.cfg.trainer.accelerator,
-            devices=self.cfg.trainer.devices,
-            strategy=self.cfg.trainer.strategy,
-            logger=tracker,
-            max_epochs=self.cfg.trainer.epochs,
-            accumulate_grad_batches=self.cfg.trainer.accumulate_grad_batches,
-            check_val_every_n_epoch=self.cfg.trainer.validation_interval,
-            num_sanity_val_steps=self.cfg.trainer.num_sanity_val_steps,
-            profiler=self.cfg.trainer.profiler,
+            accelerator=cfg.trainer.accelerator,
+            devices=cfg.trainer.devices,
+            strategy=cfg.trainer.strategy,
+            logger=tracker,  # type: ignore
+            max_epochs=cfg.trainer.epochs,
+            accumulate_grad_batches=cfg.trainer.accumulate_grad_batches,
+            check_val_every_n_epoch=cfg.trainer.validation_interval,
+            num_sanity_val_steps=cfg.trainer.num_sanity_val_steps,
+            profiler=cfg.trainer.profiler,
             callbacks=callbacks,
         )
 
         pl_trainer.fit(
-            lightning_module, self.pytorch_loader_train, self.pytorch_loader_val
+            lightning_module,  # type: ignore
+            self.pytorch_loader_train,
+            self.pytorch_loader_val,
         )
         pruner_callback.check_pruned()
 
@@ -126,7 +131,6 @@ class Tuner(Core):
             key_info = key.split("_")
             key_name = "_".join(key_info[:-1])
             key_type = key_info[-1]
-            print(key_name)
             match key_type, value:
                 case "categorical", list(lst):
                     new_value = trial.suggest_categorical(key_name, lst)

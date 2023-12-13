@@ -1,5 +1,5 @@
+from lightning.pytorch.loggers.logger import Logger
 from luxonis_ml.tracker import LuxonisTracker
-from pytorch_lightning.loggers.logger import Logger
 
 
 class LuxonisTrackerPL(LuxonisTracker, Logger):

@@ -3,13 +3,13 @@ import os
 import os.path as osp
 from typing import Any
 
+import lightning.pytorch as pl
 import lightning_utilities.core.rank_zero as rank_zero_module
-import pytorch_lightning as pl
 import rich.traceback
 import torch
+from lightning.pytorch.utilities import rank_zero_only  # type: ignore
 from luxonis_ml.data import LuxonisDataset, TrainAugmentations, ValAugmentations
 from luxonis_ml.utils import reset_logging, setup_logging
-from pytorch_lightning.utilities import rank_zero_only  # type: ignore
 
 from luxonis_train.callbacks import LuxonisProgressBar
 from luxonis_train.utils.config import Config
@@ -109,7 +109,7 @@ class Core:
             accelerator=self.cfg.trainer.accelerator,
             devices=self.cfg.trainer.devices,
             strategy=self.cfg.trainer.strategy,
-            logger=self.tracker,
+            logger=self.tracker,  # type: ignore
             max_epochs=self.cfg.trainer.epochs,
             accumulate_grad_batches=self.cfg.trainer.accumulate_grad_batches,
             check_val_every_n_epoch=self.cfg.trainer.validation_interval,

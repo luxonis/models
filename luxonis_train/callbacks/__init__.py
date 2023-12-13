@@ -1,4 +1,4 @@
-from pytorch_lightning.callbacks import (
+from lightning.pytorch.callbacks import (
     DeviceStatsMonitor,
     EarlyStopping,
     LearningRateMonitor,

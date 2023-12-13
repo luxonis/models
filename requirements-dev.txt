@@ -1,4 +1,4 @@
 coverage-badge>=1.1.0
+gdown>=4.2.0
 pre-commit>=3.2.1
 pytest-cov>=4.1.0
-gdown>=4.2.0

@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import cast
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 
 from luxonis_train.utils.config import Config
 from luxonis_train.utils.registry import CALLBACKS

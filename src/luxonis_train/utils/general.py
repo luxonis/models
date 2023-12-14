@@ -127,7 +127,6 @@ def make_divisible(x: int | float, divisor: int) -> int:
     return math.ceil(x / divisor) * divisor
 
 
-# TEST:
 def infer_upscale_factor(
     in_height: int, orig_height: int, strict: bool = True, warn: bool = True
 ) -> int:
@@ -156,7 +155,6 @@ def get_shape_packet(packet: Packet[Tensor]) -> Packet[Size]:
     return shape_packet
 
 
-# TEST:
 def is_acyclic(graph: dict[str, list[str]]) -> bool:
     """Tests if graph is acyclic.
 
@@ -202,7 +200,6 @@ def validate_packet(data: Packet[Tensor], protocol: type[BaseModel]) -> Packet[T
 T = TypeVar("T")
 
 
-# TEST:
 def traverse_graph(
     graph: dict[str, list[str]], nodes: dict[str, T]
 ) -> Generator[tuple[str, T, list[str], set[str]], None, None]:

@@ -116,7 +116,8 @@ jobs:
           ref: ${{ github.head_ref }}
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v3
+        id: download-artifacts
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
@@ -124,5 +125,5 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: Tests Report
-          path: artifacts/**/pytest.xml
+          path: ${{ steps.download-artifacts.outputs.path }}/**/*.xml
           reporter: jest-junit

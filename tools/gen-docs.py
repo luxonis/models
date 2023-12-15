@@ -4,7 +4,7 @@ import re
 import sys
 from inspect import Parameter, Signature
 from pathlib import Path
-from typing import List
+from typing import Any, cast
 
 from pydoctor.driver import get_system
 from pydoctor.epydoc.markup import Field
@@ -20,8 +20,8 @@ from pydoctor.model import (
 )
 
 opts = Options.defaults()
-opts.projectbasedirectory = os.getcwd()
-opts.sourcepath = [Path(os.path.join(os.getcwd(), sys.argv[1]))]
+opts.projectbasedirectory = Path(os.getcwd())
+opts.sourcepath = [str(Path(os.getcwd()) / sys.argv[1])]
 system = get_system(opts)
 
 
@@ -31,7 +31,6 @@ def remove_html_tags(text):
 
 
 def serialize_annotation(annotation: str):
-    # annotation == <code>{annotation_type}</code>
     return annotation.replace("<code>", "").replace("</code>", "")
 
 
@@ -65,8 +64,11 @@ def serialize_attribute(obj, attr: Attribute):
         obj["value"] = doc.to_node().astext()
 
 
-def serialize_function(obj, func: Function):
+def serialize_function(obj: dict[str, Any], func: Function) -> None:
     obj["is_async"] = func.is_async
+    if func.signature is None:
+        return
+
     obj["signature"] = {
         "parameters": list(map(serialize_parameter, func.signature.parameters.values()))
     }
@@ -76,9 +78,9 @@ def serialize_function(obj, func: Function):
         match = re.search(pattern, return_annotation)
         if match:
             extracted_text = match.group("name")
-            obj["signature"]["return_annotation"] = extracted_text
+            obj["signature"]["return_annotation"] = extracted_text  # type: ignore
         else:
-            obj["signature"]["return_annotation"] = "None"
+            obj["signature"]["return_annotation"] = "None"  # type: ignore
 
 
 def serialize_docstring_field(field: Field):
@@ -89,21 +91,23 @@ def serialize_docstring_field(field: Field):
         }
     except NotImplementedError:
         return None
-    if field.arg() is not None:
-        obj["arg"] = field.arg()
+    arg = field.arg()
+    if arg is not None:
+        obj["arg"] = arg
     return obj
 
 
-def build_json(json_arr, documentables: List[Documentable]):
+def build_json(json_arr, documentables: list[Documentable]):
     for doc in documentables:
         obj = {
             "name": doc.fullName(),
             "short_name": doc.name,
-            "kind": doc.kind.name,
             "is_visible": doc.isVisible,
             "is_private": doc.isPrivate,
             "children": [],
         }
+        if doc.kind is not None:
+            obj["kind"] = doc.kind.name
 
         if (doc.parsed_docstring is None) and (doc.docstring is not None):
             # print(doc.docstring)
@@ -120,23 +124,23 @@ def build_json(json_arr, documentables: List[Documentable]):
                 )
             }
             if doc.parsed_docstring.has_body:
-                obj["docstring"]["summary"] = (
+                obj["docstring"]["summary"] = (  # type: ignore
                     doc.parsed_docstring.get_summary().to_node().astext()
                 )
-                obj["docstring"]["all"] = doc.parsed_docstring.to_node().astext()
+                obj["docstring"]["all"] = doc.parsed_docstring.to_node().astext()  # type: ignore
 
         if doc.parent is not None:
             obj["parent"] = doc.parent.fullName()
 
-        build_json(obj["children"], doc.contents.values())
+        build_json(obj["children"], list(doc.contents.values()))
 
         if doc.kind is DocumentableKind.CLASS:
-            cls: Class = doc
+            cls: Class = cast(Class, doc)
             obj["bases"] = cls.bases
         elif (
             doc.kind is DocumentableKind.FUNCTION or doc.kind is DocumentableKind.METHOD
         ):
-            serialize_function(obj, doc)
+            serialize_function(obj, cast(Function, doc))
         elif (
             doc.kind is DocumentableKind.ATTRIBUTE
             or doc.kind is DocumentableKind.CONSTANT
@@ -145,13 +149,13 @@ def build_json(json_arr, documentables: List[Documentable]):
             or doc.kind is DocumentableKind.TYPE_VARIABLE
             or doc.kind is DocumentableKind.CLASS_VARIABLE
         ):
-            serialize_attribute(obj, doc)
+            serialize_attribute(obj, cast(Attribute, doc))
 
         json_arr.append(obj)
 
 
 json_ready = []
-build_json(json_ready, system.rootobjects)
+build_json(json_ready, system.rootobjects)  # type: ignore
 
 jsonified = json.dumps(json_ready)
 with open("docs.json", "w") as f:

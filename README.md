@@ -86,14 +86,14 @@ You can see an example export configuration [here](configs/example_export.yaml).
 
 ## Customizations
 
-We provide a registry interface through which you can create new [nodes](src/luxonis_train/nodes/README.md), [losses](src/luxonis_train/attached_modules/losses/README.md), [metrics](src/luxonis_train/attached_modules/metrics/README.md), [visualizers](src/luxonis_train/attached_modules/visualizers/README.md), [callbacks](src/luxonis_train/callbacks/README.md), [optimizers](configs/README.md#optimizer), and [schedulers](configs/README.md#scheduler).
+We provide a registry interface through which you can create new [nodes](luxonis_train/nodes/README.md), [losses](luxonis_train/attached_modules/losses/README.md), [metrics](luxonis_train/attached_modules/metrics/README.md), [visualizers](luxonis_train/attached_modules/visualizers/README.md), [callbacks](luxonis_train/callbacks/README.md), [optimizers](configs/README.md#optimizer), and [schedulers](configs/README.md#scheduler).
 
 Registered components can be then referenced in the config file. Custom components need to inherit from their respective base classes:
 
-- Node - [BaseNode](src/luxonis_train/models/nodes/base_node.py)
-- Loss - [BaseLoss](src/luxonis_train/attached_modules/losses/base_loss.py)
-- Metric - [BaseMetric](src/luxonis_train/attached_modules/metrics/base_metric.py)
-- Visualizer - [BaseVisualizer](src/luxonis_train/attached_modules/visualizers/base_visualizer.py)
+- Node - [BaseNode](luxonis_train/models/nodes/base_node.py)
+- Loss - [BaseLoss](luxonis_train/attached_modules/losses/base_loss.py)
+- Metric - [BaseMetric](luxonis_train/attached_modules/metrics/base_metric.py)
+- Visualizer - [BaseVisualizer](luxonis_train/attached_modules/visualizers/base_visualizer.py)
 - Callback - [Callback from lightning.pytorch.callbacks](lightning.pytorch.callbacks)
 - Optimizer - [Optimizer from torch.optim](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer)
 - Scheduler - [LRScheduler from torch.optim.lr_scheduler](https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate)

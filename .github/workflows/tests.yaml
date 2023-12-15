@@ -4,9 +4,12 @@ on:
   pull_request:
     branches: [ dev, main ]
     paths:
-      - 'luxonis_train/**/**.py'
-      - 'tests/**/**.py'
+      - '**.py'
       - .github/workflows/tests.yaml
+      - configs/*.yaml
+      - requirements.txt
+      - requirements-dev.txt
+      - pyproject.toml
 
 jobs:
   run_tests:

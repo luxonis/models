@@ -41,7 +41,7 @@ def create_coco_dataset():
         img_dir = "../data/person_val2017_subset"
         annot_file = "../data/person_keypoints_val2017.json"
         im_paths = glob.glob(img_dir + "/*.jpg")
-        nums = np.array([int(path.split("/")[-1].split(".")[0]) for path in im_paths])
+        nums = np.array([int(Path(path).stem) for path in im_paths])
         idxs = np.argsort(nums)
         im_paths = list(np.array(im_paths)[idxs])
         with open(annot_file) as file:

@@ -61,7 +61,7 @@ jobs:
       run: pytest tests --cov=luxonis_train --cov-report xml --junit-xml pytest.xml
 
     - name: Run tests [Windows, macOS]
-      if: matrix.os != 'ubuntu-latest'
+      if: matrix.os != 'ubuntu-latest' || matrix.version != '3.10'
       run: pytest tests --junit-xml pytest.xml
 
     - name: Generate coverage badge [Ubuntu]
@@ -108,10 +108,15 @@ jobs:
       checks: write
       pull-requests: write
     if: always()
+
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - name: Test Report
         uses: dorny/test-reporter@v1
         with:
           name: Tests Report
-          path: artifacts/**/junit_*.xml
+          path: artifacts/**/*pytest.xml
           reporter: jest-junit

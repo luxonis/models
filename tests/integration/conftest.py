@@ -50,7 +50,7 @@ def create_coco_dataset():
         anns = data["annotations"]
 
         for path in im_paths:
-            gran = path.split("/")[-1]
+            gran = Path(path).name
             img = [img for img in imgs if img["file_name"] == gran][0]
             img_id = img["id"]
             img_anns = [ann for ann in anns if ann["image_id"] == img_id]

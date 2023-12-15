@@ -223,7 +223,7 @@ class TrainerConfig(BaseModel):
     def check_num_workes_platform(self):
         if (
             sys.platform == "win32" or sys.platform == "darwin"
-        ) and self.num_workes != 0:
+        ) and self.num_workers != 0:
             self.num_workers = 0
             logger.warning(
                 "Setting `num_workers` to 0 because of platform compatibility."

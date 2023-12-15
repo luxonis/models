@@ -4,26 +4,31 @@ on:
   pull_request:
     branches: [ dev, main ]
     paths:
-      - 'src/**.py'
-      - 'tests/**'
+      - 'luxonis_train/**/**.py'
+      - 'tests/**/**.py'
       - .github/workflows/tests.yaml
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  run_tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        version: ['3.10', '3.11', '3.12']
+
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         ref: ${{ github.head_ref }}
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: ${{ matrix.version }}
 
     - name: Cache pip dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3.3
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}

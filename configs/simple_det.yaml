@@ -1,7 +1,0 @@
-model:
-  name: SimpleDetection
-  predefined_model: yolov6-n
-
-dataset:
-  team_id: # TODO
-  dataset_id: # TODO

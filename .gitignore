@@ -1,6 +1,9 @@
-demo/*
-output/*
-output_export/*
+data/*
+!data/.gitkeep
+output
+output_export
+apidocs
+.ruff_cache
 
 # database
 *.db

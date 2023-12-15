@@ -49,39 +49,26 @@ class BaseNode(
     The `run` method combines the `unwrap`, `forward` and `wrap` methods
     together with input validation.
 
-
-    Metaclass Args:
-        register (bool): Determines whether or not to register this class.
-          Should be set to False in abstract classes to prevent them
-          from being registered.
-        registry (dict): The registry to which the subclasses should be added.
-          For most times should be only specified in the base class.
-
     Attributes:
         input_shapes (list[Packet[Size]]): List of input shapes for the module.
 
-    Properties:
-        export (bool): Whether or not the module is in export mode.
-        in_sizes (Size | list[Size]): Simplified getter for the input shapes. Returns a single `Size` object if `attach_index` is a single integer. Otherwise returns a list of sizes.
-        in_channels (int | list[int]): Simplified getter for the number of input channels.
-        in_height (int | list[int]): Simplified getter for the input height.
-        in_width (int | list[int]): Simplified getter for the input width.
-
-    Interface:
-        unwrap(inputs: list[Packet[Tensor]]) -> ForwardInputT:
-            Prepares inputs for the forward pass. Unwraps the inputs from the
-            list of `Packet[Tensor]`s. It's output is passed to the `forward` method.
-            This base class provides a default implementation, sufficient for most
-            inner nodes.
-
-        @abstractmethod
-        forward(inputs: ForwardInputT) -> ForwardOutputT:
-            Forward pass of the module.
-
-        wrap(output: ForwardOutputT) -> Packet[Tensor]:
-            Wraps the output of the forward pass into a single `Packet[Tensor]`.
-            This base class provides a default implementation, sufficient for most
-            inner nodes.
+    Args:
+        input_shapes (list[Packet[Size]] | None): List of input shapes for the module.
+        original_in_shape (Size | None): Original input shape of the model. Some
+            nodes won't function if not provided.
+        dataset_metadata (DatasetMetadata | None): Metadata of the dataset.
+            Some nodes won't function if not provided.
+        attach_index (`AttachIndexType`, optional): Index of
+            previous output that this node attaches to.
+            Can be a single integer to specify a single output, a tuple of
+            two or three integers to specify a range of outputs or `"all"` to
+            specify all outputs. Defaults to "all". Python indexing conventions apply.
+        in_protocols (list[type[BaseModel]], optional): List of input protocols
+            used to validate inputs to the node. Defaults to [FeaturesProtocol].
+        n_classes (int, optional): Number of classes in the dataset. Provide only
+            in case `dataset_metadata` is not provided. Defaults to None.
+        in_sizes (Size | list[Size] | None): List of input sizes for the node.
+            Provide only in case the `input_shapes` were not provided.
     """
 
     attach_index: AttachIndexType = "all"
@@ -98,27 +85,6 @@ class BaseNode(
         in_sizes: Size | list[Size] | None = None,
         task_type: LabelType | None = None,
     ):
-        """Constructor for the `BaseNode`.
-
-        Args:
-            input_shapes (list[Packet[Size]] | None): List of input shapes for the module.
-            original_in_shape (Size | None): Original input shape of the model. Some
-              nodes won't function if not provided.
-            dataset_metadata (DatasetMetadata | None): Metadata of the dataset.
-              Some nodes won't function if not provided.
-            attach_index (`AttachIndexType`, optional): Index of
-              previous output that this node attaches to.
-              Can be a single integer to specify a single output, a tuple of
-              two or three integers to specify a range of outputs or `"all"`
-              to specify all outputs. Defaults to "all".
-              Python indexing conventions apply.
-            in_protocols (list[type[BaseModel]], optional): List of input protocols
-              used to validate inputs to the node. Defaults to [FeaturesProtocol].
-            n_classes (int, optional): Number of classes in the dataset. Provide only
-              in case `dataset_metadata` is not provided. Defaults to None.
-            in_sizes (Size | list[Size] | None): List of input sizes for the node.
-              Provide only in case the `input_shapes` were not provided.
-        """
         super().__init__()
 
         self.attach_index = attach_index or self.attach_index
@@ -168,7 +134,11 @@ class BaseNode(
 
     @property
     def dataset_metadata(self) -> DatasetMetadata:
-        """Getter for the dataset metadata."""
+        """Getter for the dataset metadata.
+
+        Raises:
+            ValueError: If the `dataset_metadata` is None.
+        """
         if self._dataset_metadata is None:
             raise ValueError(
                 f"{self._non_set_error('dataset_metadata')}"
@@ -186,18 +156,15 @@ class BaseNode(
         In case `in_sizes` were provided during initialization, they are returned
         directly.
 
-        Example:
-            ```
+        Examples::
+
             input_shapes = [{"features": [Size(1, 64, 128, 128), Size(1, 3, 224, 224)]}]
             attach_index = -1
             in_sizes = Size(1, 3, 224, 224)
-            ```
 
-            ```
             input_shapes = [{"features": [Size(1, 64, 128, 128), Size(1, 3, 224, 224)]}]
             attach_index = "all"
             in_sizes = [Size(1, 64, 128, 128), Size(1, 3, 224, 224)]
-            ```
 
         Returns:
             Size | list[Size]: Input shape. If `attach_index` is set to

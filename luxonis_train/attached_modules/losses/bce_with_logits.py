@@ -51,7 +51,7 @@ class BCEWithLogitsLoss(BaseLoss[Tensor, Tensor]):
     then `pos_weight` for the class should be equal to :math:`\frac{300}{100}=3`.
     The loss would act as if the dataset contains :math:`3\times 100=300` positive examples.
 
-    Examples::
+    Example::
 
         >>> target = torch.ones([10, 64], dtype=torch.float32)  # 64 classes, batch size = 10
         >>> output = torch.full([10, 64], 1.5)  # A prediction (logit)

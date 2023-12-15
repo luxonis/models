@@ -17,34 +17,9 @@ class BaseVisualizer(
 ):
     """A base class for all visualizers.
 
-    This class defines the basic interface for all visualizers. It utilizes automatic
-    registration of defined subclasses to a `VISUALIZERS` registry.
-
-    Metaclass Args:
-        register (bool): Determines whether or not to register this class.
-          Should be set to False in abstract classes to prevent them
-          from being registered.
-        registry (Registry): The registry to which the subclasses should be added.
-          For most times should not be specified in concrete classes.
-
-    Interface:
-        prepare(outputs: Packet[Tensor], labels: Labels
-        ) -> tuple[Unpack[Ts]]:
-          Prepares the outputs and labels before passing them to the forward method.
-          Should allow for the following call: `forward(*prepare(outputs, labels))`.
-
-        @abstractmethod
-        forward(label_canvas: Tensor, prediction_canvas: Tensor, *args: Unpack[Ts]
-        ) -> Tensor | tuple[Tensor, Tensor] | tuple[Tensor, list[Tensor]] | list[Tensor]:
-            Forward pass of the visualizer. Takes an image and the prepared inputs from
-            `prepare` method and produces visualizations. Visualizations can be either:
-                1. A single image (e.g. for classification, weight visualization).
-                2. A tuple of two images, representing (labels, predictions) (e.g. for
-                  bounding boxes, keypoints).
-                3. A tuple of an image and a list of images,
-                  representing (labels, multiple visualizations) (e.g. for segmentation,
-                  depth estimation).
-                4. A list of images, representing unrelated visualizations.
+    This class defines the basic interface for all visualizers.
+    It utilizes automatic registration of defined subclasses
+    to the `VISUALIZERS` registry.
     """
 
     @abstractmethod
@@ -57,7 +32,8 @@ class BaseVisualizer(
         """Forward pass of the visualizer.
 
         Takes an image and the prepared inputs from the `prepare` method and
-        produces visualizations. Visualizations can be either:
+        produces visualizations. Visualizations can be either::
+
             1. A single image (e.g. for classification, weight visualization).
             2. A tuple of two images, representing (labels, predictions) (e.g. for
               bounding boxes, keypoints).

@@ -146,7 +146,8 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
         Args:
             preds (list[dict[str, Tensor]]): A list consisting of dictionaries each
               containing key-values for a single image.
-              Parameters that should be provided per dict:
+              Parameters that should be provided per dict::
+
                 - boxes (FloatTensor): Tensor of shape `(N, 4)`
                   containing `N` detection boxes of the format specified in
                   the constructor. By default, this method expects `(xmin, ymin,
@@ -161,7 +162,8 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
 
             target (list[dict[str, Tensor]]): A list consisting of dictionaries each
               containing key-values for a single image.
-              Parameters that should be provided per dict:
+              Parameters that should be provided per dict::
+
                 - boxes (FloatTensor): Tensor of shape `(N, 4)` containing
                   `N` ground truth boxes of the format specified in the
                   constructor. By default, this method expects `(xmin, ymin, xmax, ymax)`

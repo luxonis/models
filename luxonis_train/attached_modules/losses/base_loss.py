@@ -20,27 +20,8 @@ class BaseLoss(
 ):
     """A base class for all loss functions.
 
-    This class defines the basic interface for all loss functions. It utilizes automatic
-    registration of defined subclasses to a `LOSSES` registry.
-
-    Metaclass Args:
-        register (bool): Determines whether or not to register this class.
-          Should be set to False in abstract classes to prevent them
-          from being registered.
-        registry (Registry): The registry to which the subclasses should be added.
-          For most times should not be specified in concrete classes.
-
-    Interface:
-        prepare(outputs: Packet[Tensor], labels: Labels
-        ) -> tuple[Unpack[Ts]]:
-          Prepares the outputs and labels before passing them to the forward method.
-          Should allow for the following call: `forward(*prepare(outputs, labels))`.
-
-        @abstractmethod
-        forward(*args: Unpack[Ts]) -> Tensor | tuple[Tensor, dict[str, Tensor]]:
-          Forward pass of the loss function. Produces either a single `Tensor`, or
-          a tupel of a `Tensor` (main loss) and sublosses. Sublosses are used for
-          logging purposes and are not used in backpropagation.
+    This class defines the basic interface for all loss functions.
+    It utilizes automatic registration of defined subclasses to a `LOSSES` registry.
     """
 
     @abstractmethod
@@ -52,8 +33,8 @@ class BaseLoss(
 
         Returns:
             tuple[Tensor, dict[str, Tensor]] | Tensor: The main loss and optional
-              a dictionary of sublosses (for logging).
-              Only the main loss is used for backpropagation.
+                a dictionary of sublosses (for logging).
+                Only the main loss is used for backpropagation.
         """
         ...
 
@@ -70,8 +51,8 @@ class BaseLoss(
 
         Returns:
             Tensor | tuple[Tensor, dict[str, Tensor]]: The main loss and optional
-              a dictionary of sublosses (for logging).
-              Only the main loss is used for backpropagation.
+                a dictionary of sublosses (for logging).
+                Only the main loss is used for backpropagation.
 
         Raises:
             IncompatibleException: If the inputs are not compatible with the module.

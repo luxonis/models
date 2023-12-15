@@ -122,6 +122,15 @@ class ConvModule(nn.Sequential):
 
 
 class UpBlock(nn.Sequential):
+    """Upsampling with ConvTranspose2D (similar to U-Net Up block).
+
+    Args:
+        in_channels (int): Number of input channels
+        out_channels (int): Number of output channels
+        kernel_size (int, optional): Defaults to 2.
+        stride (int, optional): Defaults to 2.
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -129,14 +138,6 @@ class UpBlock(nn.Sequential):
         kernel_size: int = 2,
         stride: int = 2,
     ):
-        """Upsampling with ConvTranspose2D (similar to U-Net Up block).
-
-        Args:
-            in_channels (int): Number of input channels
-            out_channels (int): Number of output channels
-            kernel_size (int] optional): Defaults to 2.
-            stride (int] optional): Defaults to 2.
-        """
         super().__init__(
             nn.ConvTranspose2d(
                 in_channels, out_channels, kernel_size=kernel_size, stride=stride
@@ -364,6 +365,17 @@ class RepVGGBlock(nn.Module):
 
 
 class BlockRepeater(nn.Module):
+    """Module which repeats the block n times. First block accepts in_channels and
+    outputs out_channels while subsequent blocks accept out_channels and output
+    out_channels.
+
+    Args:
+        block (nn.Module): Block to repeat
+        in_channels (int): Number of input channels
+        out_channels (int): Number of output channels
+        num_blocks (int, optional): Number of RepVGG blocks. Defaults to 1.
+    """
+
     def __init__(
         self,
         block: type[nn.Module],
@@ -371,16 +383,6 @@ class BlockRepeater(nn.Module):
         out_channels: int,
         num_blocks: int = 1,
     ):
-        """Module which repeats the block n times. First block accepts in_channels and
-        outputs out_channels while subsequent blocks accept out_channels and output
-        out_channels.
-
-        Args:
-            block (nn.Module): Block to repeat
-            in_channels (int): Number of input channels
-            out_channels (int): Number of output channels
-            num_blocks (int] optional): Number of RepVGG blocks. Defaults to 1.
-        """
         super().__init__()
 
         in_channels = in_channels
@@ -398,14 +400,15 @@ class BlockRepeater(nn.Module):
 
 
 class SpatialPyramidPoolingBlock(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, kernel_size: int = 5):
-        """Spatial Pyramid Pooling block with ReLU activation on three different scales.
+    """Spatial Pyramid Pooling block with ReLU activation on three different scales.
 
-        Args:
-            in_channels (int): Number of input channels
-            out_channels (int): Number of output channels
-            kernel_size (int] optional): Defaults to 5.
-        """
+    Args:
+        in_channels (int): Number of input channels
+        out_channels (int): Number of output channels
+        kernel_size (int, optional): Defaults to 5.
+    """
+
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int = 5):
         super().__init__()
 
         intermediate_channels = in_channels // 2  # hidden channels
@@ -428,9 +431,10 @@ class SpatialPyramidPoolingBlock(nn.Module):
 
 
 class AttentionRefinmentBlock(nn.Module):
+    """Attention Refinment block adapted from: https://github.com/taveraantonio/BiseNetv1"""
+
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
-        """Attention Refinment block adapted from: https://github.com/taveraantonio/BiseNetv1 """
 
         self.conv_3x3 = ConvModule(in_channels, out_channels, 3, 1, 1)
         self.attention = nn.Sequential(
@@ -452,9 +456,10 @@ class AttentionRefinmentBlock(nn.Module):
 
 
 class FeatureFusionBlock(nn.Module):
+    """Feature Fusion block adapted from: https://github.com/taveraantonio/BiseNetv1"""
+
     def __init__(self, in_channels: int, out_channels: int, reduction: int = 1):
         super().__init__()
-        """Feature Fusion block adapted from: https://github.com/taveraantonio/BiseNetv1 """
 
         self.conv_1x1 = ConvModule(in_channels, out_channels, 1, 1, 0)
         self.attention = nn.Sequential(
@@ -482,8 +487,9 @@ class FeatureFusionBlock(nn.Module):
 
 
 class LearnableAdd(nn.Module):
+    """Implicit add block."""
+
     def __init__(self, channel: int):
-        """Implicit add block."""
         super().__init__()
         self.channel = channel
         self.implicit = nn.Parameter(torch.zeros(1, channel, 1, 1))
@@ -494,8 +500,9 @@ class LearnableAdd(nn.Module):
 
 
 class LearnableMultiply(nn.Module):
+    """Implicit multiply block."""
+
     def __init__(self, channel: int):
-        """Implicit multiply block."""
         super().__init__()
         self.channel = channel
         self.implicit = nn.Parameter(torch.ones(1, channel, 1, 1))
@@ -523,8 +530,9 @@ class LearnableMulAddConv(nn.Module):
 
 
 class KeypointBlock(nn.Module):
+    """Keypoint head block for keypoint predictions."""
+
     def __init__(self, in_channels: int, out_channels: int):
-        """Keypoint head block for keypoint predictions."""
         super().__init__()
         layers: list[nn.Module] = []
         for i in range(6):
@@ -559,6 +567,16 @@ class KeypointBlock(nn.Module):
 
 
 class RepUpBlock(nn.Module):
+    """UpBlock used in RepPAN neck.
+
+    Args:
+        in_channels (int): Number of input channels
+        in_channels_next (int): Number of input channels of next input
+            which is used in concat
+        out_channels (int): Number of output channels
+        num_repeats (int): Number of RepVGGBlock repeats
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -566,15 +584,6 @@ class RepUpBlock(nn.Module):
         out_channels: int,
         num_repeats: int,
     ):
-        """UpBlock used in RepPAN neck.
-
-        Args:
-            in_channels (int): Number of input channels
-            in_channels_next (int): Number of input channels of next input
-            which is used in concat
-            out_channels (int): Number of output channels
-            num_repeats (int): Number of RepVGGBlock repeats
-        """
         super().__init__()
 
         self.conv = ConvModule(
@@ -606,6 +615,17 @@ class RepUpBlock(nn.Module):
 
 
 class RepDownBlock(nn.Module):
+    """DownBlock used in RepPAN neck.
+
+    Args:
+        in_channels (int): Number of input channels
+        downsample_out_channels (int): Number of output channels after downsample
+        in_channels_next (int): Number of input channels of next input which
+        is used in concat
+        out_channels (int): Number of output channels
+        num_repeats (int): Number of RepVGGBlock repeats
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -614,16 +634,6 @@ class RepDownBlock(nn.Module):
         out_channels: int,
         num_repeats: int,
     ):
-        """DownBlock used in RepPAN neck.
-
-        Args:
-            in_channels (int): Number of input channels
-            downsample_out_channels (int): Number of output channels after downsample
-            in_channels_next (int): Number of input channels of next input which
-            is used in concat
-            out_channels (int): Number of output channels
-            num_repeats (int): Number of RepVGGBlock repeats
-        """
         super().__init__()
 
         self.downsample = ConvModule(

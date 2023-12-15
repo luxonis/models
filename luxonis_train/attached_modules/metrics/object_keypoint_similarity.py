@@ -16,7 +16,15 @@ from .base_metric import BaseMetric
 class ObjectKeypointSimilarity(
     BaseMetric[list[dict[str, Tensor]], list[dict[str, Tensor]]]
 ):
-    """Object Keypoint Similarity metric for evaluating keypoint predictions."""
+    """Object Keypoint Similarity metric for evaluating keypoint predictions.
+
+    Args:
+        num_keypoints (int): Number of keypoints
+        kpt_sigmas (Tensor, optional): Sigma for each keypoint to weigh its importance,
+            if None, then use same weights for all. Defaults to None.
+        use_cocoeval_oks (bool, optional): Whether to use same OKS formula as
+            in COCOeval or use the one from definition. Defaults to False.
+    """
 
     is_differentiable: bool = False
     higher_is_better: bool = True
@@ -35,17 +43,6 @@ class ObjectKeypointSimilarity(
         use_cocoeval_oks: bool = False,
         **kwargs,
     ) -> None:
-        """Object Keypoint Similarity metric for evaluating keypoint predictions.
-
-        Args:
-            num_keypoints (int): Number of keypoints
-            kpt_sigmas (Tensor | None, optional): Sigma for each keypoint to
-            weigh its importance,
-                if None use same weights for all. Defaults to None.
-            use_cocoeval_oks (bool, optional): Whether to use same OKS formula as
-            in COCOeval or use
-                the one from definition. Defaults to False.
-        """
         super().__init__(
             required_labels=[LabelType.KEYPOINT], protocol=KeypointProtocol, **kwargs
         )
@@ -107,21 +104,23 @@ class ObjectKeypointSimilarity(
         Args:
             preds (list[dict[str, Tensor]]): A list consisting of dictionaries
               each containing key-values for a single image.
-              Parameters that should be provided per dict:
-              - keypoints (FloatTensor): Tensor of shape (N, 3*K) and in format
-                [x, y, vis, x, y, vis, ...] where `x` an `y`
-                are unnormalized keypoint coordinates and `vis` is keypoint visibility.
+              Parameters that should be provided per dict::
+
+                  - keypoints (FloatTensor): Tensor of shape (N, 3*K) and in format
+                    [x, y, vis, x, y, vis, ...] where `x` an `y`
+                    are unnormalized keypoint coordinates and `vis` is keypoint visibility.
 
             targer (list[dict[str, Tensor]]): A list consisting of dictionaries each
               containing key-values for a single image.
-              Parameters that should be provided per dict:
-              - keypoints (FloatTensor): Tensor of shape (N, 3*K) and in format
-                [x, y, vis, x, y, vis, ...] where `x` an `y`
-                are unnormalized keypoint coordinates and `vis` is keypoint visibility.
-              - scales (FloatTensor): Tensor of shape (N) where each value
-                corresponds to scale of the bounding box.
-                Scale of one bounding box is defined as sqrt(width*height) where
-                width and height are unnormalized.
+              Parameters that should be provided per dict::
+
+                  - keypoints (FloatTensor): Tensor of shape (N, 3*K) and in format
+                    [x, y, vis, x, y, vis, ...] where `x` an `y`
+                    are unnormalized keypoint coordinates and `vis` is keypoint visibility.
+                  - scales (FloatTensor): Tensor of shape (N) where each value
+                    corresponds to scale of the bounding box.
+                    Scale of one bounding box is defined as sqrt(width*height) where
+                    width and height are unnormalized.
         """
         for item in preds:
             keypoints = fix_empty_tensors(item["keypoints"])

@@ -50,18 +50,24 @@ def collate_fn(
     """Default collate function used for training.
 
     Args:
-        batch (list): List of images and their annotations in LuxonisLoaderOutput format.
+        batch (list): List of images and their annotations in the
+            LuxonisLoaderOutput format.
 
     Returns:
         tuple[Tensor, dict[LabelType, Tensor]]:
-          imgs: Tensor of images (torch.float32) of shape [N, 3, H, W]
-          out_annotations: Dictionary with annotations
-            {
-                LabelType.CLASSIFICATION: Tensor of shape [N, classes] with value 1 for present class
-                LabelType.SEGMENTATION: Tensor of shape [N, classes, H, W] with value 1 for pixels that are part of the class
-                LabelType.BOUNDINGBOX: Tensor of shape [instances, 6] with [image_id, class, x_min_norm, y_min_norm, w_norm, h_norm]
-                LabelType.KEYPOINT: Tensor of shape [instances, n_keypoints*3] with [image_id, x1_norm, y1_norm, vis1, x2_norm, y2_norm, vis2, ...]
-              }
+            imgs - Tensor of images (torch.float32) of shape [N, 3, H, W]
+            out_annotations: Dictionary with annotations::
+
+                {
+                    LabelType.CLASSIFICATION: Tensor of shape [N, classes]
+                        with value 1 for present class
+                    LabelType.SEGMENTATION: Tensor of shape [N, classes, H, W]
+                        with value 1 for pixels that are part of the class
+                    LabelType.BOUNDINGBOX: Tensor of shape [instances, 6]
+                        with [image_id, class, x_min_norm, y_min_norm, w_norm, h_norm]
+                    LabelType.KEYPOINT: Tensor of shape [instances, n_keypoints * 3]
+                        with [image_id, x1_norm, y1_norm, vis1, ...]
+                }
     """
 
     zipped = zip(*batch)

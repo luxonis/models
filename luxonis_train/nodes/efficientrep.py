@@ -93,10 +93,10 @@ class EfficientRep(BaseNode[Tensor, list[Tensor]]):
         )
 
     def set_export_mode(self, mode: bool = True) -> None:
-        """Reparametrizes the `RepVGGBlock`s.
+        """Reparametrizes instances of `RepVGGBlock` in the network.
 
         Args:
-            mode (bool, optional): Whether to set the export mode. Defaults to `True`.
+            mode (bool): Whether to set the export mode. Defaults to `True`.
         """
         super().set_export_mode(mode)
         logger = logging.getLogger(__name__)

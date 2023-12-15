@@ -22,7 +22,7 @@ Ts = TypeVarTuple("Ts")
 class BaseAttachedModule(
     nn.Module, Generic[Unpack[Ts]], ABC, metaclass=AutoRegisterMeta, register=False
 ):
-    """Base class for all modules that are attached to a `LuxonisNode`.
+    """Base class for all modules that are attached to a :obj:`LuxonisNode`.
 
     Attached modules include losses, metrics and visualizers.
 
@@ -30,24 +30,13 @@ class BaseAttachedModule(
     should be sufficient for most simple cases. More complex modules should
     override the `prepare` method.
 
-    Metaclass Args:
-        register (bool): Determines whether or not to register this class.
-          Should be set to False in abstract classes to prevent them
-          from being registered.
-        registry (Registry): The registry to which the subclasses should be added.
-          For most times should not be specified in concrete classes.
-
     Attributes:
-        required_labels (list[LabelType]): List of labels required by this model.
-        protocol (type[BaseProtocol]): Schema for validating inputs to the module.
-        node (BaseNode): Reference to the node this module is attached to.
-
-    Interface:
-        prepare(outputs: Packet[Tensor], labels: Labels
-        ) -> tuple[Unpack[Ts]]:
-          Prepares the outputs and labels before passing them to following methods.
-          For example with `forward`, it would allow for the following call:
-          `forward(*prepare(outputs, labels))`.
+        node (:obj:`BaseNode`, optional): Reference to the node this module
+            is attached to.
+        protocol (type[BaseProtocol], optional): Schema for validating inputs
+            to the module.
+        required_labels (list[LabelType], optional): List of labels required
+            by this model.
     """
 
     def __init__(
@@ -57,16 +46,6 @@ class BaseAttachedModule(
         protocol: type[BaseProtocol] | None = None,
         required_labels: list[LabelType] | None = None,
     ):
-        """Initializes the module.
-
-        Args:
-            node (BaseNode, optional): Reference to the node that this module is
-              attached to. Defaults to None.
-            protocol (type[BaseProtocol], optional): Protocol that the node attributes must conform to.
-              Defaults to None.
-            required_labels (list[LabelType], optional): List of labels that this module requires.
-              Defaults to None.
-        """
         super().__init__()
         self.required_labels = required_labels or []
         self.protocol = protocol
@@ -105,8 +84,8 @@ class BaseAttachedModule(
 
         Returns:
             tuple[PredictionType, TargetType]: Prepared inputs. Should allow the
-              following usage with the `forward` method:
-                `loss.forward(*loss.prepare(outputs, labels))`
+                following usage with the `forward` method:
+                    `loss.forward(*loss.prepare(outputs, labels))`
 
         Raises:
             IncompatibleException: If the inputs are not compatible with the module.

@@ -13,19 +13,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
-        version: ['3.10', '3.11', '3.12']
-        exclude:
-          - os: ubuntu-latest
-            version: '3.12'
-          - os: windows-latest
-            version: '3.12'
-          - os: macOS-latest
-            version: '3.12'
-          - os: macOS-latest
-            version: '3.11'
-          - os: macOS-latest
-            version: '3.10'
+        os: [ubuntu-latest]
+        version: ['3.10', '3.11']
+        # exclude:
+        #   - os: ubuntu-latest
+        #     version: '3.12'
+        #   - os: windows-latest
+        #     version: '3.12'
+        #   - os: macOS-latest
+        #     version: '3.12'
+        #   - os: macOS-latest
+        #     version: '3.11'
+        #   - os: macOS-latest
+        #     version: '3.10'
 
     runs-on: ${{ matrix.os }}
 
@@ -58,11 +58,11 @@ jobs:
 
     - name: Run tests with coverage [Ubuntu]
       if: matrix.os == 'ubuntu-latest' && matrix.version == '3.10'
-      run: pytest tests --cov=luxonis_train --cov-report xml --junit-xml pytest.xml
+      run: pytest tests --cov=luxonis_train --cov-report xml --junit-xml junit_pytest.xml
 
     - name: Run tests [Windows, macOS]
       if: matrix.os != 'ubuntu-latest'
-      run: pytest tests --junit-xml pytest.xml
+      run: pytest tests --junit-xml junit_pytest.xml
 
     - name: Generate coverage badge [Ubuntu]
       if: matrix.os == 'ubuntu-latest' && matrix.version == '3.10'
@@ -93,10 +93,12 @@ jobs:
 
     - name: Upload Test Results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Test Results [${{ matrix.os }}] (Python ${{ matrix.version }})
         path: pytest.xml
+        retention-days: 10
+        if-no-files-found: error
 
   publish-test-results:
     name: "Publish Tests Results"
@@ -106,14 +108,10 @@ jobs:
       checks: write
       pull-requests: write
     if: always()
-
     steps:
-      - name: Download Artifacts
-        uses: actions/download-artifact@v3
+      - name: Test Report
+        uses: dorny/test-reporter@v1
         with:
-          path: artifacts
-
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: "artifacts/**/*.xml"
+          name: Tests Report
+          path: artifacts/**/junit_*.xml
+          reporter: jest-junit

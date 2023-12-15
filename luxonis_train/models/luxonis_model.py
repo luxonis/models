@@ -1,6 +1,6 @@
-import logging
 from collections import defaultdict
 from collections.abc import Mapping
+from logging import getLogger
 from typing import Literal, cast
 
 import lightning.pytorch as pl
@@ -38,6 +38,8 @@ from luxonis_train.utils.tracker import LuxonisTrackerPL
 from luxonis_train.utils.types import Kwargs, Labels, Packet
 
 from .luxonis_output import LuxonisOutput
+
+logger = getLogger(__name__)
 
 
 class LuxonisModel(pl.LightningModule):
@@ -126,7 +128,6 @@ class LuxonisModel(pl.LightningModule):
         self.losses: dict[str, dict[str, BaseLoss]] = defaultdict(dict)
         self.metrics: dict[str, dict[str, BaseMetric]] = defaultdict(dict)
         self.visualizers: dict[str, dict[str, BaseVisualizer]] = defaultdict(dict)
-        self.logging_logger = logging.getLogger(__name__)
 
         self._logged_images = 0
 
@@ -425,7 +426,7 @@ class LuxonisModel(pl.LightningModule):
             if isinstance(module, BaseNode):
                 module.set_export_mode(False)
 
-        self.logging_logger.info(f"Model exported to {save_path}")
+        logger.info(f"Model exported to {save_path}")
         return output_names
 
     def process_losses(
@@ -565,9 +566,9 @@ class LuxonisModel(pl.LightningModule):
             self.log(f"{mode}/{key}", value, sync_dist=True)
 
         metric_results: dict[str, dict[str, float]] = defaultdict(dict)
-        self.logging_logger.info(f"Computing metrics on {mode} subset ...")
+        logger.info(f"Computing metrics on {mode} subset ...")
         computed_metrics = self.compute_metrics()
-        self.logging_logger.info("Metrics computed.")
+        logger.info("Metrics computed.")
         for node_name, metrics in computed_metrics.items():
             for metric_name, metric_value in metrics.items():
                 metric_results[node_name][metric_name] = metric_value.cpu().item()
@@ -668,7 +669,7 @@ class LuxonisModel(pl.LightningModule):
         self_state_dict = self.state_dict()
         for key, value in checkpoint["state_dict"].items():
             if key not in self_state_dict.keys():
-                self.logging_logger.warning(
+                logger.warning(
                     f"Key `{key}` from checkpoint not found in model state dict."
                 )
             else:
@@ -676,16 +677,16 @@ class LuxonisModel(pl.LightningModule):
 
         for key in self_state_dict:
             if key not in state_dict.keys():
-                self.logging_logger.warning(f"Key `{key}` was not found in checkpoint.")
+                logger.warning(f"Key `{key}` was not found in checkpoint.")
             else:
                 try:
                     self_state_dict[key].copy_(state_dict[key])
                 except Exception:
-                    self.logging_logger.warning(
+                    logger.warning(
                         f"Key `{key}` from checkpoint could not be loaded into model."
                     )
 
-        self.logging_logger.info(f"Loaded checkpoint from {path}.")
+        logger.info(f"Loaded checkpoint from {path}.")
 
     def _init_attached_module(
         self,
@@ -719,23 +720,21 @@ class LuxonisModel(pl.LightningModule):
     ) -> None:
         """Prints validation metrics in the console."""
 
-        self.logging_logger.info(f"{stage} loss: {loss:.4f}")
+        logger.info(f"{stage} loss: {loss:.4f}")
 
         if self.cfg.use_rich_text:
             self._progress_bar.print_results(stage=stage, loss=loss, metrics=metrics)
         else:
             for node_name, node_metrics in metrics.items():
                 for metric_name, metric_value in node_metrics.items():
-                    self.logging_logger.info(
+                    logger.info(
                         f"{stage} metric: {node_name}/{metric_name}: {metric_value:.4f}"
                     )
 
         if self.main_metric is not None:
             main_metric_node, main_metric_name = self.main_metric.split("/")
             main_metric = metrics[main_metric_node][main_metric_name]
-            self.logging_logger.info(
-                f"{stage} main metric ({self.main_metric}): {main_metric:.4f}"
-            )
+            logger.info(f"{stage} main metric ({self.main_metric}): {main_metric:.4f}")
 
     def _is_train_eval_epoch(self) -> bool:
         """Checks if train eval should be performed on current epoch based on configured

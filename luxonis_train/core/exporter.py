@@ -1,10 +1,10 @@
 import os
 import tempfile
+from logging import getLogger
 from pathlib import Path
 from typing import Any
 
 import onnx
-import onnxsim
 import yaml
 from luxonis_ml.utils import LuxonisFileSystem
 from torch import Size
@@ -13,6 +13,8 @@ from luxonis_train.models import LuxonisModel
 from luxonis_train.utils.config import Config
 
 from .core import Core
+
+logger = getLogger(__name__)
 
 
 class Exporter(Core):
@@ -50,7 +52,7 @@ class Exporter(Core):
         )
 
         if not export_path.parent.exists():
-            self.logger.info(f"Creating export directory {export_path.parent}")
+            logger.info(f"Creating export directory {export_path.parent}")
             export_path.parent.mkdir(parents=True, exist_ok=True)
         self.export_path = str(export_path)
 
@@ -98,36 +100,56 @@ class Exporter(Core):
             onnx_path, **self.cfg.exporter.onnx.model_dump()
         )
 
-        model_onnx = onnx.load(onnx_path)
-        onnx_model, check = onnxsim.simplify(model_onnx)
-        if not check:
-            raise RuntimeError("Onnx simplify failed.")
-        onnx.save(onnx_model, onnx_path)
-        self.logger.info(f"ONNX model saved to {onnx_path}")
+        try:
+            import onnxsim
+
+            logger.info("Simplifying ONNX model...")
+            model_onnx = onnx.load(onnx_path)
+            onnx_model, check = onnxsim.simplify(model_onnx)
+            if not check:
+                raise RuntimeError("Onnx simplify failed.")
+            onnx.save(onnx_model, onnx_path)
+            logger.info(f"ONNX model saved to {onnx_path}")
+
+        except ImportError:
+            logger.error("Failed to import `onnxsim`")
+            logger.warning(
+                "`onnxsim` not installed. Skipping ONNX model simplification. "
+                "Ensure `onnxsim` is installed in your environment."
+            )
+
         files_to_upload = [self.local_path, onnx_path]
 
         if self.cfg.exporter.blobconverter.active:
-            import blobconverter
+            try:
+                import blobconverter
 
-            self.logger.info("Converting ONNX to .blob")
+                logger.info("Converting ONNX to .blob")
 
-            optimizer_params = [
-                f"--scale_values={self.scale_values}",
-                f"--mean_values={self.mean_values}",
-            ]
-            if self.cfg.exporter.reverse_input_channels:
-                optimizer_params.append("--reverse_input_channels")
+                optimizer_params = [
+                    f"--scale_values={self.scale_values}",
+                    f"--mean_values={self.mean_values}",
+                ]
+                if self.cfg.exporter.reverse_input_channels:
+                    optimizer_params.append("--reverse_input_channels")
 
-            blob_path = blobconverter.from_onnx(
-                model=onnx_path,
-                optimizer_params=optimizer_params,
-                data_type=self.cfg.exporter.data_type,
-                shaves=self.cfg.exporter.blobconverter.shaves,
-                use_cache=False,
-                output_dir=self.export_path,
-            )
-            files_to_upload.append(blob_path)
-            self.logger.info(f".blob model saved to {blob_path}")
+                blob_path = blobconverter.from_onnx(
+                    model=onnx_path,
+                    optimizer_params=optimizer_params,
+                    data_type=self.cfg.exporter.data_type,
+                    shaves=self.cfg.exporter.blobconverter.shaves,
+                    use_cache=False,
+                    output_dir=self.export_path,
+                )
+                files_to_upload.append(blob_path)
+                logger.info(f".blob model saved to {blob_path}")
+
+            except ImportError:
+                logger.error("Failed to import `blobconverter`")
+                logger.warning(
+                    "`blobconverter` not installed. Skipping .blob model conversion. "
+                    "Ensure `blobconverter` is installed in your environment."
+                )
 
         if self.cfg.exporter.upload_url is not None:
             self._upload(files_to_upload)
@@ -135,7 +157,7 @@ class Exporter(Core):
     def _upload(self, files_to_upload: list[str]):
         """Uploads .pt, .onnx and current config.yaml to specified s3 bucket."""
         fs = LuxonisFileSystem(self.cfg.exporter.upload_url, allow_local=False)
-        self.logger.info(f"Started upload to {fs.full_path()}...")
+        logger.info(f"Started upload to {fs.full_path()}...")
 
         for file in files_to_upload:
             suffix = Path(file).suffix
@@ -158,4 +180,4 @@ class Exporter(Core):
             yaml.dump(modelconverter_config, f, default_flow_style=False)
             fs.put_file(local_path=f.name, remote_path="config_export.yaml")
 
-        self.logger.info("Files upload finished")
+        logger.info("Files upload finished")

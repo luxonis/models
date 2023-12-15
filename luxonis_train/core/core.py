@@ -1,6 +1,6 @@
-import logging
 import os
 import os.path as osp
+from logging import getLogger
 from typing import Any
 
 import lightning.pytorch as pl
@@ -16,6 +16,8 @@ from luxonis_train.utils.config import Config
 from luxonis_train.utils.general import DatasetMetadata
 from luxonis_train.utils.loaders import LuxonisLoaderTorch, collate_fn
 from luxonis_train.utils.tracker import LuxonisTrackerPL
+
+logger = getLogger(__name__)
 
 
 class Core:
@@ -83,10 +85,8 @@ class Core:
             file=osp.join(self.run_save_dir, "luxonis_train.log"),
         )
 
-        self.logger = logging.getLogger(__name__)
-
         # NOTE: overriding logger in pl so it uses our logger to log device info
-        rank_zero_module.log = self.logger
+        rank_zero_module.log = logger
 
         self.train_augmentations = TrainAugmentations(
             image_size=self.cfg.trainer.preprocessing.train_image_size,
@@ -159,7 +159,7 @@ class Core:
         if self.cfg.trainer.use_weighted_sampler:
             classes_count = self.dataset.get_classes()[1]
             if len(classes_count) == 0:
-                self.logger.warning(
+                logger.warning(
                     "WeightedRandomSampler only available for classification tasks. Using default sampler instead."
                 )
             else:

@@ -47,22 +47,29 @@ jobs:
 
     - name: Run tests with coverage [Ubuntu]
       if: matrix.os == 'ubuntu-latest'
-      run: pytest --cov=luxonis_train --cov-report xml tests
+      run: pytest --cov=luxonis_train --cov-report xml tests --junit-xml pytest.xml
 
     - name: Run tests [Windows, macOS]
       if: matrix.os != 'ubuntu-latest'
-      run: pytest tests
+      run: pytest tests --junit-xml pytest.xml
 
     - name: Generate coverage badge [Ubuntu]
       if: matrix.os == 'ubuntu-latest'
       run: coverage-badge -o media/coverage_badge.svg -f
 
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: Test Results [${{ matrix.os }}] (Python ${{ matrix.python-version }})
+        path: pytest.xml
+
     - name: Generate coverage report [Ubuntu]
       if: matrix.os == 'ubuntu-latest'
       uses: orgoro/coverage@v3.1
       with:
-          coverageFile: coverage.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
+        coverageFile: coverage.xml
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Commit coverage badge [Ubuntu]
       if: matrix.os == 'ubuntu-latest'
@@ -79,3 +86,23 @@ jobs:
       uses: ad-m/github-push-action@master
       with:
         branch: ${{ github.head_ref }}
+
+  publish-test-results:
+    name: "Publish Tests Results"
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+    if: always()
+
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: "artifacts/**/*.xml"

@@ -14,18 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
-        version: ['3.10', '3.11', '3.12']
-        exclude:
-          - os: ubuntu-latest
-            version: '3.12'
-          - os: windows-latest
-            version: '3.12'
-          - os: macOS-latest
-            version: '3.12'
-          - os: macOS-latest
-            version: '3.11'
-          - os: macOS-latest
-            version: '3.10'
+        version: ['3.10', '3.11']
 
     runs-on: ${{ matrix.os }}
 

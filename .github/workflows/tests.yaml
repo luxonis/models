@@ -118,5 +118,5 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: Tests Report
-          path: artifacts/**/*pytest.xml
+          path: artifacts/**/*.xml
           reporter: jest-junit

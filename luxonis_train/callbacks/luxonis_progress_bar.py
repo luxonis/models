@@ -102,8 +102,6 @@ class LuxonisProgressBar(RichProgressBar):
         """
         assert self._console is not None
 
-        self._console.rule(stage, style="bold magenta")
         self._console.print(f"[bold magenta]Loss:[/bold magenta] [white]{loss}[/white]")
         self._console.print("[bold magenta]Metrics:[/bold magenta]")
         self.print_tables(metrics)
-        self._console.rule(style="bold magenta")

@@ -1,4 +1,3 @@
-import pytest
 import torch
 from luxonis_train.attached_modules.losses import BCEWithLogitsLoss
 
@@ -24,17 +23,16 @@ def test_forward_pass():
 
 def test_minimum():
     bs, n_classes = 10, 4
+    loss_fn = BCEWithLogitsLoss()
 
     targets = torch.ones([bs, n_classes], dtype=torch.float32)
     predictions = torch.full([bs, n_classes], 10e3)  # logit
-    loss_fn = BCEWithLogitsLoss()
 
     loss = loss_fn.forward(predictions, targets)
     assert torch.round(loss, decimals=2) == 0.0
 
     targets = torch.zeros([bs, n_classes], dtype=torch.float32)
     predictions = torch.full([bs, n_classes], -10e3)  # logit
-    loss_fn = BCEWithLogitsLoss()
 
     loss = loss_fn.forward(predictions, targets)
     assert torch.round(loss, decimals=2) == 0.0
@@ -54,7 +52,3 @@ def test_weights():
     loss_weight = loss_fn_weight.forward(predictions, targets)
     loss_no_weight = loss_fn_no_weight.forward(predictions, targets)
     assert loss_weight != loss_no_weight
-
-
-if __name__ == "__main__":
-    pytest.main()

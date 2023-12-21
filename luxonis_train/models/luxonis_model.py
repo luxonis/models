@@ -136,10 +136,10 @@ class LuxonisModel(pl.LightningModule):
 
         for node_cfg in self.cfg.model.nodes:
             node_name = node_cfg.name
-            if node_cfg.frozen:
-                frozen_nodes.append(node_name)
             Node = BaseNode.REGISTRY.get(node_name)
             node_name = node_cfg.override_name or node_name
+            if node_cfg.frozen:
+                frozen_nodes.append(node_name)
             nodes[node_name] = (Node, node_cfg.params)
             if not node_cfg.inputs:
                 self.input_shapes[node_name] = [Size(input_shape)]

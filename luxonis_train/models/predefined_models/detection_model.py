@@ -26,6 +26,7 @@ class DetectionModel(BasePredefinedModel):
             ModelNodeConfig(
                 name="EfficientRep",
                 override_name="detection_backbone",
+                frozen=self.backbone_params.pop("frozen", False),
                 params=self.backbone_params,
             ),
         ]
@@ -35,6 +36,7 @@ class DetectionModel(BasePredefinedModel):
                     name="RepPANNeck",
                     override_name="detection_neck",
                     inputs=["detection_backbone"],
+                    frozen=self.neck_params.pop("frozen", False),
                     params=self.neck_params,
                 )
             )
@@ -43,6 +45,7 @@ class DetectionModel(BasePredefinedModel):
             ModelNodeConfig(
                 name="EfficientBBoxHead",
                 override_name="detection_head",
+                frozen=self.head_params.pop("frozen", False),
                 inputs=["detection_neck"] if self.use_neck else ["detection_backbone"],
                 params=self.head_params,
             )

@@ -27,6 +27,7 @@ class KeypointDetectionModel(BasePredefinedModel):
             ModelNodeConfig(
                 name="EfficientRep",
                 override_name="kpt_detection_backbone",
+                frozen=self.backbone_params.pop("frozen", False),
                 params=self.backbone_params,
             ),
         ]
@@ -36,6 +37,7 @@ class KeypointDetectionModel(BasePredefinedModel):
                     name="RepPANNeck",
                     override_name="kpt_detection_neck",
                     inputs=["kpt_detection_backbone"],
+                    frozen=self.neck_params.pop("frozen", False),
                     params=self.neck_params,
                 )
             )
@@ -47,6 +49,7 @@ class KeypointDetectionModel(BasePredefinedModel):
                 inputs=["kpt_detection_neck"]
                 if self.use_neck
                 else ["kpt_detection_backbone"],
+                frozen=self.head_params.pop("frozen", False),
                 params=self.head_params,
             )
         )

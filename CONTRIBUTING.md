@@ -10,21 +10,46 @@ It outlines our workflow and standards for contributing to this project.
 - [Making and Reviewing Changes](#making-and-reviewing-changes)
 - [Notes](#notes)
 
-## Pre-commit Hook
+## Installation
 
-We use a pre-commit hook to ensure code quality and consistency:
+To install the package for development, first clone the repository:
 
-1. Install pre-commit (see [pre-commit.com](https://pre-commit.com/#install)).
-1. Clone the repository and run `pre-commit install` in the root directory.
-1. The pre-commit hook runs automatically on `git commit`.
+```bash
+git clone git@github.com:luxonis/luxonis-train.git
+```
 
-## GitHub Actions
+Then enter the cloned directory and install the package in editable mode with the `dev` extras:
 
-In addition to the pre-commit hook, our GitHub Actions workflow includes tests that must pass before merging:
+```bash
+pip install -e .[dev]
+```
+## CI/CD
 
-1. Tests are run automatically when you open a pull request.
-1. Review the GitHub Actions output if your PR fails.
-1. Fix any issues to ensure that both the pre-commit hooks and tests pass.
+We use GitHub Actions to run tests and enforce our coding style on each opened pull request. All the checks must pass in order for the PR to be merged.
+
+### Style
+
+We use a `pre-commit` hook to ensure code quality and consistency. The hook runs automatically on `git commit` and will fail if the code does not pass our style checks.
+
+To configure the hook:
+1. The `pre-commit` package is installed as part of the `dev` extras. You can also
+install it manually with:
+```bash
+pip install pre-commit
+
+```
+1. Run `pre-commit install` in the root directory of the repository.
+1. Now the hook will run automatically on `git commit`. The hook can modify files
+by applying formatting and linting fixes.
+
+### Tests
+
+The tests can be run locally with:
+```bash
+pytest tests
+```
+
+GitHub Actions will run the tests automatically when a new PR is opened. Upon completion, the test reports will be posted in the PR comments.
 
 ## Making and Reviewing Changes
 

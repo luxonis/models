@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("opts", nargs=argparse.REMAINDER, help="Additional options")
     args = parser.parse_args()
 
-    cfg = Config.get_config(args.config)  # type: ignore
+    cfg = Config.get_config(args.config)
 
     opts = args.opts or []
     if opts:

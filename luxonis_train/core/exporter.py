@@ -67,8 +67,6 @@ class Exporter(Core):
                     if isinstance(self.scale_values, list)
                     else self.scale_values * 255
                 )
-            else:
-                self.scale_values = [58.395, 57.120, 57.375]
 
         if self.cfg.exporter.mean_values is not None:
             self.mean_values = self.cfg.exporter.mean_values
@@ -80,8 +78,6 @@ class Exporter(Core):
                     if isinstance(self.mean_values, list)
                     else self.mean_values * 255
                 )
-            else:
-                self.mean_values = [123.675, 116.28, 103.53]
 
         self.lightning_module = LuxonisModel(
             cfg=self.cfg,
@@ -142,10 +138,11 @@ class Exporter(Core):
 
                 logger.info("Converting ONNX to .blob")
 
-                optimizer_params = [
-                    f"--scale_values={self.scale_values}",
-                    f"--mean_values={self.mean_values}",
-                ]
+                optimizer_params = []
+                if self.scale_values:
+                    optimizer_params.append(f"--scale_values={self.scale_values}")
+                if self.mean_values:
+                    optimizer_params.append(f"--mean_values={self.mean_values}")
                 if self.cfg.exporter.reverse_input_channels:
                     optimizer_params.append("--reverse_input_channels")
 

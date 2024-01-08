@@ -47,13 +47,15 @@ if __name__ == "__main__":
     parser.add_argument("opts", nargs=argparse.REMAINDER, help="Additional options")
     args = parser.parse_args()
 
-    cfg = Config.get_config(args.config)
-
     opts = args.opts or []
+    overrides = {}
     if opts:
         if len(opts) % 2 != 0:
             raise ValueError("Override options should be a list of key-value pairs")
-        cfg.override_config(dict(zip(opts[::2], opts[1::2])))
+        for i in range(0, len(opts), 2):
+            overrides[opts[i]] = opts[i + 1]
+
+    cfg = Config.get_config(args.config, overrides)
 
     image_size = cfg.trainer.preprocessing.train_image_size
 

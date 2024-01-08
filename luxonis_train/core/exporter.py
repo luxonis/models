@@ -61,11 +61,27 @@ class Exporter(Core):
             self.scale_values = self.cfg.exporter.scale_values
         else:
             self.scale_values = normalize_params.get("std", None)
+            if self.scale_values:
+                self.scale_values = (
+                    [i * 255 for i in self.scale_values]
+                    if isinstance(self.scale_values, list)
+                    else self.scale_values * 255
+                )
+            else:
+                self.scale_values = [58.395, 57.120, 57.375]
 
         if self.cfg.exporter.mean_values is not None:
             self.mean_values = self.cfg.exporter.mean_values
         else:
             self.mean_values = normalize_params.get("mean", None)
+            if self.mean_values:
+                self.mean_values = (
+                    [i * 255 for i in self.mean_values]
+                    if isinstance(self.mean_values, list)
+                    else self.mean_values * 255
+                )
+            else:
+                self.mean_values = [123.675, 116.28, 103.53]
 
         self.lightning_module = LuxonisModel(
             cfg=self.cfg,

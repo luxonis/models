@@ -22,6 +22,10 @@ from torchvision.utils import (
 from luxonis_train.utils.config import Config
 
 Color = str | tuple[int, int, int]
+"""Color type alias.
+
+Can be either a string (e.g. "red", "#FF5512") or a tuple of RGB values.
+"""
 
 
 def figure_to_torch(fig: Figure, width: int, height: int) -> Tensor:
@@ -43,13 +47,12 @@ def torch_img_to_numpy(
     """Converts a torch image (CHW) to a numpy array (HWC). Optionally also converts
     colors.
 
-    Args:
-        img (Tensor): Torch image (CHW)
-        reverse_colors (bool, optional): Whether to reverse colors (RGB to BGR).
-          Defaults to False.
-
-    Returns:
-        npt.NDArray[np.uint8]: Numpy image (HWC)
+    @type img: Tensor
+    @param img: Torch image (CHW)
+    @type reverse_colors: bool
+    @param reverse_colors: Whether to reverse colors (RGB to BGR). Defaults to False.
+    @rtype: npt.NDArray[np.uint8]
+    @return: Numpy image (HWC)
     """
     if img.is_floating_point():
         img = img.mul(255).int()
@@ -75,15 +78,14 @@ def preprocess_images(
 
     Preprocessing includes unnormalizing and converting to uint8.
 
-    Args:
-        imgs (Tensor): Batch of images.
-        unnormalize_img (bool, optional): Perform unnormalization. Defaults to True.
-        normalize_params (dict[str, List[float]] | None, optional):
-          Params used for normalization. Must be provided if unnormalize_img is True.
-          Defaults to None.
-
-    Returns:
-        Tensor: Batch of preprocessed images.
+    @type imgs: Tensor
+    @param imgs: Batch of images.
+    @type mean: list[float] | float | None
+    @param mean: Mean used for unnormalization. Defaults to C{None}.
+    @type std: list[float] | float | None
+    @param std: Std used for unnormalization. Defaults to C{None}.
+    @rtype: Tensor
+    @return: Batch of preprocessed images.
     """
     out_imgs = []
     for i in range(imgs.shape[0]):
@@ -106,13 +108,14 @@ def draw_segmentation_labels(
 ) -> Tensor:
     """Draws segmentation labels on an image.
 
-    Args:
-        img (Tensor): Image to draw on.
-        label (Tensor): Segmentation label.
-        alpha (float, optional): Alpha value for blending. Defaults to 0.4.
-
-    Returns:
-        Tensor: Image with segmentation labels drawn on.
+    @type img: Tensor
+    @param img: Image to draw on.
+    @type label: Tensor
+    @param label: Segmentation label.
+    @type alpha: float
+    @param alpha: Alpha value for blending. Defaults to C{0.4}.
+    @rtype: Tensor
+    @return: Image with segmentation labels drawn on.
     """
     masks = label.bool()
     masks = masks.cpu()
@@ -123,15 +126,16 @@ def draw_segmentation_labels(
 def draw_bounding_box_labels(img: Tensor, label: Tensor, **kwargs) -> Tensor:
     """Draws bounding box labels on an image.
 
-    Args:
-        img (Tensor): Image to draw on.
-        label (Tensor): Bounding box label. The shape should be (n_instances, 4),
-          where the last dimension is (x, y, w, h).
-        **kwargs: Additional arguments to pass
-          to `torchvision.utils.draw_bounding_boxes`.
-
-    Returns:
-        Tensor: Image with bounding box labels drawn on.
+    @type img: Tensor
+    @param img: Image to draw on.
+    @type label: Tensor
+    @param label: Bounding box label. The shape should be (n_instances, 4), where the
+        last dimension is (x, y, w, h).
+    @type kwargs: dict
+    @param kwargs: Additional arguments to pass to
+        L{torchvision.utils.draw_bounding_boxes}.
+    @rtype: Tensor
+    @return: Image with bounding box labels drawn on.
     """
     _, H, W = img.shape
     bboxs = box_convert(label, "xywh", "xyxy")
@@ -143,12 +147,15 @@ def draw_bounding_box_labels(img: Tensor, label: Tensor, **kwargs) -> Tensor:
 def draw_keypoint_labels(img: Tensor, label: Tensor, **kwargs) -> Tensor:
     """Draws keypoint labels on an image.
 
-    Args:
-        img (Tensor): Image to draw on.
-        label (Tensor): Keypoint label. The shape should be (n_instances, 3),
-          where the last dimension is (x, y, visibility).
-        **kwargs: Additional arguments to pass
-          to `torchvision.utils.draw_keypoints`.
+    @type img: Tensor
+    @param img: Image to draw on.
+    @type label: Tensor
+    @param label: Keypoint label. The shape should be (n_instances, 3), where the last
+        dimension is (x, y, visibility).
+    @type kwargs: dict
+    @param kwargs: Additional arguments to pass to L{torchvision.utils.draw_keypoints}.
+    @rtype: Tensor
+    @return: Image with keypoint labels drawn on.
     """
     _, H, W = img.shape
     keypoints_unflat = label[:, 1:].reshape(-1, 3)
@@ -186,12 +193,16 @@ def unnormalize(
 ) -> Tensor:
     """Unnormalizes an image back to original values, optionally converts it to uint8.
 
-    Args:
-        img (Tensor): Image to unnormalize.
-        normalize_params (dict[str, List[float]] | None, optional):
-          Params used for normalization. If none provided, defaults to imagenet
-          normalization. Defaults to None.
-        to_uint8 (bool, optional): Whether to convert to uint8. Defaults to False.
+    @type img: Tensor
+    @param img: Image to unnormalize.
+    @type mean: list[float] | float | None
+    @param mean: Mean used for unnormalization. Defaults to C{None}.
+    @type std: list[float] | float | None
+    @param std: Std used for unnormalization. Defaults to C{None}.
+    @type to_uint8: bool
+    @param to_uint8: Whether to convert to uint8. Defaults to C{False}.
+    @rtype: Tensor
+    @return: Unnormalized image.
     """
     mean = mean or 0
     std = std or 1
@@ -241,11 +252,10 @@ def hsl_to_rgb(hsl: tuple[float, float, float]) -> Color:
 def get_color(seed: int) -> Color:
     """Generates a random color from a seed.
 
-    Args:
-        seed (int): Seed to use for the generator.
-
-    Returns:
-        Color: Generated color.
+    @type seed: int
+    @param seed: Seed to use for the generator.
+    @rtype: L{Color}
+    @return: Generated color.
     """
     return hsl_to_rgb(number_to_hsl(seed + 45))
 
@@ -308,35 +318,30 @@ def combine_visualizations(
         Resizes two images so they can be concateneted together. It's possible to
         configure how the images are resized.
 
-        Args:
-            fst (Tensor[C, H, W]): First image.
-            snd (Tensor[C, H, W]): Second image.
-            keep_size (Literal["larger", "smaller", "first", "second"], optional):
-              Which size to keep. Options are:
-                - "larger": Resize the smaller image to match the size of the larger image.
-                - "smaller": Resize the larger image to match the size of the smaller image.
-                - "first": Resize the second image to match the size of the first image.
-                - "second": Resize the first image to match the size of the second image.
+        @type fst: Tensor[C, H, W]
+        @param fst: First image.
+        @type snd: Tensor[C, H, W]
+        @param snd: Second image.
+        @type keep_size: Literal["larger", "smaller", "first", "second"]
+        @param keep_size: Which size to keep. Options are:
+            - "larger": Resize the smaller image to match the size of the larger image.
+            - "smaller": Resize the larger image to match the size of the smaller image.
+            - "first": Resize the second image to match the size of the first image.
+            - "second": Resize the first image to match the size of the second image.
 
-              Defaults to "larger".
+        @type resize_along: Literal["width", "height", "exact"]
+        @param resize_along: Which dimensions to match. Options are:
+            - "width": Resize images along the width dimension.
+            - "height": Resize images along the height dimension.
+            - "exact": Resize images to match both width and height dimensions.
 
-            resize_along (Literal["width", "height", "exact"], optional):
-              Which dimensions to match.
-              Options are:
-                - "width": Resize images along the width dimension.
-                - "height": Resize images along the height dimension.
-                - "exact": Resize images to match both width and height dimensions.
+        @type keep_aspect_ratio: bool
+        @param keep_aspect_ratio: Whether to keep the aspect ratio of the images.
+            Only takes effect when the "exact" option is selected for the
+            C{resize_along} argument. Defaults to C{True}.
 
-              Defaults to "height".
-
-            keep_aspect_ratio (bool, optional):
-              Whether to keep the aspect ratio of the images. Only takes effect when
-              the "exact" option is selected for the `resize_along` argument.
-
-              Defaults to True.
-
-        Returns:
-            tuple[Tensor[C, H, W], Tensor[C, H, W]]: Resized images.
+        @rtype: tuple[Tensor[C, H, W], Tensor[C, H, W]]
+        @return: Resized images.
         """
         if resize_along not in ["width", "height", "exact"]:
             raise ValueError(

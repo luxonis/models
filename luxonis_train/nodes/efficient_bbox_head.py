@@ -1,8 +1,7 @@
 """Head for object detection.
 
-Adapted from `YOLOv6: A Single-Stage Object Detection Framework for Industrial
-Applications`, available at `
-https://arxiv.org/pdf/2209.02976.pdf`.
+Adapted from U{YOLOv6: A Single-Stage Object Detection Framework for Industrial
+Applications<https://arxiv.org/pdf/2209.02976.pdf>}.
 """
 
 from typing import Literal
@@ -24,11 +23,6 @@ from .base_node import BaseNode
 class EfficientBBoxHead(
     BaseNode[list[Tensor], tuple[list[Tensor], list[Tensor], list[Tensor]]]
 ):
-    """Head for object detection.
-
-    TODO: add more documentation
-    """
-
     in_channels: list[int]
 
     def __init__(
@@ -38,14 +32,19 @@ class EfficientBBoxHead(
         iou_thres: float = 0.45,
         **kwargs,
     ):
-        """Constructor for the `DecoupledBBoxHead` node.
+        """Head for object detection.
 
-        Args:
-            n_classes (int): Number of classes
-            n_heads (Literal[2, 3, 4], optional): Number of output heads. Defaults to 3.
-              ***Note:*** Should be same also on neck in most cases.
-            attach_index (int | tuple[int, int] | Literal["all"], optional): Index of
-              previous output that the head attaches to. Defaults to "all".
+        TODO: add more documentation
+
+        @type n_heads: Literal[2,3,4]
+        @param n_heads: Number of output heads. Defaults to 3.
+          ***Note:*** Should be same also on neck in most cases.
+
+        @type conf_thres: float
+        @param conf_thres: Threshold for confidence. Defaults to C{0.25}.
+
+        @type iou_thres: float
+        @param iou_thres: Threshold for IoU. Defaults to C{0.45}.
         """
         super().__init__(task_type=LabelType.BOUNDINGBOX, **kwargs)
 

@@ -10,13 +10,14 @@ def candidates_in_gt(
 ) -> Tensor:
     """Check if anchor box's center is in any GT bbox.
 
-    Args:
-        anchor_centers (Tensor): Centers of anchor bboxes [n_anchors, 2]
-        gt_bboxes (Tensor): Ground truth bboxes [bs * n_max_boxes, 4]
-        eps (float, optional): Threshold for minimum delta. Defaults to 1e-9.
-
-    Returns:
-        Tensor: Mask for anchors inside any GT bbox
+    @type anchor_centers: Tensor
+    @param anchor_centers: Centers of anchor bboxes [n_anchors, 2]
+    @type gt_bboxes: Tensor
+    @param gt_bboxes: Ground truth bboxes [bs * n_max_boxes, 4]
+    @type eps: float
+    @param eps: Threshold for minimum delta. Defaults to 1e-9.
+    @rtype: Tensor
+    @return: Mask for anchors inside any GT bbox
     """
     n_anchors = anchor_centers.size(0)
     anchor_centers = anchor_centers.unsqueeze(0).repeat(gt_bboxes.size(0), 1, 1)
@@ -34,13 +35,14 @@ def fix_collisions(
 ) -> tuple[Tensor, Tensor, Tensor]:
     """If an anchor is assigned to multiple GTs, the one with highest IoU is selected.
 
-    Args:
-        mask_pos (Tensor): Mask of assigned anchors [bs, n_max_boxes, n_anchors]
-        overlaps (Tensor): IoUs between GTs and anchors [bx, n_max_boxes, n_anchors]
-        n_max_boxes (int): Number of maximum boxes per image
-
-    Returns:
-        Tuple[Tensor, Tensor, Tensor]: Assigned indices, sum of positive mask, positive mask
+    @type mask_pos: Tensor
+    @param mask_pos: Mask of assigned anchors [bs, n_max_boxes, n_anchors]
+    @type overlaps: Tensor
+    @param overlaps: IoUs between GTs and anchors [bx, n_max_boxes, n_anchors]
+    @type n_max_boxes: int
+    @param n_max_boxes: Number of maximum boxes per image
+    @rtype: tuple[Tensor, Tensor, Tensor]
+    @return: Assigned indices, sum of positive mask, positive mask
     """
     mask_pos_sum = mask_pos.sum(dim=-2)
     if mask_pos_sum.max() > 1:
@@ -58,12 +60,12 @@ def batch_iou(batch1: Tensor, batch2: Tensor) -> Tensor:
     """Calculates IoU for each pair of bboxes in the batch. Bboxes must be in xyxy
     format.
 
-    Args:
-        batch1 (Tensor): Tensor of shape [bs, N, 4]
-        batch2 (Tensor): Tensor of shape [bs, M, 4]
-
-    Returns:
-        Tensor: Per image box IoU of shape [bs, N, M]
+    @type batch1: Tensor
+    @param batch1: Tensor of shape C{[bs, N, 4]}
+    @type batch2: Tensor
+    @param batch2: Tensor of shape C{[bs, M, 4]}
+    @rtype: Tensor
+    @return: Per image box IoU of shape C{[bs, N, M]}
     """
     ious = torch.stack(
         [bbox_iou(batch1[i], batch2[i]) for i in range(batch1.size(0))], dim=0

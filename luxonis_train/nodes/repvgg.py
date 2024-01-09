@@ -1,10 +1,3 @@
-"""Implementation of RepVGG backbone.
-
-Source: https://github.com/DingXiaoH/RepVGG
-License (MIT): https://github.com/DingXiaoH/RepVGG/blob/main/LICENSE
-"""
-
-
 from copy import deepcopy
 
 import torch.utils.checkpoint as checkpoint
@@ -16,10 +9,12 @@ from .base_node import BaseNode
 
 
 class RepVGG(BaseNode):
-    """Implementation of the RepVGG backbone.
+    """Implementation of RepVGG backbone.
 
-    TODO:
-        add some info here
+    Source: U{https://github.com/DingXiaoH/RepVGG}
+    @license: U{MIT<https://github.com/DingXiaoH/RepVGG/blob/main/LICENSE>}.
+
+    @todo: technical documentation
     """
 
     in_channels: int
@@ -59,7 +54,6 @@ class RepVGG(BaseNode):
     def __init__(
         self,
         deploy: bool = False,
-        num_classes: int = 1000,
         override_groups_map: dict[int, int] | None = None,
         use_se: bool = False,
         use_checkpoint: bool = False,
@@ -69,14 +63,23 @@ class RepVGG(BaseNode):
     ):
         """Constructor for the RepVGG module.
 
-        Args:
-            variant (Literal["A0", "A1", "A2"], optional): Defaults to "A0".
+        @type deploy: bool
+        @param deploy: Whether to use the model in deploy mode.
+        @type override_groups_map: dict[int, int] | None
+        @param override_groups_map: Dictionary mapping layer index to number of groups.
+        @type use_se: bool
+        @param use_se: Whether to use Squeeze-and-Excitation blocks.
+        @type use_checkpoint: bool
+        @param use_checkpoint: Whether to use checkpointing.
+        @type num_blocks: list[int] | None
+        @param num_blocks: Number of blocks in each stage.
+        @type width_multiplier: list[float] | None
+        @param width_multiplier: Width multiplier for each stage.
         """
         super().__init__(**kwargs)
         num_blocks = num_blocks or [2, 4, 14, 1]
         width_multiplier = width_multiplier or [0.75, 0.75, 0.75, 2.5]
         self.deploy = deploy
-        self.num_classes = num_classes
         self.override_groups_map = override_groups_map or {}
         assert 0 not in self.override_groups_map
         self.use_se = use_se
@@ -106,7 +109,6 @@ class RepVGG(BaseNode):
             int(512 * width_multiplier[3]), num_blocks[3], stride=2
         )
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
-        self.linear = nn.Linear(int(512 * width_multiplier[3]), self.num_classes)
 
     def forward(self, inputs: Tensor) -> list[Tensor]:
         outputs = []

@@ -18,9 +18,12 @@ class Tuner(Core):
     def __init__(self, cfg: str | dict, args: list[str] | tuple[str, ...] | None):
         """Main API which is used to perform hyperparameter tunning.
 
-        Args:
-            cfg (Union[str, dict]): path to config file or config dict used to setup training
-            args (Optional[dict]): argument dict provided through command line, used for config overriding
+        @type cfg: str | dict[str, Any] | Config
+        @param cfg: Path to config file or config dict used to setup training.
+
+        @type args: list[str] | tuple[str, ...] | None
+        @param args: Argument dict provided through command line,
+            used for config overriding.
         """
         super().__init__(cfg, args)
 

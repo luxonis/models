@@ -1,8 +1,7 @@
 """Implementation of the RepPANNeck module.
 
-Adapted from `YOLOv6: A Single-Stage Object Detection Framework for Industrial
-Applications`, available at
-https://arxiv.org/pdf/2209.02976.pdf.
+Adapted from U{YOLOv6: A Single-Stage Object Detection Framework for Industrial
+Applications<https://arxiv.org/pdf/2209.02976.pdf>}.
 It has the balance of feature fusion ability and hardware efficiency.
 """
 
@@ -29,16 +28,19 @@ class RepPANNeck(BaseNode[list[Tensor], list[Tensor]]):
     ):
         """Constructor for the RepPANNeck module.
 
-        Args:
-            input_channels_shapes (list): List of output shapes from previous module.
-            num_heads (Literal[2,3,4], optional): Number of output heads. Defaults to 3.
-              ***Note: Should be same also on head in most cases.***
-            channels_list (list, optional): List of number of channels for each block.
-              Defaults to [256, 128, 128, 256, 256, 512].
-            num_repeats (list, optional): List of number of repeats of RepVGGBlock.
-              Defaults to [12, 12, 12, 12].
-            depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
-            width_mul (float, optional): Width multiplier. Defaults to 0.25.
+        @type num_heads: Literal[2,3,4]
+        @param num_heads: Number of output heads. Defaults to 3. ***Note: Should be same
+            also on head in most cases.***
+        @type channels_list: list[int] | None
+        @param channels_list: List of number of channels for each block. Defaults to
+            C{[256, 128, 128, 256, 256, 512]}.
+        @type num_repeats: list[int] | None
+        @param num_repeats: List of number of repeats of RepVGGBlock. Defaults to C{[12,
+            12, 12, 12]}.
+        @type depth_mul: float
+        @param depth_mul: Depth multiplier. Defaults to 0.33.
+        @type width_mul: float
+        @param width_mul: Width multiplier. Defaults to 0.25.
         """
 
         super().__init__(**kwargs)

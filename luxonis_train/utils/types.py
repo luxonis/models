@@ -7,10 +7,21 @@ from torch import Size, Tensor
 Kwargs = dict[str, Any]
 OutputTypes = Literal["boxes", "class", "keypoints", "segmentation", "features"]
 Labels = dict[LabelType, Tensor]
+
 AttachIndexType = Literal["all"] | int | tuple[int, int] | tuple[int, int, int]
+"""AttachIndexType is used to specify to which output of the prevoius node does the
+current node attach to.
+
+It can be either "all" (all outputs), an index of the output or a tuple of indices of
+the output (specifying a range of outputs).
+"""
 
 T = TypeVar("T", Tensor, Size)
 Packet = dict[str, list[T]]
+"""Packet is a dictionary containing a list of objects of type T.
+
+It is used to pass data between different nodes of the network graph.
+"""
 
 
 class IncompatibleException(Exception):

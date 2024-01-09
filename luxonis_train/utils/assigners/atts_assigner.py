@@ -12,14 +12,18 @@ from .utils import (
 
 class ATSSAssigner(nn.Module):
     def __init__(self, n_classes: int, topk: int = 9):
-        """Adaptive Training Sample Selection Assigner from `Bridging the Gap Between Anchor-based and Anchor-free Detection via
-        Adaptive Training Sample Selection`, https://arxiv.org/pdf/1912.02424.pdf.
-        Code is adapted from: https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/assigner/atss_assigner.py and
-        https://github.com/fcjian/TOOD/blob/master/mmdet/core/bbox/assigners/atss_assigner.py
+        """Adaptive Training Sample Selection Assigner, adapted
+        from U{Bridging the Gap Between Anchor-based and Anchor-free Detection via
+        Adaptive Training Sample Selection<https://arxiv.org/pdf/1912.02424.pdf>}.
+        Code is adapted from: U{https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/
+        ppyoloe/assigner/atss_assigner.py} and
+        U{https://github.com/fcjian/TOOD/blob/master/mmdet/core/bbox/
+        assigners/atss_assigner.py}
 
-        Args:
-            n_classes (int, optional): Number of classes in the dataset.
-            topk (int, optional): Number of anchors considere in selection. Defaults to 9.
+        @type n_classes: int
+        @param n_classes: Number of classes in the dataset.
+        @type topk: int
+        @param topk: Number of anchors considere in selection. Defaults to 9.
         """
         super().__init__()
 
@@ -37,18 +41,22 @@ class ATSSAssigner(nn.Module):
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Assigner's forward method which generates final assignments.
 
-        Args:
-            anchor_bboxes (Tensor): Anchor bboxes of shape [n_anchors, 4]
-            n_level_bboxes (list[int]): Number of bboxes per level
-            gt_labels (Tensor): Initial GT labels [bs, n_max_boxes, 1]
-            gt_bboxes (Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
-            mask_gt (Tensor): Mask for valid GTs [bs, n_max_boxes, 1]
-            pred_bboxes (Tensor): Predicted bboxes of shape [bs, n_anchors, 4]
-
-        Returns:
-            tuple[Tensor, Tensor, Tensor, Tensor]: Assigned labels of shape [bs, n_anchors],
-                assigned bboxes of shape [bs, n_anchors, 4], assigned scores of shape [bs, n_anchors, n_classes]
-                and output positive mask of shape [bs, n_anchors]
+        @type anchor_bboxes: Tensor
+        @param anchor_bboxes: Anchor bboxes of shape [n_anchors, 4]
+        @type n_level_bboxes: list[int]
+        @param n_level_bboxes: Number of bboxes per level
+        @type gt_labels: Tensor
+        @param gt_labels: Initial GT labels [bs, n_max_boxes, 1]
+        @type gt_bboxes: Tensor
+        @param gt_bboxes: Initial GT bboxes [bs, n_max_boxes, 4]
+        @type mask_gt: Tensor
+        @param mask_gt: Mask for valid GTs [bs, n_max_boxes, 1]
+        @type pred_bboxes: Tensor
+        @param pred_bboxes: Predicted bboxes of shape [bs, n_anchors, 4]
+        @rtype: tuple[Tensor, Tensor, Tensor, Tensor]
+        @return: Assigned labels of shape [bs, n_anchors], assigned bboxes of shape [bs,
+            n_anchors, 4], assigned scores of shape [bs, n_anchors, n_classes] and
+            output positive mask of shape [bs, n_anchors].
         """
 
         self.n_anchors = anchor_bboxes.size(0)
@@ -129,10 +137,14 @@ class ATSSAssigner(nn.Module):
     ) -> tuple[Tensor, Tensor]:
         """Select k anchors whose centers are closest to GT.
 
-        Args:
-            distances (Tensor): Distances between GT and anchor centers
-            n_level_bboxes (list[int]): list of number of bboxes per level
-            mask_gt (Tensor): Mask for valid GT per image
+        @type distance: Tensor
+        @param distance: Distances between GT and anchor centers.
+        @type n_level_bboxes: list[int]
+        @param n_level_bboxes: list of number of bboxes per level.
+        @type mask_gt: Tensor
+        @param mask_gt: Mask for valid GT per image.
+        @rtype: tuple[Tensor, Tensor]
+        @return: Mask of selected anchors and indices of selected anchors.
         """
         mask_gt = mask_gt.repeat(1, 1, self.topk).bool()
         level_distances = torch.split(distances, n_level_bboxes, dim=-1)
@@ -170,10 +182,14 @@ class ATSSAssigner(nn.Module):
     ) -> Tensor:
         """Computes threshold and returns mask for samples over threshold.
 
-        Args:
-            is_in_topk (Tensor): Mask of candidate samples [bx, n_max_boxes, n_anchors]
-            topk_idxs (Tensor): Indices of candidates [bx, n_max_boxes, topK*n_levels]
-            overlaps (Tensor): IoUs between GTs and anchors [bx, n_max_boxes, n_anchors]
+        @type is_in_topk: Tensor
+        @param is_in_topk: Mask of selected anchors [bx, n_max_boxes, n_anchors]
+        @type topk_idxs: Tensor
+        @param topk_idxs: Indices of selected anchors [bx, n_max_boxes, topK * n_levels]
+        @type overlaps: Tensor
+        @param overlaps: IoUs between GTs and anchors [bx, n_max_boxes, n_anchors]
+        @rtype: Tensor
+        @return: Mask of positive samples [bx, n_max_boxes, n_anchors]
         """
         n_bs_max_boxes = self.bs * self.n_max_boxes
         _candidate_overlaps = torch.where(
@@ -208,11 +224,17 @@ class ATSSAssigner(nn.Module):
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Generate final assignments based on the mask.
 
-        Args:
-            gt_labels (Tensor): Initial GT labels [bs, n_max_boxes, 1]
-            gt_bboxes (Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
-            assigned_gt_idx (Tensor): Indices of matched GTs [bs, n_anchors]
-            mask_pos_sum (Tensor): Mask of matched GTs [bs, n_anchors]
+        @type gt_labels: Tensor
+        @param gt_labels: Initial GT labels [bs, n_max_boxes, 1]
+        @type gt_bboxes: Tensor
+        @param gt_bboxes: Initial GT bboxes [bs, n_max_boxes, 4]
+        @type assigned_gt_idx: Tensor
+        @param assigned_gt_idx: Indices of matched GTs [bs, n_anchors]
+        @type mask_pos_sum: Tensor
+        @param mask_pos_sum: Mask of matched GTs [bs, n_anchors]
+        @rtype: tuple[Tensor, Tensor, Tensor]
+        @return: Assigned labels of shape [bs, n_anchors], assigned bboxes of shape [bs,
+            n_anchors, 4], assigned scores of shape [bs, n_anchors, n_classes].
         """
         # assigned target labels
         batch_idx = torch.arange(

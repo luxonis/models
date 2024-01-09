@@ -1,7 +1,7 @@
 """Implementation of the EfficientNet backbone.
 
-Source: `https://github.com/rwightman/gen-efficientnet-pytorch`
-License (Apache 2.0): `https://github.com/rwightman/gen-efficientnet-pytorch/blob/master/LICENSE`
+Source: U{https://github.com/rwightman/gen-efficientnet-pytorch}
+@license: U{Apache 2.0<https://github.com/rwightman/gen-efficientnet-pytorch/blob/master/LICENSE>}
 """
 
 import torch
@@ -11,16 +11,12 @@ from .base_node import BaseNode
 
 
 class EfficientNet(BaseNode[Tensor, list[Tensor]]):
-    """EfficientNet backbone.
-
-    TODO: DOCS
-    """
-
     def __init__(self, download_weights: bool = False, **kwargs):
         """EfficientNet backbone.
 
-        Args:
-            download_weights (bool, optional): If True download weights from imagenet. Defaults to False.
+        @type download_weights: bool
+        @param download_weights: If C{True} download weights from imagenet. Defaults to
+            C{False}.
         """
         super().__init__(**kwargs)
 

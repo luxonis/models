@@ -18,12 +18,14 @@ class ObjectKeypointSimilarity(
 ):
     """Object Keypoint Similarity metric for evaluating keypoint predictions.
 
-    Args:
-        num_keypoints (int): Number of keypoints
-        kpt_sigmas (Tensor, optional): Sigma for each keypoint to weigh its importance,
-            if None, then use same weights for all. Defaults to None.
-        use_cocoeval_oks (bool, optional): Whether to use same OKS formula as
-            in COCOeval or use the one from definition. Defaults to False.
+    @type n_keypoints: int
+    @param n_keypoints: Number of keypoints.
+    @type kpt_sigmas: Tensor
+    @param kpt_sigmas: Sigma for each keypoint to weigh its importance, if C{None}, then
+        use same weights for all.
+    @type use_cocoeval_oks: bool
+    @param use_cocoeval_oks: Whether to use same OKS formula as in COCOeval or use the
+        one from definition.
     """
 
     is_differentiable: bool = False
@@ -101,26 +103,26 @@ class ObjectKeypointSimilarity(
     ) -> None:
         """Updates the inner state of the metric.
 
-        Args:
-            preds (list[dict[str, Tensor]]): A list consisting of dictionaries
-              each containing key-values for a single image.
-              Parameters that should be provided per dict::
+        @type preds: list[dict[str, Tensor]]
+        @param preds: A list consisting of dictionaries each containing key-values for
+            a single image.
+            Parameters that should be provided per dict:
 
-                  - keypoints (FloatTensor): Tensor of shape (N, 3*K) and in format
-                    [x, y, vis, x, y, vis, ...] where `x` an `y`
-                    are unnormalized keypoint coordinates and `vis` is keypoint visibility.
+                - keypoints (FloatTensor): Tensor of shape (N, 3*K) and in format
+                  [x, y, vis, x, y, vis, ...] where `x` an `y`
+                  are unnormalized keypoint coordinates and `vis` is keypoint visibility.
+        @type target: list[dict[str, Tensor]]
+        @param target: A list consisting of dictionaries each containing key-values for
+            a single image.
+            Parameters that should be provided per dict:
 
-            targer (list[dict[str, Tensor]]): A list consisting of dictionaries each
-              containing key-values for a single image.
-              Parameters that should be provided per dict::
-
-                  - keypoints (FloatTensor): Tensor of shape (N, 3*K) and in format
-                    [x, y, vis, x, y, vis, ...] where `x` an `y`
-                    are unnormalized keypoint coordinates and `vis` is keypoint visibility.
-                  - scales (FloatTensor): Tensor of shape (N) where each value
-                    corresponds to scale of the bounding box.
-                    Scale of one bounding box is defined as sqrt(width*height) where
-                    width and height are unnormalized.
+                - keypoints (FloatTensor): Tensor of shape (N, 3*K) and in format
+                  [x, y, vis, x, y, vis, ...] where `x` an `y`
+                  are unnormalized keypoint coordinates and `vis` is keypoint visibility.
+                - scales (FloatTensor): Tensor of shape (N) where each value
+                  corresponds to scale of the bounding box.
+                  Scale of one bounding box is defined as sqrt(width*height) where
+                  width and height are unnormalized.
         """
         for item in preds:
             keypoints = fix_empty_tensors(item["keypoints"])
@@ -157,13 +159,14 @@ class ObjectKeypointSimilarity(
     def _compute_oks(self, pred: Tensor, gt: Tensor, scales: Tensor) -> Tensor:
         """Compute Object Keypoint Similarity between every GT and prediction.
 
-        Args:
-            pred (Tensor[N, K, 3]): Predicted keypoints.
-            gt (Tensor[M, K, 3]): Groundtruth keypoints.
-            scales (Tensor[M]): Scales of the bounding boxes.
-
-        Returns:
-            Tensor: Object Keypoint Similarity every pred and gt [M, N]
+        @type pred: Tensor[N, K, 3]
+        @param pred: Predicted keypoints.
+        @type gt: Tensor[M, K, 3]
+        @param gt: Groundtruth keypoints.
+        @type scales: Tensor[M]
+        @param scales: Scales of the bounding boxes.
+        @rtype: Tensor
+        @return: Object Keypoint Similarity every pred and gt [M, N]
         """
         eps = 1e-7
         distances = (gt[:, None, :, 0] - pred[..., 0]) ** 2 + (

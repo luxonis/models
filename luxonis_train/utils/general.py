@@ -13,16 +13,8 @@ from luxonis_train.utils.types import LabelType, Packet
 
 # TODO: could be moved to luxonis-ml?
 # TODO: support multiclass keypoints
-# TODO: support different number of classes per task
 class DatasetMetadata:
-    """Metadata about the dataset.
-
-    Attributes:
-        n_classes (int): Number of classes in the dataset.
-        n_keypoints (int): Number of keypoints in the dataset.
-        class_names (list[str]): Names of the classes in the dataset.
-        connectivity (list[tuple[int, int]]): List of tuples of connected keypoints.
-    """
+    """Metadata about the dataset."""
 
     def __init__(
         self,
@@ -34,6 +26,24 @@ class DatasetMetadata:
         connectivity: list[tuple[int, int]] | None = None,
         loader: DataLoader | None = None,
     ):
+        """An object containing metadata about the dataset. Used to infer the number of
+        classes, number of keypoints, I{etc.} instead of passing them as arguments to
+        the model.
+
+        @type classes: dict[LabelType, list[str]] | None
+        @param classes: Dictionary mapping label types to lists of class names. If not
+            provided, will be inferred from the dataset loader.
+        @type n_classes: int | None
+        @param n_classes: Number of classes for each label type.
+        @type n_keypoints: int | None
+        @param n_keypoints: Number of keypoints in the dataset.
+        @type keypoint_names: list[str] | None
+        @param keypoint_names: List of keypoint names.
+        @type connectivity: list[tuple[int, int]] | None
+        @param connectivity: List of edges in the skeleton graph.
+        @type loader: DataLoader | None
+        @param loader: Dataset loader.
+        """
         if classes is None and n_classes is not None:
             classes = {
                 LabelType(lbl): [str(i) for i in range(n_classes)]
@@ -49,7 +59,11 @@ class DatasetMetadata:
 
     @property
     def classes(self) -> dict[LabelType, list[str]]:
-        """Dictionary mapping label types to lists of class names."""
+        """Dictionary mapping label types to lists of class names.
+
+        @type: dict[LabelType, list[str]]
+        @raises ValueError: If classes were not provided during initialization.
+        """
         if self._classes is None:
             raise ValueError(
                 "Trying to access `classes`, byt they were not"
@@ -58,6 +72,17 @@ class DatasetMetadata:
         return self._classes
 
     def n_classes(self, label_type: LabelType | None) -> int:
+        """Gets the number of classes for the specified label type.
+
+        @type label_type: L{LabelType} | None
+        @param label_type: Label type to get the number of classes for.
+        @rtype: int
+        @return: Number of classes for the specified label type.
+        @raises ValueError: If the dataset loader was not provided during
+            initialization.
+        @raises ValueError: If the dataset contains different number of classes for
+            different label types.
+        """
         if label_type is not None:
             if label_type not in self.classes:
                 raise ValueError(
@@ -73,6 +98,17 @@ class DatasetMetadata:
         return n_classes
 
     def class_names(self, label_type: LabelType | None) -> list[str]:
+        """Gets the class names for the specified label type.
+
+        @type label_type: L{LabelType} | None
+        @param label_type: Label type to get the class names for.
+        @rtype: list[str]
+        @return: List of class names for the specified label type.
+        @raises ValueError: If the dataset loader was not provided during
+            initialization.
+        @raises ValueError: If the dataset contains different class names for different
+            label types.
+        """
         if label_type is not None:
             if label_type not in self.classes:
                 raise ValueError(
@@ -90,11 +126,12 @@ class DatasetMetadata:
     def autogenerate_anchors(self, n_heads: int) -> tuple[list[list[float]], float]:
         """Automatically generates anchors for the provided dataset.
 
-        Args:
-            n_heads: Number of heads to generate anchors for.
-
-        Returns:
-            list[list[float]]: list of anchors in [-1,6] format
+        @type n_heads: int
+        @param n_heads: Number of heads to generate anchors for.
+        @rtype: tuple[list[list[float]], float]
+        @return: List of anchors in [-1,6] format and recall of the anchors.
+        @raises ValueError: If the dataset loader was not provided during
+            initialization.
         """
         if self.loader is None:
             raise ValueError(
@@ -111,20 +148,19 @@ class DatasetMetadata:
     def set_loader(self, loader: DataLoader) -> None:
         """Sets the dataset loader.
 
-        Args:
-            loader (DataLoader): Dataset loader.
+        @type loader: DataLoader
+        @param loader: Dataset loader.
         """
         self.loader = loader
 
     @classmethod
     def from_dataset(cls, dataset: LuxonisDataset) -> "DatasetMetadata":
-        """Creates a `DatasetMetadata` object from a `LuxonisDataset`.
+        """Creates a L{DatasetMetadata} object from a L{LuxonisDataset}.
 
-        Args:
-            dataset (LuxonisDataset): Dataset to create the metadata from.
-
-        Returns:
-            DatasetMetadata: Metadata about the dataset.
+        @type dataset: LuxonisDataset
+        @param dataset: Dataset to create the metadata from.
+        @rtype: DatasetMetadata
+        @return: Instance of L{DatasetMetadata} created from the provided dataset.
         """
         _, classes = dataset.get_classes()
         skeletons = dataset.get_skeletons()
@@ -155,7 +191,6 @@ def make_divisible(x: int | float, divisor: int) -> int:
     return math.ceil(x / divisor) * divisor
 
 
-# TEST:
 def infer_upscale_factor(
     in_height: int, orig_height: int, strict: bool = True, warn: bool = True
 ) -> int:
@@ -184,17 +219,14 @@ def get_shape_packet(packet: Packet[Tensor]) -> Packet[Size]:
     return shape_packet
 
 
-# TEST:
 def is_acyclic(graph: dict[str, list[str]]) -> bool:
     """Tests if graph is acyclic.
 
-    Args:
-        graph (dict[str, list[str]]): Graph in a format of a dictionary
-          of predecessors. Keys are node names, values are inputs to the
-          node (list of node names).
-
-    Returns:
-        bool: True if graph is acyclic, False otherwise.
+    @type graph: dict[str, list[str]]
+    @param graph: Graph in a format of a dictionary of predecessors. Keys are node
+        names, values are inputs to the node (list of node names).
+    @rtype: bool
+    @return: True if graph is acyclic, False otherwise.
     """
     graph = graph.copy()
 
@@ -234,6 +266,18 @@ T = TypeVar("T")
 def traverse_graph(
     graph: dict[str, list[str]], nodes: dict[str, T]
 ) -> Generator[tuple[str, T, list[str], set[str]], None, None]:
+    """Traverses the graph in topological order.
+
+    @type graph: dict[str, list[str]]
+    @param graph: Graph in a format of a dictionary of predecessors. Keys are node
+        names, values are inputs to the node (list of node names).
+    @type nodes: dict[str, T]
+    @param nodes: Dictionary mapping node names to node objects.
+    @rtype: Generator[tuple[str, T, list[str], set[str]], None, None]
+    @return: Generator of tuples containing node name, node object, node dependencies
+        and unprocessed nodes.
+    @raises RuntimeError: If the graph is malformed.
+    """
     unprocessed_nodes = set(nodes.keys())
     processed: set[str] = set()
 

@@ -9,6 +9,7 @@ from luxonis_train.utils.registry import LOADERS
 from luxonis_train.utils.types import Labels, LabelType
 
 LuxonisLoaderTorchOutput = tuple[Tensor, Labels]
+"""LuxonisLoaderTorchOutput is a tuple of images and corresponding labels."""
 
 
 class BaseLoaderTorch(
@@ -35,11 +36,10 @@ class BaseLoaderTorch(
     def __getitem__(self, idx: int) -> LuxonisLoaderTorchOutput:
         """Loads sample from dataset.
 
-        Args:
-            idx (int): Sample index.
-
-        Returns:
-            LuxonisLoaderTorchOutput: Sample's data in LuxonisLoaderTorchOutput format
+        @type idx: int
+        @param idx: Sample index.
+        @rtype: L{LuxonisLoaderTorchOutput}
+        @return: Sample's data in L{LuxonisLoaderTorchOutput} format
         """
         ...
 
@@ -49,27 +49,12 @@ def collate_fn(
 ) -> tuple[Tensor, dict[LabelType, Tensor]]:
     """Default collate function used for training.
 
-    Args:
-        batch (list): List of images and their annotations in the
-            LuxonisLoaderOutput format.
-
-    Returns:
-        tuple[Tensor, dict[LabelType, Tensor]]:
-            imgs - Tensor of images (torch.float32) of shape [N, 3, H, W]
-            out_annotations: Dictionary with annotations::
-
-                {
-                    LabelType.CLASSIFICATION: Tensor of shape [N, classes]
-                        with value 1 for present class
-                    LabelType.SEGMENTATION: Tensor of shape [N, classes, H, W]
-                        with value 1 for pixels that are part of the class
-                    LabelType.BOUNDINGBOX: Tensor of shape [instances, 6]
-                        with [image_id, class, x_min_norm, y_min_norm, w_norm, h_norm]
-                    LabelType.KEYPOINT: Tensor of shape [instances, n_keypoints * 3]
-                        with [image_id, x1_norm, y1_norm, vis1, ...]
-                }
+    @type batch: list[LuxonisLoaderTorchOutput]
+    @param batch: List of images and their annotations in the LuxonisLoaderTorchOutput
+        format.
+    @rtype: tuple[Tensor, dict[LabelType, Tensor]]
+    @return: Tuple of images and annotations in the format expected by the model.
     """
-
     zipped = zip(*batch)
     imgs, anno_dicts = zipped
     imgs = torch.stack(imgs, 0)

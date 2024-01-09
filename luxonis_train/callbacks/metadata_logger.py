@@ -10,17 +10,14 @@ from luxonis_train.utils.registry import CALLBACKS
 
 @CALLBACKS.register_module()
 class MetadataLogger(pl.Callback):
-    """Callback that logs training metadata.
-
-    Metadata include all defined hyperparameters together with git hashes of luxonis-ml
-    and luxonis-train packages. Also stores this information locally.
-    """
-
     def __init__(self, hyperparams: list[str]):
-        """Constructs `MetadataLogger`.
+        """Callback that logs training metadata.
 
-        Args:
-            hyperparams (list[str]): List of hyperparameters to log.
+        Metadata include all defined hyperparameters together with git hashes of
+        luxonis-ml and luxonis-train packages. Also stores this information locally.
+
+        @type hyperparams: list[str]
+        @param hyperparams: List of hyperparameters to log.
         """
         super().__init__()
         self.hyperparams = hyperparams

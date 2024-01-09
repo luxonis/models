@@ -26,11 +26,12 @@ class SegmentationVisualizer(BaseVisualizer[Tensor, Tensor]):
         alpha: float = 0.6,
         **kwargs,
     ):
-        """
+        """Visualizer for segmentation tasks.
 
-        Args:
-            color (str): Color of the segmentation masks. Defaults to "#5050FF".
-            alpha (float): Alpha value of the segmentation masks. Defaults to 0.6.
+        @type colors: L{Color} | list[L{Color}]
+        @param colors: Color of the segmentation masks. Defaults to C{"#5050FF"}.
+        @type alpha: float
+        @param alpha: Alpha value of the segmentation masks. Defaults to C{0.6}.
         """
         super().__init__(
             protocol=SegmentationProtocol,
@@ -101,14 +102,16 @@ class SegmentationVisualizer(BaseVisualizer[Tensor, Tensor]):
     ) -> tuple[Tensor, Tensor]:
         """Creates a visualization of the segmentation predictions and labels.
 
-        Args:
-            label_canvas (Tensor): The canvas to draw the labels on.
-            prediction_canvas (Tensor): The canvas to draw the predictions on.
-            predictions (Tensor): The predictions to visualize.
-            targets (Tensor): The targets to visualize.
-
-        Returns:
-            tuple[Tensor, Tensor]: A tuple of the label and prediction visualizations.
+        @type label_canvas: Tensor
+        @param label_canvas: The canvas to draw the labels on.
+        @type prediction_canvas: Tensor
+        @param prediction_canvas: The canvas to draw the predictions on.
+        @type predictions: Tensor
+        @param predictions: The predictions to visualize.
+        @type targets: Tensor
+        @param targets: The targets to visualize.
+        @rtype: tuple[Tensor, Tensor]
+        @return: A tuple of the label and prediction visualizations.
         """
 
         targets_vis = self.draw_targets(

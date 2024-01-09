@@ -1,7 +1,7 @@
 """Implementation of a basic segmentation head.
 
-Adapted from: https://github.com/pytorch/vision/blob/main/torchvision/models/segmentation/fcn.py
-License (BSD-3): https://github.com/pytorch/vision/blob/main/LICENSE
+Adapted from: U{https://github.com/pytorch/vision/blob/main/torchvision/models/segmentation/fcn.py}
+@license: U{BSD-3 <https://github.com/pytorch/vision/blob/main/LICENSE>}
 """
 
 
@@ -24,6 +24,9 @@ class SegmentationHead(BaseNode[Tensor, Tensor]):
         """Basic segmentation FCN head.
 
         Note that it doesn't ensure that ouptut is same size as input.
+
+        @type kwargs: Any
+        @param kwargs: Additional arguments to pass to L{BaseNode}.
         """
         super().__init__(task_type=LabelType.SEGMENTATION, **kwargs)
 

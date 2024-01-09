@@ -6,12 +6,6 @@ from .utils import batch_iou, candidates_in_gt, fix_collisions
 
 
 class TaskAlignedAssigner(nn.Module):
-    """Task Aligned Assigner.
-
-    Adapted from: `TOOD: Task-aligned One-stage Object Detection`, https://arxiv.org/pdf/2108.07755.pdf.
-    Cose is adapted from: https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/assigner/tal_assigner.py.
-    """
-
     def __init__(
         self,
         n_classes: int,
@@ -20,14 +14,24 @@ class TaskAlignedAssigner(nn.Module):
         beta: float = 6.0,
         eps: float = 1e-9,
     ):
-        """Initializes the assigner.
+        """Task Aligned Assigner.
 
-        Args:
-            n_classes (int): Number of classes in the dataset.
-            topk (int, optional): Number of anchors considere in selection. Defaults to 13.
-            alpha (float, optional): Defaults to 1.0.
-            beta (float, optional): Defaults to 6.0.
-            eps (float, optional): Defaults to 1e-9.
+        Adapted from: U{TOOD: Task-aligned One-stage Object Detection<https://arxiv.org/pdf/2108.07755.pdf>}.
+        Cose is adapted from: U{https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/assigner/tal_assigner.py}.
+
+        @license: U{Apache License, Version 2.0<https://github.com/Nioolek/PPYOLOE_pytorch/
+            tree/master?tab=Apache-2.0-1-ov-file#readme>}
+
+        @type n_classes: int
+        @param n_classes: Number of classes in the dataset.
+        @type topk: int
+        @param topk: Number of anchors considere in selection. Defaults to 13.
+        @type alpha: float
+        @param alpha: Defaults to 1.0.
+        @type beta: float
+        @param beta: Defaults to 6.0.
+        @type eps: float
+        @param eps: Defaults to 1e-9.
         """
         super().__init__()
 
@@ -49,18 +53,22 @@ class TaskAlignedAssigner(nn.Module):
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Assigner's forward method which generates final assignments.
 
-        Args:
-            pred_scores (Tensor): Predicted scores [bs, n_anchors, 1]
-            pred_bboxes (Tensor): Predicted bboxes [bs, n_anchors, 4]
-            anchor_points (Tensor): Anchor points [n_anchors, 2]
-            gt_labels (Tensor): Initial GT labels [bs, n_max_boxes, 1]
-            gt_bboxes (Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
-            mask_gt (Tensor): Mask for valid GTs [bs, n_max_boxes, 1]
-
-        Returns:
-            Tuple[Tensor, Tensor, Tensor, Tensor]: Assigned labels of shape [bs, n_anchors],
-                assigned bboxes of shape [bs, n_anchors, 4], assigned scores of shape [bs, n_anchors, n_classes]
-                and output mask of shape [bs, n_anchors]
+        @type pred_scores: Tensor
+        @param pred_scores: Predicted scores [bs, n_anchors, 1]
+        @type pred_bboxes: Tensor
+        @param pred_bboxes: Predicted bboxes [bs, n_anchors, 4]
+        @type anchor_points: Tensor
+        @param anchor_points: Anchor points [n_anchors, 2]
+        @type gt_labels: Tensor
+        @param gt_labels: Initial GT labels [bs, n_max_boxes, 1]
+        @type gt_bboxes: Tensor
+        @param gt_bboxes: Initial GT bboxes [bs, n_max_boxes, 4]
+        @type mask_gt: Tensor
+        @param mask_gt: Mask for valid GTs [bs, n_max_boxes, 1]
+        @rtype: tuple[Tensor, Tensor, Tensor, Tensor]
+        @return: Assigned labels of shape [bs, n_anchors], assigned bboxes of shape [bs,
+            n_anchors, 4], assigned scores of shape [bs, n_anchors, n_classes] and
+            output mask of shape [bs, n_anchors]
         """
         self.bs = pred_scores.size(0)
         self.n_max_boxes = gt_bboxes.size(1)
@@ -124,11 +132,14 @@ class TaskAlignedAssigner(nn.Module):
     ):
         """Calculates anchor alignment metric and IoU between GTs and predicted bboxes.
 
-        Args:
-            pred_scores (Tensor): Tensor of shape [bs, n_anchors, n_classes]
-            pred_bboxes (Tensor): Tensor of shape [bs, n_anchors, 4]
-            gt_labels (Tensor): Tensor of shape [bs, n_max_boxes, 1]
-            gt_bboxes (Tensor): Tensor of shape [bs, n_max_boxes, 4]
+        @type pred_scores: Tensor
+        @param pred_scores: Predicted scores [bs, n_anchors, 1]
+        @type pred_bboxes: Tensor
+        @param pred_bboxes: Predicted bboxes [bs, n_anchors, 4]
+        @type gt_labels: Tensor
+        @param gt_labels: Initial GT labels [bs, n_max_boxes, 1]
+        @type gt_bboxes: Tensor
+        @param gt_bboxes: Initial GT bboxes [bs, n_max_boxes, 4]
         """
         pred_scores = pred_scores.permute(0, 2, 1)
         gt_labels = gt_labels.to(torch.long)
@@ -150,10 +161,14 @@ class TaskAlignedAssigner(nn.Module):
     ):
         """Selects k anchors based on provided metrics tensor.
 
-        Args:
-            metrics (Tensor): Metrics tensor of shape [bs, n_max_boxes, n_anchors]
-            largest (bool, optional): Flag if should keep largest topK. Defaults to True.
-            topk_mask (Optional[Tensor], optional): Mask for valid GTs of shape [bs, n_max_boxes, topk]. Defaults to None.
+        @type metrics: Tensor
+        @param metrics: Metrics tensor of shape [bs, n_max_boxes, n_anchors]
+        @type largest: bool
+        @param largest: Flag if should keep largest topK. Defaults to True.
+        @type topk_mask: Tensor
+        @param topk_mask: Mask for valid GTs of shape [bs, n_max_boxes, topk]
+        @rtype: Tensor
+        @return: Mask of selected anchors of shape [bs, n_max_boxes, n_anchors]
         """
         num_anchors = metrics.shape[-1]
         topk_metrics, topk_idxs = torch.topk(
@@ -176,14 +191,20 @@ class TaskAlignedAssigner(nn.Module):
         gt_bboxes: Tensor,
         assigned_gt_idx: Tensor,
         mask_pos_sum: Tensor,
-    ):
+    ) -> tuple[Tensor, Tensor, Tensor]:
         """Generate final assignments based on the mask.
 
-        Args:
-            gt_labels (Tensor): Initial GT labels [bs, n_max_boxes, 1]
-            gt_bboxes (Tensor): Initial GT bboxes [bs, n_max_boxes, 4]
-            assigned_gt_idx (Tensor): Indices of matched GTs [bs, n_anchors]
-            mask_pos_sum (Tensor): Mask of matched GTs [bs, n_anchors]
+        @type gt_labels: Tensor
+        @param gt_labels: Initial GT labels [bs, n_max_boxes, 1]
+        @type gt_bboxes: Tensor
+        @param gt_bboxes: Initial GT bboxes [bs, n_max_boxes, 4]
+        @type assigned_gt_idx: Tensor
+        @param assigned_gt_idx: Indices of matched GTs [bs, n_anchors]
+        @type mask_pos_sum: Tensor
+        @param mask_pos_sum: Mask of matched GTs [bs, n_anchors]
+        @rtype: tuple[Tensor, Tensor, Tensor]
+        @return: Assigned labels of shape [bs, n_anchors], assigned bboxes of shape [bs,
+            n_anchors, 4], assigned scores of shape [bs, n_anchors, n_classes].
         """
         # assigned target labels
         batch_ind = torch.arange(

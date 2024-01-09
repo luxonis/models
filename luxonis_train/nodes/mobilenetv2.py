@@ -20,9 +20,11 @@ class MobileNetV2(BaseNode[Tensor, list[Tensor]]):
     def __init__(self, download_weights: bool = False, **kwargs):
         """Constructor of the MobileNetV2 backbone.
 
-        Args:
-            download_weights (bool, optional): If True download weights from imagenet.
-            Defaults to False.
+        @type download_weights: bool
+        @param download_weights: If True download weights from imagenet. Defaults to
+            False.
+        @type kwargs: Any
+        @param kwargs: Additional arguments to pass to L{BaseNode}.
         """
         super().__init__(**kwargs)
 

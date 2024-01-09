@@ -1,8 +1,7 @@
 """Implementation of the EfficientRep backbone.
 
-Adapted from `YOLOv6: A Single-Stage Object Detection Framework for Industrial
-Applications`, available at `
-https://arxiv.org/pdf/2209.02976.pdf`.
+Adapted from U{YOLOv6: A Single-Stage Object Detection Framework for Industrial
+Applications<https://arxiv.org/pdf/2209.02976.pdf>}.
 """
 
 import logging
@@ -20,11 +19,6 @@ from .base_node import BaseNode
 
 
 class EfficientRep(BaseNode[Tensor, list[Tensor]]):
-    """EfficientRep backbone.
-
-    TODO: add more details
-    """
-
     attach_index: int = -1
 
     def __init__(
@@ -35,16 +29,20 @@ class EfficientRep(BaseNode[Tensor, list[Tensor]]):
         width_mul: float = 0.25,
         **kwargs,
     ):
-        """Constructor for the EfficientRep module.
+        """EfficientRep backbone.
 
-        Args:
-            channels_list (list[int], optional): List of output channels for each block.
-              Defaults to `[64, 128, 256, 512, 1024]` if set to `None`.
-            num_repeats (list[int], optional): List of number of repeats for each block.
-              Defaults to `[1, 6, 12, 18, 6]` if set to `None`.
-            depth_mul (float, optional): Depth multiplier. Defaults to 0.33.
-            width_mul (float, optional): Width multiplier. Defaults to 0.25.
-            **kwargs: Additional arguments to pass to the parent class.
+        @type channels_list: list[int] | None
+        @param channels_list: List of number of channels for each block. Defaults to
+            C{[64, 128, 256, 512, 1024]}.
+        @type num_repeats: list[int] | None
+        @param num_repeats: List of number of repeats of RepVGGBlock. Defaults to C{[1,
+            6, 12, 18, 6]}.
+        @type depth_mul: float
+        @param depth_mul: Depth multiplier. Defaults to 0.33.
+        @type width_mul: float
+        @param width_mul: Width multiplier. Defaults to 0.25.
+        @type kwargs: Any
+        @param kwargs: Additional arguments to pass to L{BaseNode}.
         """
         super().__init__(**kwargs)
 
@@ -95,8 +93,8 @@ class EfficientRep(BaseNode[Tensor, list[Tensor]]):
     def set_export_mode(self, mode: bool = True) -> None:
         """Reparametrizes instances of `RepVGGBlock` in the network.
 
-        Args:
-            mode (bool): Whether to set the export mode. Defaults to `True`.
+        @type mode: bool
+        @param mode: Whether to set the export mode. Defaults to C{True}.
         """
         super().set_export_mode(mode)
         logger = logging.getLogger(__name__)

@@ -16,11 +16,11 @@ class MultiVisualizer(BaseVisualizer[Packet[Tensor], Labels]):
     All the visualizers are applied in the order they are provided and they all draw on
     the same canvas.
 
-    Args:
-        visualizers (list[Kwargs]): List of visualizers to combine.
-            Each item in the list is a dictionary with the following keys::
+    @type visualizers: list[Kwargs]
+    @param visualizers: List of visualizers to combine.
+        Each item in the list is a dictionary with the following keys::
 
-                {"name": "name_of_the_visualizer",
+            >>> {"name": "name_of_the_visualizer",
                  "params": {"param1": value1, "param2": value2, ...}}
     """
 

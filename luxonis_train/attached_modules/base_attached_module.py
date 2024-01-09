@@ -22,7 +22,7 @@ Ts = TypeVarTuple("Ts")
 class BaseAttachedModule(
     nn.Module, Generic[Unpack[Ts]], ABC, metaclass=AutoRegisterMeta, register=False
 ):
-    """Base class for all modules that are attached to a :obj:`LuxonisNode`.
+    """Base class for all modules that are attached to a L{LuxonisNode}.
 
     Attached modules include losses, metrics and visualizers.
 
@@ -30,13 +30,12 @@ class BaseAttachedModule(
     should be sufficient for most simple cases. More complex modules should
     override the `prepare` method.
 
-    Attributes:
-        node (:obj:`BaseNode`, optional): Reference to the node this module
-            is attached to.
-        protocol (type[BaseProtocol], optional): Schema for validating inputs
-            to the module.
-        required_labels (list[LabelType], optional): List of labels required
-            by this model.
+    @type node: BaseNode
+    @ivar node: Reference to the node that this module is attached to.
+    @type protocol: type[BaseProtocol]
+    @ivar protocol: Schema for validating inputs to the module.
+    @type required_labels: list[LabelType]
+    @ivar required_labels: List of labels required by this model.
     """
 
     def __init__(
@@ -46,6 +45,15 @@ class BaseAttachedModule(
         protocol: type[BaseProtocol] | None = None,
         required_labels: list[LabelType] | None = None,
     ):
+        """Base class for all modules that are attached to a L{LuxonisNode}.
+
+        @type node: L{BaseNode}
+        @param node: Reference to the node that this module is attached to.
+        @type protocol: type[BaseProtocol]
+        @param protocol: Schema for validating inputs to the module.
+        @type required_labels: list[LabelType]
+        @param required_labels: List of labels required by this model.
+        """
         super().__init__()
         self.required_labels = required_labels or []
         self.protocol = protocol
@@ -54,13 +62,10 @@ class BaseAttachedModule(
 
     @property
     def node(self) -> BaseNode:
-        """Attributes of the node that this module is attached to.
+        """Reference to the node that this module is attached to.
 
-        Returns:
-            BaseNode: Reference to the node that this module is attached to.
-
-        Raises:
-            RuntimeError: If the node was not provided during initialization.
+        @type: L{BaseNode}
+        @raises RuntimeError: If the node was not provided during initialization.
         """
         if self._node is None:
             raise RuntimeError(
@@ -73,22 +78,24 @@ class BaseAttachedModule(
         """Prepares node outputs for the forward pass of the module.
 
         This default implementation selects the output and label based on
-        `required_labels` attribute. If not set, then it returns the first
+        C{required_labels} attribute. If not set, then it returns the first
         matching output and label.
         That is the first pair of outputs and labels that have the same type.
         For more complex modules this method should be overridden.
 
-        Args:
-            inputs (Packet[Tensor]): Output from the node, inputs to the attached module.
-            labels (Labels): Labels from the dataset.
+        @type inputs: L{Packet}[Tensor]
+        @param inputs: Output from the node, inputs to the attached module.
+        @type labels: L{Labels}
+        @param labels: Labels from the dataset.
 
-        Returns:
-            tuple[PredictionType, TargetType]: Prepared inputs. Should allow the
-                following usage with the `forward` method:
-                    `loss.forward(*loss.prepare(outputs, labels))`
+        @rtype: tuple[Unpack[Ts]]
+        @return: Prepared inputs. Should allow the following usage with the
+            L{forward} method:
 
-        Raises:
-            IncompatibleException: If the inputs are not compatible with the module.
+                >>> loss.forward(*loss.prepare(outputs, labels))
+
+        @raises NotImplementedError: If the module requires multiple labels.
+        @raises IncompatibleException: If the inputs are not compatible with the module.
         """
         if len(self.required_labels) > 1:
             raise NotImplementedError(
@@ -113,12 +120,11 @@ class BaseAttachedModule(
     def validate(self, inputs: Packet[Tensor], labels: Labels) -> None:
         """Validates that the inputs and labels are compatible with the module.
 
-        Args:
-            inputs (Packet[Tensor]): Inputs to the module.
-            labels (Labels): Labels from the dataset.
-
-        Raises:
-            IncompatibleException: If the inputs are not compatible with the module.
+        @type inputs: L{Packet}[Tensor]
+        @param inputs: Output from the node, inputs to the attached module.
+        @type labels: L{Labels}
+        @param labels: Labels from the dataset. @raises L{IncompatibleException}: If the
+            inputs are not compatible with the module.
         """
         for label in self.required_labels:
             if label not in labels:

@@ -49,44 +49,44 @@ class LuxonisModel(pl.LightningModule):
     The model topology is defined as an acyclic graph of nodes.
     The graph is saved as a dictionary of predecessors.
 
-    Attributes:
-        save_dir (str): Directory to save checkpoints and logs.
+    @type save_dir: str
+    @ivar save_dir: Directory to save checkpoints and logs.
 
-        nodes (nn.ModuleDict[str, LuxonisModule]):
-          Nodes of the model. Keys are node names, unique for each node.
-          Values are instances of `LuxonisModule`.
+    @type nodes: L{nn.ModuleDict}[str, L{LuxonisModule}]
+    @ivar nodes: Nodes of the model. Keys are node names, unique for each node.
 
-        graph (dict[str, list[str]]): Graph of the model in a format of a dictionary
-          of predecessors. Keys are node names, values are inputs to the
-          node (list of node names). Nodes with no inputs are considered
-          inputs of the whole model.
+    @type graph: dict[str, list[str]]
+    @ivar graph: Graph of the model in a format of a dictionary of predecessors.
+        Keys are node names, values are inputs to the node (list of node names).
+        Nodes with no inputs are considered inputs of the whole model.
 
-        loss_weights (dict[str, float]): Dictionary of loss weights.
-          Keys are loss names, values are weights.
+    @type loss_weights: dict[str, float]
+    @ivar loss_weights: Dictionary of loss weights. Keys are loss names, values are weights.
 
-        input_shapes (dict[str, list[Shape]]): Dictionary of input shapes.
-          Keys are node names, values are lists of shapes
-          (understood as shapes of the "feature" field in `Packet[Tensor]`).
+    @type input_shapes: dict[str, list[L{Size}]]
+    @ivar input_shapes: Dictionary of input shapes. Keys are node names, values are lists of shapes
+        (understood as shapes of the "feature" field in L{Packet}[L{Tensor}]).
 
-        outputs (list[str]): List of output node names.
+    @type outputs: list[str]
+    @ivar outputs: List of output node names.
 
-        losses (nn.ModuleDict[str, nn.ModuleDict[str, LuxonisLoss]]): Nested dictionary
-          of losses used in the model. Each node can have multiple losses attached.
-          The first key identifies the node, the second key identifies the specific loss.
+    @type losses: L{nn.ModuleDict}[str, L{nn.ModuleDict}[str, L{LuxonisLoss}]]
+    @ivar losses: Nested dictionary of losses used in the model. Each node can have multiple
+        losses attached. The first key identifies the node, the second key identifies the
+        specific loss.
 
-        visualizers (dict[str, dict[str, LuxonisVisualizer]]): Dictionary
-          of visualizers to be used with the model. For each node name,
-          there is a dictionary where keys are visualizer names (unique) and values
-          are `LuxonisVisualizer` instances. Defaults to empty dictionary.
+    @type visualizers: dict[str, dict[str, L{LuxonisVisualizer}]]
+    @ivar visualizers: Dictionary of visualizers to be used with the model.
 
-        metrics (dict[str, dict[str, LuxonisMetric]]): Dictionary of
-          metrics to be used with the model. For each node name, there is
-          a dictionary where keys are metric names (unique) and values are
-          `LuxonisMetric` instances.
+    @type metrics: dict[str, dict[str, L{LuxonisMetric}]]
+    @ivar metrics: Dictionary of metrics to be used with the model.
 
-        main_metric (str, optional): Name of the main metric to be used for
-            model checkpointing. If not set, the model with the best metric score
-            won't be saved.
+    @type dataset_metadata: L{DatasetMetadata}
+    @ivar dataset_metadata: Metadata of the dataset.
+
+    @type main_metric: str | None
+    @ivar main_metric: Name of the main metric to be used for model checkpointing.
+        If not set, the model with the best metric score won't be saved.
     """
 
     _trainer: pl.Trainer
@@ -102,12 +102,17 @@ class LuxonisModel(pl.LightningModule):
     ):
         """Constructs an instance of `LuxonisModel` from `Config`.
 
-        Args:
-            cfg (Config): Config object.
-            save_dir (str): Directory to save checkpoints.
-            input_shape (list[int] | Size): Shape of the input tensor.
-            dataset_metadata (DatasetMetadata, optional): Dataset metadata.
-            **kwargs: Additional arguments to pass to the parent class.
+        @type cfg: L{Config}
+        @param cfg: Config object.
+        @type save_dir: str
+        @param save_dir: Directory to save checkpoints.
+        @type input_shape: list[int] | L{Size}
+        @param input_shape: Shape of the input tensor.
+        @type dataset_metadata: L{DatasetMetadata} | None
+        @param dataset_metadata: Dataset metadata.
+        @type kwargs: Any
+        @param kwargs: Additional arguments to pass to the L{LightningModule}
+            constructor.
         """
         super().__init__(**kwargs)
 
@@ -183,17 +188,14 @@ class LuxonisModel(pl.LightningModule):
     ) -> nn.ModuleDict:
         """Initializes all the nodes in the model.
 
-        Traverses the graph and initiates each node using outputs of
-        the preceding nodes.
+        Traverses the graph and initiates each node using outputs of the preceding
+        nodes.
 
-
-        Args:
-            nodes (dict[str, tuple[type[LuxonisNode], Kwargs]]): Dictionary of nodes
-              to be initiated. Keys are node names, values are tuples of node class
-              and node kwargs.
-
-        Returns:
-            nn.ModuleDict[str, LuxonisNode]: Dictionary of initiated nodes.
+        @type nodes: dict[str, tuple[type[LuxonisNode], Kwargs]]
+        @param nodes: Dictionary of nodes to be initiated. Keys are node names, values
+            are tuples of node class and node kwargs.
+        @rtype: L{nn.ModuleDict}[str, L{LuxonisNode}]
+        @return: Dictionary of initiated nodes.
         """
         initiated_nodes: dict[str, BaseNode] = {}
 
@@ -244,23 +246,25 @@ class LuxonisModel(pl.LightningModule):
     ) -> LuxonisOutput:
         """Forward pass of the model.
 
-        Traverses the graph and step-by-step computes the outputs of each node.
-        Each next node is computed only when all of its predecessors are computed.
-        Once the outputs are not needed anymore, they are removed from the memory.
+        Traverses the graph and step-by-step computes the outputs of each node. Each
+        next node is computed only when all of its predecessors are computed. Once the
+        outputs are not needed anymore, they are removed from the memory.
 
-        Args:
-            inputs (Tensor): Input tensor.
-            labels (Labels, optional): Labels dictionary. Defaults to None.
-            image (Tensor, optional): Canvas tensor for visualizers. Defaults to None.
-
-            compute_loss (bool, optional): Whether to compute losses. Defaults to True.
-            compute_metrics (bool, optional): Whether to update metrics.
-              Defaults to True.
-            compute_visualizations (bool, optional): Whether to compute
-              visualizations. Defaults to False.
-
-        Returns:
-            LuxonisOutput: Output of the model.
+        @type inputs: L{Tensor}
+        @param inputs: Input tensor.
+        @type labels: L{Labels} | None
+        @param labels: Labels dictionary. Defaults to C{None}.
+        @type images: L{Tensor} | None
+        @param images: Canvas tensor for visualizers. Defaults to C{None}.
+        @type compute_loss: bool
+        @param compute_loss: Whether to compute losses. Defaults to C{True}.
+        @type compute_metrics: bool
+        @param compute_metrics: Whether to update metrics. Defaults to C{True}.
+        @type compute_visualizations: bool
+        @param compute_visualizations: Whether to compute visualizations. Defaults to
+            C{False}.
+        @rtype: L{LuxonisOutput}
+        @return: Output of the model.
         """
         input_node_name = list(self.input_shapes.keys())[0]
         input_dict = {input_node_name: [inputs]}
@@ -336,10 +340,10 @@ class LuxonisModel(pl.LightningModule):
         Goes through all metrics in the `metrics` attribute and computes their values.
         After the computation, the metrics are reset.
 
-        Returns:
-            dict[str, dict[str, Tensor]]: Dictionary of computed metrics.
-              Each node can have multiple metrics attached. The first key identifies
-              the node, the second key identifies the specific metric.
+        @rtype: dict[str, dict[str, L{Tensor}]]
+        @return: Dictionary of computed metrics. Each node can have multiple metrics
+            attached. The first key identifies the node, the second key identifies
+            the specific metric.
         """
         metric_results: dict[str, dict[str, Tensor]] = defaultdict(dict)
         for node_name, metrics in self.metrics.items():
@@ -365,12 +369,12 @@ class LuxonisModel(pl.LightningModule):
     def export_onnx(self, save_path: str, **kwargs) -> list[str]:
         """Exports the model to ONNX format.
 
-        Args:
-            save_path (str): Path where the exported model will be saved.
-            **kwargs: Additional arguments for the `torch.onnx.export` method.
-
-        Returns:
-            list[str]: List of output names.
+        @type save_path: str
+        @param save_path: Path where the exported model will be saved.
+        @type kwargs: Any
+        @param kwargs: Additional arguments for the L{torch.onnx.export} method.
+        @rtype: list[str]
+        @return: List of output names.
         """
 
         inputs = {
@@ -435,19 +439,18 @@ class LuxonisModel(pl.LightningModule):
     ) -> tuple[Tensor, dict[str, Tensor]]:
         """Processes individual losses from the model run.
 
-        Goes over the computed losses and computes the final loss as a weighted sum
-        of all the losses.
+        Goes over the computed losses and computes the final loss as a weighted sum of
+        all the losses.
 
-        Args:
-            losses_dict (dict[str, dict[str, Tensor | tuple[Tensor, dict[str, Tensor]]]]):
-              Dictionary of computed losses. Each node can have multiple losses attached.
-              The first key identifies the node, the second key identifies the specific loss.
-              Values are either single tensors or tuples of tensors and sublosses.
-
-        Returns:
-            tuple[Tensor, dict[str, Tensor]]: Tuple of final loss and dictionary of
-              processed sublosses. The dictionary is in a format of
-              {loss_name: loss_value}.
+        @type losses_dict: dict[str, dict[str, Tensor | tuple[Tensor, dict[str,
+            Tensor]]]]
+        @param losses_dict: Dictionary of computed losses. Each node can have multiple
+            losses attached. The first key identifies the node, the second key
+            identifies the specific loss. Values are either single tensors or tuples of
+            tensors and sublosses.
+        @rtype: tuple[Tensor, dict[str, Tensor]]
+        @return: Tuple of final loss and dictionary of processed sublosses. The
+            dictionary is in a format of {loss_name: loss_value}.
         """
         final_loss = torch.zeros(1, device=self.device)
         training_step_output: dict[str, Tensor] = {}
@@ -653,12 +656,11 @@ class LuxonisModel(pl.LightningModule):
     def load_checkpoint(self, path: str | None) -> None:
         """Loads checkpoint weights from provided path.
 
-        Loads the checkpoints gracefully, ignoring keys that are not found
-        in the model state dict or in the checkpoint.
+        Loads the checkpoints gracefully, ignoring keys that are not found in the model
+        state dict or in the checkpoint.
 
-        Args:
-            path (str | None): Path to the checkpoint. If None, no checkpoint
-              will be loaded.
+        @type path: str | None
+        @param path: Path to the checkpoint. If C{None}, no checkpoint will be loaded.
         """
         if path is None:
             return

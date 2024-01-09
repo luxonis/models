@@ -1,10 +1,3 @@
-"""Head for object and keypoint detection.
-
-Adapted from `YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time
-object detectors`, available at `
-https://arxiv.org/pdf/2207.02696.pdf`.
-"""
-
 import logging
 import math
 from typing import Literal, cast
@@ -29,11 +22,6 @@ logger = logging.getLogger(__name__)
 
 
 class ImplicitKeypointBBoxHead(BaseNode):
-    """Head for object and keypoint detection.
-
-    TODO: more technical documentation
-    """
-
     attach_index: Literal["all"] = "all"
 
     def __init__(
@@ -46,19 +34,27 @@ class ImplicitKeypointBBoxHead(BaseNode):
         iou_thres: float = 0.45,
         **kwargs,
     ):
-        """Constructor for the `ImplicitKeypointBBoxHead` module.
+        """Head for object and keypoint detection.
 
-        Args:
-            n_keypoints (int | None): Number of keypoints. If not defined, inferred
-              from the dataset metadata (if provided). Defaults to None.
-            num_heads (int, optional): Number of output heads. Defaults to 3.
-                ***Note:*** Should be same also on neck in most cases.*
-            anchors (list[list[int]]): Anchors used for object detection.
-              If not provided, the anchors are generated automatically from
-              the dataset. Defaults to None.
-            than threshold won't be drawn. Defaults to 0.5.
-            init_coco_biases (bool, optional): Whether to use COCO bias and weight
-            initialization. Defaults to True.
+        Adapted from U{YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time
+        object detectors<https://arxiv.org/pdf/2207.02696.pdf>}.
+
+        TODO: more technical documentation
+
+        @type n_keypoints: int | None
+        @param n_keypoints: Number of keypoints. If not defined, inferred
+            from the dataset metadata (if provided). Defaults to C{None}.
+        @type num_heads: int
+        @param num_heads: Number of output heads. Defaults to C{3}.
+            B{Note:} Should be same also on neck in most cases.
+        @type anchors: list[list[float]] | None
+        @param anchors: Anchors used for object detection.
+        @type init_coco_biases: bool
+        @param init_coco_biases: Whether to use COCO bias and weight
+        @type conf_thres: float
+        @param conf_thres: Threshold for confidence. Defaults to C{0.25}.
+        @type iou_thres: float
+        @param iou_thres: Threshold for IoU. Defaults to C{0.45}.
         """
         super().__init__(task_type=LabelType.KEYPOINT, **kwargs)
 

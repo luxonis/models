@@ -20,11 +20,12 @@ class SoftmaxFocalLoss(BaseLoss[Tensor, Tensor]):
     ):
         """Focal loss implementation for multi-class/multi-label tasks using Softmax.
 
-        Args:
-            alpha (float | list[float], optional): Either a float for all channels or
-            list of alphas for each channel with length C. Defaults to 0.25.
-            gamma (float, optional): Defaults to 2.0.
-            reduction (Literal["none", "mean", "sum"], optional): Defaults to "mean".
+        @type alpha: float | list[float]
+        @param alpha: Weighting factor for the rare class. Defaults to C{0.25}.
+        @type gamma: float
+        @param gamma: Focusing parameter. Defaults to C{2.0}.
+        @type reduction: Literal["none", "mean", "sum"]
+        @param reduction: Reduction type. Defaults to C{"mean"}.
         """
         super().__init__(**kwargs)
 

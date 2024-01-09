@@ -49,20 +49,23 @@ class AdaptiveDetectionLoss(BaseLoss[Tensor, Tensor, Tensor, Tensor, Tensor, Ten
         iou_loss_weight: float = 2.5,
         **kwargs,
     ):
-        """BBox loss from `YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications`,
-        https://arxiv.org/pdf/2209.02976.pdf. It combines IoU based bbox regression loss and varifocal loss
+        """BBox loss adapted from U{YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications
+        <https://arxiv.org/pdf/2209.02976.pdf>}. It combines IoU based bbox regression loss and varifocal loss
         for classification.
-        Code is adapted from https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/models
+        Code is adapted from U{https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/models}.
 
-        Args:
-            n_warmup_epochs (int, optional): Number of epochs where ATSS assigner is used, after
-              that we switch to TAL assigner. Defaults to 4.
-            iou_type (Literal["none", "giou", "diou", "ciou", "siou"], optional): IoU type used for
-              bbox regression loss. Defaults to "giou".
-            reduction (Literal["sum", "mean"], optional): Defaults to "mean".
-            class_loss_weight (float, optional): Weight of classification loss.
-              Defaults to 1.0.
-            iou_loss_weight (float, optional): Weight of IoU loss. Defaults to 2.5.
+        @type n_warmup_epochs: int
+        @param n_warmup_epochs: Number of epochs where ATSS assigner is used, after that we switch to TAL assigner.
+        @type iou_type: L{IoUType}
+        @param iou_type: IoU type used for bbox regression loss.
+        @type reduction: Literal["sum", "mean"]
+        @param reduction: Reduction type for loss.
+        @type class_loss_weight: float
+        @param class_loss_weight: Weight of classification loss.
+        @type iou_loss_weight: float
+        @param iou_loss_weight: Weight of IoU loss.
+        @type kwargs: dict
+        @param kwargs: Additional arguments to pass to L{BaseLoss}.
         """
         super().__init__(
             required_labels=[LabelType.BOUNDINGBOX], protocol=Protocol, **kwargs
@@ -221,12 +224,14 @@ class VarifocalLoss(nn.Module):
     def __init__(self, alpha: float = 0.75, gamma: float = 2.0):
         """Varifocal Loss is a loss function for training a dense object detector to predict
         the IoU-aware classification score, inspired by focal loss.
-        Code is adapted from: https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/models/losses.py
+        Code is adapted from: U{https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/models/losses.py}
 
-        Args:
-            alpha (float, optional): Defaults to 0.75.
-            gamma (float, optional): Defaults to 2.0.
+        @type alpha: float
+        @param alpha: alpha parameter in focal loss, default is 0.75.
+        @type gamma: float
+        @param gamma: gamma parameter in focal loss, default is 2.0.
         """
+
         super().__init__()
 
         self.alpha = alpha

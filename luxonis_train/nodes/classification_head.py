@@ -16,9 +16,9 @@ class ClassificationHead(BaseNode[Tensor, Tensor]):
     ):
         """Simple classification head.
 
-        Args:
-            dropout_rate (float, optional): Dropout rate before last layer, range [0,1].
-              Defaults to 0.2.
+        @type dropout_rate: float
+        @param dropout_rate: Dropout rate before last layer, range C{[0, 1]}. Defaults
+            to C{0.2}.
         """
         super().__init__(task_type=LabelType.CLASSIFICATION, **kwargs)
 

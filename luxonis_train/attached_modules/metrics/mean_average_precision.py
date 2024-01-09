@@ -13,10 +13,11 @@ from .base_metric import BaseMetric
 
 
 class MeanAveragePrecision(BaseMetric, detection.MeanAveragePrecision):
-    """Compute the `Mean-Average-Precision (mAP) and Mean-Average-Recall (mAR)`_ for
-    object detection predictions.
+    """Compute the Mean-Average-Precision (mAP) and Mean-Average-Recall (mAR) for object
+    detection predictions.
 
-    .. _`Mean-Average-Precision (mAP) and Mean-Average-Recall (mAR)`: https://lightning.ai/docs/torchmetrics/stable/detection/mean_average_precision.html
+    Adapted from U{Mean-Average-Precision (mAP) and Mean-Average-Recall (mAR)
+    <https://lightning.ai/docs/torchmetrics/stable/detection/mean_average_precision.html>}.
     """
 
     def __init__(self, **kwargs):

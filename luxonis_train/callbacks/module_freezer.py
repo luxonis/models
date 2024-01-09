@@ -5,13 +5,11 @@ from torch.optim.optimizer import Optimizer
 
 
 class ModuleFreezer(BaseFinetuning):
-    """Callback that freezes parts of the model."""
-
     def __init__(self, frozen_modules: list[nn.Module]):
-        """Constructs `ModuleFreezer`.
+        """Callback that freezes parts of the model.
 
-        Args:
-            frozen_modules (list[nn.Module]): List of modules to freeze.
+        @type frozen_modules: list[nn.Module]
+        @param frozen_modules: List of modules to freeze.
         """
         super().__init__()
         self.frozen_modules = frozen_modules

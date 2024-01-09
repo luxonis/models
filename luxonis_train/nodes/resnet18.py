@@ -1,7 +1,8 @@
 """ResNet18 backbone.
 
-Source: https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html
-License (PyTorch): https://github.com/pytorch/pytorch/blob/master/LICENSE
+Source: U{https://pytorch.org/vision/main/models/generated/
+torchvision.models.resnet18.html}
+@license: U{PyTorch<https://github.com/pytorch/pytorch/blob/master/LICENSE>}
 """
 
 
@@ -24,11 +25,13 @@ class ResNet18(BaseNode[Tensor, list[Tensor]]):
 
         TODO: add more info
 
-        Args:
-            channels_list (list[int], optional): List of channels to return.
-              If unset, defaults to [64, 128, 256, 512].
-            download_weights (bool, optional): If True download weights from imagenet.
-              Defaults to False.
+        @type channels_list: list[int] | None
+        @param channels_list: List of channels to return.
+            If unset, defaults to [64, 128, 256, 512].
+
+        @type download_weights: bool
+        @param download_weights: If True download weights from imagenet.
+            Defaults to False.
         """
         super().__init__(**kwargs)
 

@@ -35,14 +35,6 @@ KeypointTargetType = tuple[
 
 
 class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
-    """Joint loss for keypoint and box predictions for cases where the keypoints and
-    boxes are inherently linked.
-
-    Based on `YOLO-Pose: Enhancing YOLO for Multi Person Pose Estimation Using Object
-    Keypoint Similarity Loss`,
-    https://arxiv.org/ftp/arxiv/papers/2204/2204.06806.pdf
-    """
-
     node: ImplicitKeypointBBoxHead
 
     def __init__(
@@ -62,28 +54,40 @@ class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
         balance: list[float] | None = None,
         **kwargs,
     ):
+        """Joint loss for keypoint and box predictions for cases where the keypoints and
+        boxes are inherently linked.
+
+        Based on U{YOLO-Pose: Enhancing YOLO for Multi Person Pose Estimation Using Object
+        Keypoint Similarity Loss<https://arxiv.org/ftp/arxiv/papers/2204/2204.06806.pdf>}.
+
+        @type cls_pw: float
+        @param cls_pw: Power for the BCE loss for classes. Defaults to C{1.0}.
+        @type viz_pw: float
+        @param viz_pw: Power for the BCE loss for keypoints.
+        @type obj_pw: float
+        @param obj_pw: Power for the BCE loss for objectness. Defaults to C{1.0}.
+        @type label_smoothing: float
+        @param label_smoothing: Label smoothing factor. Defaults to C{0.0}.
+        @type min_objectness_iou: float
+        @param min_objectness_iou: Minimum objectness iou. Defaults to C{0.0}.
+        @type bbox_loss_weight: float
+        @param bbox_loss_weight: Weight for the bounding box loss.
+        @type keypoint_distance_loss_weight: float
+        @param keypoint_distance_loss_weight: Weight for the keypoint distance loss. Defaults to C{0.10}.
+        @type keypoint_visibility_loss_weight: float
+        @param keypoint_visibility_loss_weight: Weight for the keypoint visibility loss. Defaults to C{0.6}.
+        @type class_loss_weight: float
+        @param class_loss_weight: Weight for the class loss. Defaults to C{0.6}.
+        @type objectness_loss_weight: float
+        @param objectness_loss_weight: Weight for the objectness loss. Defaults to C{0.7}.
+        @type anchor_threshold: float
+        @param anchor_threshold: Threshold for matching anchors to targets. Defaults to C{4.0}.
+        @type bias: float
+        @param bias: Bias for matching anchors to targets. Defaults to C{0.5}.
+        @type balance: list[float] | None
+        @param balance: Balance for the different heads. Defaults to C{None}.
         """
-        Args:
-            cls_pw (float, optional): Power for the BCE loss for classes.
-              Defaults to 1.0.
-            viz_pw (float, optional): Power for the BCE loss for keypoints.
-            obj_pw (float, optional): Power for the BCE loss for objectness.
-              Defaults to 1.0.
-            label_smoothing (float, optional): Label smoothing factor.
-              Defaults to 0.0.
-            min_objectness_iou (float, optional): Minimum objectness iou.
-              Defaults to 0.0.
-            bbox_loss_weight (float, optional): Weight for the bounding box loss.
-            keypoint_distance_loss_weight (float, optional): Weight for the keypoint
-              distance loss. Defaults to 0.10.
-            keypoint_visibility_loss_weight (float, optional): Weight for the keypoint  visibility loss. Defaults to 0.6.
-            class_loss_weight (float, optional): Weight for the class loss. Defaults to 0.6.
-            objectness_loss_weight (float, optional): Weight for the objectness loss. Defaults to 0.7.
-            anchor_threshold (float, optional): Threshold for matching anchors to
-              targets. Defaults to 4.0.
-            bias (float, optional): Bias for matching anchors to targets. Defaults to 0.5.
-            balance (list[float], optional): Balance for the different heads. Defaults to None.
-        """
+
         super().__init__(
             required_labels=[LabelType.BOUNDINGBOX, LabelType.KEYPOINT],
             **kwargs,
@@ -144,33 +148,21 @@ class ImplicitKeypointBBoxLoss(BaseLoss[list[Tensor], KeypointTargetType]):
     ) -> tuple[list[Tensor], KeypointTargetType]:
         """Prepares the labels to be in the correct format for loss calculation.
 
-        Args:
-            output (tuple[Tensor, list[Tensor]]): Output from the forward pass.
-            labels (dict[str, Tensor]): Dictionary containing the labels.
-
-        Returns:
-            tuple[
-                list[Tensor],
-                tuple[
-                    list[Tensor],
-                    list[Tensor],
-                    list[Tensor],
-                    list[tuple[Tensor, Tensor, Tensor, Tensor]],
-                    list[Tensor],
-                ],
-            ]:
-              Tuple containing the original output and the postprocessed labels.
-              The processed labels are a tuple containing the class targets,
-              box targets, keypoint targets, indices and anchors.
-              Indicies are a tuple containing vectors of indices for batch,
-              anchor, feature y and feature x dimensions, respectively.
-              They are all of shape (n_targets,).
-              The indices are used to index the output tensors of shape
-              (batch_size, n_anchors, feature_height, feature_width,
-              n_classes + box_offset + n_keypoints * 3) to get a tensor of
-              shape (n_targets, n_classes + box_offset + n_keypoints * 3).
+        @type outputs: Packet[Tensor]
+        @param outputs: Output from the forward pass.
+        @type labels: L{Labels}
+        @param labels: Dictionary containing the labels.
+        @rtype: tuple[list[Tensor], tuple[list[Tensor], list[Tensor], list[Tensor],
+            list[tuple[Tensor, Tensor, Tensor, Tensor]], list[Tensor]]]
+        @return: Tuple containing the original output and the postprocessed labels. The
+            processed labels are a tuple containing the class targets, box targets,
+            keypoint targets, indices and anchors. Indicies are a tuple containing
+            vectors of indices for batch, anchor, feature y and feature x dimensions,
+            respectively. They are all of shape (n_targets,). The indices are used to
+            index the output tensors of shape (batch_size, n_anchors, feature_height,
+            feature_width, n_classes + box_offset + n_keypoints * 3) to get a tensor of
+            shape (n_targets, n_classes + box_offset + n_keypoints * 3).
         """
-
         predictions = outputs["features"]
 
         kpts = labels[LabelType.KEYPOINT]

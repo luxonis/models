@@ -20,15 +20,15 @@ class BaseMetric(
     """A base class for all metrics.
 
     This class defines the basic interface for all metrics. It utilizes automatic
-    registration of defined subclasses to a `METRICS` registry.
+    registration of defined subclasses to a L{METRICS} registry.
     """
 
     @abstractmethod
     def update(self, *args: Unpack[Ts]) -> None:
         """Updates the inner state of the metric.
 
-        Args:
-            *args: Prepared inputs from the `prepare` method.
+        @type args: Unpack[Ts]
+        @param args: Prepared inputs from the L{prepare} method.
         """
         ...
 
@@ -36,13 +36,12 @@ class BaseMetric(
     def compute(self) -> Tensor | tuple[Tensor, dict[str, Tensor]] | dict[str, Tensor]:
         """Computes the metric.
 
-        Returns:
-            Tensor | tuple[Tensor, dict[str, Tensor]] | dict[str, Tensor]: The computed metric. Can be one of::
-
-                1. A single `Tensor`.
-                2. A tuple of a `Tensor` and a dictionary of submetrics.
-                3. A dictionary of submetrics. If this is the case, then the metric
-                  cannot be used as the main metric of the model.
+        @rtype: Tensor | tuple[Tensor, dict[str, Tensor]] | dict[str, Tensor]
+        @return: The computed metric. Can be one of:
+           - A single Tensor.
+           - A tuple of a Tensor and a dictionary of submetrics.
+           - A dictionary of submetrics. If this is the case, then the metric
+              cannot be used as the main metric of the model.
         """
         ...
 
@@ -51,12 +50,11 @@ class BaseMetric(
 
         Validates and prepares the inputs, then calls the metric's update method.
 
-        Args:
-            outputs (Packet[Tensor]): The outputs of the model.
-            labels (Labels): The labels of the model.
-
-        Raises:
-            IncompatibleException: If the inputs are not compatible with the module.
+        @type outputs: Packet[Tensor]
+        @param outputs: The outputs of the model.
+        @type labels: Labels
+        @param labels: The labels of the model. @raises L{IncompatibleException}: If the
+            inputs are not compatible with the module.
         """
         self.validate(outputs, labels)
         self.update(*self.prepare(outputs, labels))

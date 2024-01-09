@@ -17,9 +17,8 @@ class BaseVisualizer(
 ):
     """A base class for all visualizers.
 
-    This class defines the basic interface for all visualizers.
-    It utilizes automatic registration of defined subclasses
-    to the `VISUALIZERS` registry.
+    This class defines the basic interface for all visualizers. It utilizes automatic
+    registration of defined subclasses to the L{VISUALIZERS} registry.
     """
 
     @abstractmethod
@@ -32,26 +31,27 @@ class BaseVisualizer(
         """Forward pass of the visualizer.
 
         Takes an image and the prepared inputs from the `prepare` method and
-        produces visualizations. Visualizations can be either::
+        produces visualizations. Visualizations can be either:
 
-            1. A single image (e.g. for classification, weight visualization).
-            2. A tuple of two images, representing (labels, predictions) (e.g. for
+            - A single image (I{e.g.} for classification, weight visualization).
+            - A tuple of two images, representing (labels, predictions) (I{e.g.} for
               bounding boxes, keypoints).
-            3. A tuple of an image and a list of images,
-              representing (labels, multiple visualizations) (e.g. for segmentation,
+            - A tuple of an image and a list of images,
+              representing (labels, multiple visualizations) (I{e.g.} for segmentation,
               depth estimation).
-            4. A list of images, representing unrelated visualizations.
+            - A list of images, representing unrelated visualizations.
 
-        Args:
-            label_canvas (Tensor): An image to draw the labels on.
-            prediction_canvas (Tensor): An image to draw the predictions on.
-            *args: Prepared inputs from the `prepare` method.
+        @type label_canvas: Tensor
+        @param label_canvas: An image to draw the labels on.
+        @type prediction_canvas: Tensor
+        @param prediction_canvas: An image to draw the predictions on.
+        @type args: Unpack[Ts]
+        @param args: Prepared inputs from the `prepare` method.
 
-        Returns:
-            Tensor | tuple[Tensor, Tensor] | tuple[Tensor, list[Tensor]] | list[Tensor]: Visualizations.
+        @rtype: Tensor | tuple[Tensor, Tensor] | tuple[Tensor, list[Tensor]] | list[Tensor]
+        @return: Visualizations.
 
-        Raises:
-            IncompatibleException: If the inputs are not compatible with the module.
+        @raise IncompatibleException: If the inputs are not compatible with the module.
         """
         ...
 

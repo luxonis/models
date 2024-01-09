@@ -37,9 +37,11 @@ class Core:
         Loads the config and initializes datasets, dataloaders, augmentations,
         lightning components, etc.
 
-        Args:
-            cfg (str | dict): path to config file or config dict used to setup training
-            opts (list[str]): argument dict provided through command line, used for config overriding
+        @type cfg: str | dict[str, Any] | Config
+        @param cfg: Path to config file or config dict used to setup training
+
+        @type opts: list[str] | tuple[str, ...] | dict[str, Any] | None
+        @param opts: Argument dict provided through command line, used for config overriding
         """
 
         overrides = {}
@@ -199,8 +201,8 @@ class Core:
     def get_save_dir(self) -> str:
         """Return path to directory where checkpoints are saved.
 
-        Returns:
-            str: Save directory path
+        @rtype: str
+        @return: Save directory path
         """
         return self.run_save_dir
 
@@ -208,8 +210,8 @@ class Core:
     def get_error_message(self) -> str | None:
         """Return error message if one occurs while running in thread, otherwise None.
 
-        Returns:
-            str or None: Error message
+        @rtype: str | None
+        @return: Error message
         """
         return self.error_message
 
@@ -217,8 +219,8 @@ class Core:
     def get_min_loss_checkpoint_path(self) -> str:
         """Return best checkpoint path with respect to minimal validation loss.
 
-        Returns:
-            str: Path to best checkpoint with respect to minimal validation loss
+        @rtype: str
+        @return: Path to best checkpoint with respect to minimal validation loss
         """
         return self.pl_trainer.checkpoint_callbacks[0].best_model_path  # type: ignore
 
@@ -226,7 +228,7 @@ class Core:
     def get_best_metric_checkpoint_path(self) -> str:
         """Return best checkpoint path with respect to best validation metric.
 
-        Returns:
-            str: Path to best checkpoint with respect to best validation loss
+        @rtype: str
+        @return: Path to best checkpoint with respect to best validation metric
         """
         return self.pl_trainer.checkpoint_callbacks[1].best_model_path  # type: ignore

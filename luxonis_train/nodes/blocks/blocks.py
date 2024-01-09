@@ -15,9 +15,10 @@ class EfficientDecoupledBlock(nn.Module):
     def __init__(self, n_classes: int, in_channels: int):
         """Efficient Decoupled block used for class and regression predictions.
 
-        Args:
-            n_classes (int): Number of classes
-            in_channels (int): Number of input channels
+        @type n_classes: int
+        @param n_classes: Number of classes.
+        @type in_channels: int
+        @param in_channels: Number of input channels.
         """
         super().__init__()
 
@@ -94,16 +95,24 @@ class ConvModule(nn.Sequential):
     ):
         """Conv2d + BN + Activation.
 
-        Args:
-            in_channels (int): Number of input channels
-            out_channels (int): Number of output channels
-            kernel_size (int): Kernel size
-            stride (int, optional): Defaults to 1.
-            padding (int, optional): Defaults to 0.
-            dilation (int, optional): Defaults to 1.
-            groups (int, optional): Defaults to 1.
-            bias (bool, optional): Defaults to False.
-            activation (nn.Module, optional): Defaults to nn.ReLU().
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type out_channels: int
+        @param out_channels: Number of output channels.
+        @type kernel_size: int
+        @param kernel_size: Kernel size.
+        @type stride: int
+        @param stride: Stride. Defaults to 1.
+        @type padding: int
+        @param padding: Padding. Defaults to 0.
+        @type dilation: int
+        @param dilation: Dilation. Defaults to 1.
+        @type groups: int
+        @param groups: Groups. Defaults to 1.
+        @type bias: bool
+        @param bias: Whether to use bias. Defaults to False.
+        @type activation: L{nn.Module} | None
+        @param activation: Activation function. Defaults to None.
         """
         super().__init__(
             nn.Conv2d(
@@ -122,15 +131,6 @@ class ConvModule(nn.Sequential):
 
 
 class UpBlock(nn.Sequential):
-    """Upsampling with ConvTranspose2D (similar to U-Net Up block).
-
-    Args:
-        in_channels (int): Number of input channels
-        out_channels (int): Number of output channels
-        kernel_size (int, optional): Defaults to 2.
-        stride (int, optional): Defaults to 2.
-    """
-
     def __init__(
         self,
         in_channels: int,
@@ -138,6 +138,18 @@ class UpBlock(nn.Sequential):
         kernel_size: int = 2,
         stride: int = 2,
     ):
+        """Upsampling with ConvTranspose2D (similar to U-Net Up block).
+
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type out_channels: int
+        @param out_channels: Number of output channels.
+        @type kernel_size: int
+        @param kernel_size: Kernel size. Defaults to C{2}.
+        @type stride: int
+        @param stride: Stride. Defaults to C{2}.
+        """
+
         super().__init__(
             nn.ConvTranspose2d(
                 in_channels, out_channels, kernel_size=kernel_size, stride=stride
@@ -154,14 +166,18 @@ class SqueezeExciteBlock(nn.Module):
         approx_sigmoid: bool = False,
         activation: nn.Module | None = None,
     ):
-        """Squeeze and Excite block from `Squeeze-and-Excitation Networks`,
-            https://arxiv.org/pdf/1709.01507.pdf. Adapted from: https://github.com/apple/ml-mobileone/blob/main/mobileone.py.
+        """Squeeze and Excite block,
+        Adapted from U{Squeeze-and-Excitation Networks<https://arxiv.org/pdf/1709.01507.pdf>}.
+        Code adapted from U{https://github.com/apple/ml-mobileone/blob/main/mobileone.py}.
 
-        Args:
-            in_channels (int): Number of input channels
-            intermediate_channels (int): Number of intermediate channels
-            approx_sigmoid (bool, optional): Whether to use approximated sigmoid function. Defaults to False.
-            activation (nn.Module, optional): Defaults to nn.ReLU().
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type intermediate_channels: int
+        @param intermediate_channels: Number of intermediate channels.
+        @type approx_sigmoid: bool
+        @param approx_sigmoid: Whether to use approximated sigmoid function. Defaults to False.
+        @type activation: L{nn.Module} | None
+        @param activation: Activation function. Defaults to L{nn.ReLU}.
         """
         super().__init__()
 
@@ -207,19 +223,29 @@ class RepVGGBlock(nn.Module):
         use_se: bool = False,
     ):
         """RepVGGBlock is a basic rep-style block, including training and deploy status
-        This code is based on https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py.
+        This code is based on U{https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py}.
 
-        Args:
-            in_channels (int): Number of input channels
-            out_channels (int): Number of output channels
-            kernel_size (int, optional): Defaults to 3.
-            stride (int, optional): Defaults to 1.
-            padding (int, optional): Defaults to 1.
-            dilation (int, optional): Defaults to 1.
-            groups (int, optional): Defaults to 1.
-            padding_mode (str, optional): Defaults to "zeros".
-            deploy (bool, optional): Defaults to False.
-            use_se (bool, optional): Whether to use SqueezeExciteBlock. Defaults to False.
+
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type out_channels: int
+        @param out_channels: Number of output channels.
+        @type kernel_size: int
+        @param kernel_size: Kernel size. Defaults to C{3}.
+        @type stride: int
+        @param stride: Stride. Defaults to C{1}.
+        @type padding: int
+        @param padding: Padding. Defaults to C{1}.
+        @type dilation: int
+        @param dilation: Dilation. Defaults to C{1}.
+        @type groups: int
+        @param groups: Groups. Defaults to C{1}.
+        @type padding_mode: str
+        @param padding_mode: Padding mode. Defaults to C{"zeros"}.
+        @type deploy: bool
+        @param deploy: Whether to use deploy mode. Defaults to C{False}.
+        @type use_se: bool
+        @param use_se: Whether to use SqueezeExciteBlock. Defaults to C{False}.
         """
         super().__init__()
 
@@ -365,17 +391,6 @@ class RepVGGBlock(nn.Module):
 
 
 class BlockRepeater(nn.Module):
-    """Module which repeats the block n times. First block accepts in_channels and
-    outputs out_channels while subsequent blocks accept out_channels and output
-    out_channels.
-
-    Args:
-        block (nn.Module): Block to repeat
-        in_channels (int): Number of input channels
-        out_channels (int): Number of output channels
-        num_blocks (int, optional): Number of RepVGG blocks. Defaults to 1.
-    """
-
     def __init__(
         self,
         block: type[nn.Module],
@@ -383,6 +398,19 @@ class BlockRepeater(nn.Module):
         out_channels: int,
         num_blocks: int = 1,
     ):
+        """Module which repeats the block n times. First block accepts in_channels and
+        outputs out_channels while subsequent blocks accept out_channels and output
+        out_channels.
+
+        @type block: L{nn.Module}
+        @param block: Block to repeat.
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type out_channels: int
+        @param out_channels: Number of output channels.
+        @type num_blocks: int
+        @param num_blocks: Number of blocks to repeat. Defaults to C{1}.
+        """
         super().__init__()
 
         in_channels = in_channels
@@ -400,15 +428,16 @@ class BlockRepeater(nn.Module):
 
 
 class SpatialPyramidPoolingBlock(nn.Module):
-    """Spatial Pyramid Pooling block with ReLU activation on three different scales.
-
-    Args:
-        in_channels (int): Number of input channels
-        out_channels (int): Number of output channels
-        kernel_size (int, optional): Defaults to 5.
-    """
-
     def __init__(self, in_channels: int, out_channels: int, kernel_size: int = 5):
+        """Spatial Pyramid Pooling block with ReLU activation on three different scales.
+
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type out_channels: int
+        @param out_channels: Number of output channels.
+        @type kernel_size: int
+        @param kernel_size: Kernel size. Defaults to C{5}.
+        """
         super().__init__()
 
         intermediate_channels = in_channels // 2  # hidden channels
@@ -431,9 +460,15 @@ class SpatialPyramidPoolingBlock(nn.Module):
 
 
 class AttentionRefinmentBlock(nn.Module):
-    """Attention Refinment block adapted from: https://github.com/taveraantonio/BiseNetv1"""
-
     def __init__(self, in_channels: int, out_channels: int):
+        """Attention Refinment block adapted from
+        U{https://github.com/taveraantonio/BiseNetv1}.
+
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type out_channels: int
+        @param out_channels: Number of output channels.
+        """
         super().__init__()
 
         self.conv_3x3 = ConvModule(in_channels, out_channels, 3, 1, 1)
@@ -456,9 +491,17 @@ class AttentionRefinmentBlock(nn.Module):
 
 
 class FeatureFusionBlock(nn.Module):
-    """Feature Fusion block adapted from: https://github.com/taveraantonio/BiseNetv1"""
-
     def __init__(self, in_channels: int, out_channels: int, reduction: int = 1):
+        """Feature Fusion block adapted from: U{https://github.com/taveraantonio/BiseNetv1}.
+
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type out_channels: int
+        @param out_channels: Number of output channels.
+        @type reduction: int
+        @param reduction: Reduction factor. Defaults to C{1}.
+        """
+
         super().__init__()
 
         self.conv_1x1 = ConvModule(in_channels, out_channels, 1, 1, 0)
@@ -567,16 +610,6 @@ class KeypointBlock(nn.Module):
 
 
 class RepUpBlock(nn.Module):
-    """UpBlock used in RepPAN neck.
-
-    Args:
-        in_channels (int): Number of input channels
-        in_channels_next (int): Number of input channels of next input
-            which is used in concat
-        out_channels (int): Number of output channels
-        num_repeats (int): Number of RepVGGBlock repeats
-    """
-
     def __init__(
         self,
         in_channels: int,
@@ -584,6 +617,19 @@ class RepUpBlock(nn.Module):
         out_channels: int,
         num_repeats: int,
     ):
+        """UpBlock used in RepPAN neck.
+
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type in_channels_next: int
+        @param in_channels_next: Number of input channels of next input which is used in
+            concat.
+        @type out_channels: int
+        @param out_channels: Number of output channels.
+        @type num_repeats: int
+        @param num_repeats: Number of RepVGGBlock repeats.
+        """
+
         super().__init__()
 
         self.conv = ConvModule(
@@ -615,17 +661,6 @@ class RepUpBlock(nn.Module):
 
 
 class RepDownBlock(nn.Module):
-    """DownBlock used in RepPAN neck.
-
-    Args:
-        in_channels (int): Number of input channels
-        downsample_out_channels (int): Number of output channels after downsample
-        in_channels_next (int): Number of input channels of next input which
-        is used in concat
-        out_channels (int): Number of output channels
-        num_repeats (int): Number of RepVGGBlock repeats
-    """
-
     def __init__(
         self,
         in_channels: int,
@@ -634,6 +669,20 @@ class RepDownBlock(nn.Module):
         out_channels: int,
         num_repeats: int,
     ):
+        """DownBlock used in RepPAN neck.
+
+        @type in_channels: int
+        @param in_channels: Number of input channels.
+        @type downsample_out_channels: int
+        @param downsample_out_channels: Number of output channels after downsample.
+        @type in_channels_next: int
+        @param in_channels_next: Number of input channels of next input which is used in
+            concat.
+        @type out_channels: int
+        @param out_channels: Number of output channels.
+        @type num_repeats: int
+        @param num_repeats: Number of RepVGGBlock repeats.
+        """
         super().__init__()
 
         self.downsample = ConvModule(
@@ -663,15 +712,14 @@ T = TypeVar("T", int, tuple[int, ...])
 def autopad(kernel_size: T, padding: T | None = None) -> T:
     """Compute padding based on kernel size.
 
-    Args:
-        kernel_size (int | tuple[int, ...]): The kernel size
-        padding (int | tuple[int, ...], optional): The defalt padding value
-          or a tuple of padding values. Defaults to None.
-          Will be directly returned if specified.
+    @type kernel_size: int | tuple[int, ...]
+    @param kernel_size: Kernel size.
+    @type padding: int | tuple[int, ...] | None
+    @param padding: Padding. Defaults to None.
 
-    Returns:
-        int | tuple: The computed padding value(s). The output type is the same
-          as the type of the `kernel_size`.
+    @rtype: int | tuple[int, ...]
+    @return: Computed padding. The output type is the same as the type of the
+        C{kernel_size}.
     """
     if padding is not None:
         return padding

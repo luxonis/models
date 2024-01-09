@@ -8,6 +8,7 @@
 ![PyBadge](media/pybadge.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![UnitTests](https://github.com/luxonis/models/actions/workflows/tests.yaml/badge.svg)
+![Docs](https://github.com/luxonis/luxonis-ml/actions/workflows/docs.yaml/badge.svg)
 [![Coverage](media/coverage_badge.svg)](https://github.com/luxonis/models/actions)
 
 Luxonis training framework (`luxonis-train`) is intended for training deep learning models that can run fast on OAK products.

@@ -1,8 +1,3 @@
-"""Implementation of the mean average precision metric for keypoint detections.
-
-Adapted from: `https://github.com/Lightning-AI/torchmetrics/blob/v1.0.1/src/torchmetrics/detection/mean_ap.py`.
-License: Apache-2.0 License
-"""
 import contextlib
 import io
 from typing import Any, Literal
@@ -31,7 +26,7 @@ class Protocol(KeypointProtocol, BBoxProtocol):
 class MeanAveragePrecisionKeypoints(BaseMetric):
     """Mean Average Precision metric for keypoints.
 
-    Uses `OKS` as IoU measure.
+    Uses C{OKS} as IoU measure.
     """
 
     is_differentiable: bool = False
@@ -55,14 +50,21 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
         box_format: Literal["xyxy", "xywh", "cxcywh"] = "xyxy",
         **kwargs,
     ):
-        """Constructor for the keypoint MAP.
+        """Implementation of the mean average precision metric for keypoint detections.
 
-        Args:
-            num_keypoints (int): Number of keypoints
-            kpt_sigmas (Tensor | None, optional): Sigma for each keypoint to weigh
-              its importance, if None use same weights for all. Defaults to None.
-            box_format (Literal[xyxy, xywh, cxcywh], optional): Input bbox format.
-              Defaults to "xyxy".
+        Adapted from: U{https://github.com/Lightning-AI/torchmetrics/blob/v1.0.1/src/
+        torchmetrics/detection/mean_ap.py}.
+
+        @license: Apache-2.0 License
+
+        @type num_keypoints: int
+        @param num_keypoints: Number of keypoints.
+        @type kpt_sigmas: Tensor or None
+        @param kpt_sigmas: Sigma for each keypoint to weigh its importance, if None use same weights for all.
+        @type box_format: Literal["xyxy", "xywh", "cxcywh"]
+        @param box_format: Input bbox format.
+        @type kwargs: Any
+        @param kwargs: Additional arguments to pass to L{BaseMetric}.
         """
         super().__init__(
             protocol=Protocol,
@@ -143,42 +145,41 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
     ) -> None:
         """Updates the metric state.
 
-        Args:
-            preds (list[dict[str, Tensor]]): A list consisting of dictionaries each
-              containing key-values for a single image.
-              Parameters that should be provided per dict::
+        @type preds: list[dict[str, Tensor]]
+        @param preds: A list consisting of dictionaries each containing key-values for a single image.
+            Parameters that should be provided per dict:
 
-                - boxes (FloatTensor): Tensor of shape `(N, 4)`
+                - boxes (FloatTensor): Tensor of shape C{(N, 4)}
                   containing `N` detection boxes of the format specified in
                   the constructor. By default, this method expects `(xmin, ymin,
                   xmax, ymax)` in absolute image coordinates.
-                - scores (FloatTensor): Tensor of shape `(N)`
+                - scores (FloatTensor): Tensor of shape C{(N)}
                   containing detection scores for the boxes.
-                - labels (tIntTensor): Tensor of shape `(N)` containing
+                - labels (tIntTensor): Tensor of shape C{(N)} containing
                   0-indexed detection classes for the boxes.
-                - keypoints (FloatTensor): Tensor of shape `(N, 3*K)` and in
-                  format `[x, y, vis, x, y, vis, ...]` where `x` an `y` are unnormalized
-                  keypoint coordinates and `vis` is keypoint visibility.
+                - keypoints (FloatTensor): Tensor of shape C{(N, 3*K)} and in
+                  format C{[x, y, vis, x, y, vis, ...]} where C{x} an C{y} are unnormalized
+                  keypoint coordinates and C{vis} is keypoint visibility.
 
-            target (list[dict[str, Tensor]]): A list consisting of dictionaries each
-              containing key-values for a single image.
-              Parameters that should be provided per dict::
+        @type target: list[dict[str, Tensor]]
+        @param target: A list consisting of dictionaries each containing key-values for a single image.
+            Parameters that should be provided per dict:
 
-                - boxes (FloatTensor): Tensor of shape `(N, 4)` containing
+                - boxes (FloatTensor): Tensor of shape C{(N, 4)} containing
                   `N` ground truth boxes of the format specified in the
                   constructor. By default, this method expects `(xmin, ymin, xmax, ymax)`
                   in absolute image coordinates.
-                - labels: :class:`~torch.IntTensor` of shape `(N)` containing
+                - labels: :class:`~torch.IntTensor` of shape C{(N)} containing
                   0-indexed ground truth classes for the boxes.
-                - iscrow (IntTensor): Tensor of shape `(N)` containing 0/1
+                - iscrow (IntTensor): Tensor of shape C{(N)} containing 0/1
                   values indicating whether the bounding box/masks indicate a crowd of
                   objects. If not provided it will automatically be set to 0.
-                - area (FloatTensor): Tensor of shape `(N)` containing the
+                - area (FloatTensor): Tensor of shape C{(N)} containing the
                   area of the object. If not provided will be automatically calculated
                   based on the bounding box/masks provided. Only affects which samples
-                  contribute to the `map_small`, `map_medium`, `map_large` values.
-                - keypoints (FloatTensor): Tensor of shape (N, 3*K) in format
-                  [x, y, vis, x, y, vis, ...] where `x` an `y` are unnormalized keypoint
+                  contribute to the C{map_small}, C{map_medium}, C{map_large} values.
+                - keypoints (FloatTensor): Tensor of shape C{(N, 3*K)} in format
+                  C{[x, y, vis, x, y, vis, ...]} where C{x} an C{y} are unnormalized keypoint
                   coordinates and `vis` is keypoint visibility.
         """
         for item in preds:
@@ -253,7 +254,7 @@ class MeanAveragePrecisionKeypoints(BaseMetric):
     ) -> dict[str, list[dict[str, Any]]]:
         """Transforms and returns all cached targets or predictions in COCO format.
 
-        Format is defined at `https://cocodataset.org/#format-data`.
+        Format is defined at U{https://cocodataset.org/#format-data}.
         """
         images = []
         annotations = []

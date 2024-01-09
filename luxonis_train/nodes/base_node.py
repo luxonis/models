@@ -32,43 +32,52 @@ class BaseNode(
     This class defines the basic interface for all nodes.
 
     Furthermore, it utilizes automatic registration of defined subclasses
-    to a `NODES` registry.
+    to a L{NODES} registry.
 
-    Inputs and outputs of nodes are defined as `Packet`s. A `Packet` is a dictionary
+    Inputs and outputs of nodes are defined as L{Packet}s. A L{Packet} is a dictionary
     of lists of tensors. Each key in the dictionary represents a different output
-    from the previous node. Input to the node is a list of `Packet`s, output is a single `Packet`.
+    from the previous node. Input to the node is a list of L{Packet}s, output is a single L{Packet}.
 
-    Each node can define a list of `BaseProtocol`s that the inputs must conform to.
-    `BaseProtocol` is a pydantic model that defines the structure of the input.
+    Each node can define a list of L{BaseProtocol}s that the inputs must conform to.
+    L{BaseProtocol} is a pydantic model that defines the structure of the input.
     When the node is called, the inputs are validated against the protocols and
-    then sent to the `unwrap` method. The `unwrap` method should return a valid
-    input to the `forward` method. Outputs of the `forward` method are then
-    send to `wrap` method, which wraps the output into a `Packet`, which is the
+    then sent to the L{unwrap} method. The C{unwrap} method should return a valid
+    input to the L{forward} method. Outputs of the C{forward} method are then
+    send to L{weap} method, which wraps the output into a C{Packet}, which is the
     output of the node.
 
-    The `run` method combines the `unwrap`, `forward` and `wrap` methods
+    The L{run} method combines the C{unwrap}, C{forward} and C{wrap} methods
     together with input validation.
 
-    Attributes:
-        input_shapes (list[Packet[Size]]): List of input shapes for the module.
 
-    Args:
-        input_shapes (list[Packet[Size]] | None): List of input shapes for the module.
-        original_in_shape (Size | None): Original input shape of the model. Some
-            nodes won't function if not provided.
-        dataset_metadata (DatasetMetadata | None): Metadata of the dataset.
-            Some nodes won't function if not provided.
-        attach_index (`AttachIndexType`, optional): Index of
-            previous output that this node attaches to.
-            Can be a single integer to specify a single output, a tuple of
-            two or three integers to specify a range of outputs or `"all"` to
-            specify all outputs. Defaults to "all". Python indexing conventions apply.
-        in_protocols (list[type[BaseModel]], optional): List of input protocols
-            used to validate inputs to the node. Defaults to [FeaturesProtocol].
-        n_classes (int, optional): Number of classes in the dataset. Provide only
-            in case `dataset_metadata` is not provided. Defaults to None.
-        in_sizes (Size | list[Size] | None): List of input sizes for the node.
-            Provide only in case the `input_shapes` were not provided.
+    @type input_shapes: list[Packet[Size]] | None
+    @param input_shapes: List of input shapes for the module.
+
+    @type original_in_shape: Size | None
+    @param original_in_shape: Original input shape of the model. Some
+        nodes won't function if not provided.
+
+    @type dataset_metadata: L{DatasetMetadata} | None
+    @param dataset_metadata: Metadata of the dataset.
+        Some nodes won't function if not provided.
+
+    @type attach_index: AttachIndexType
+    @param attach_index: Index of previous output that this node attaches to.
+        Can be a single integer to specify a single output, a tuple of
+        two or three integers to specify a range of outputs or `"all"` to
+        specify all outputs. Defaults to "all". Python indexing conventions apply.
+
+    @type in_protocols: list[type[BaseModel]]
+    @param in_protocols: List of input protocols used to validate inputs to the node.
+        Defaults to [FeaturesProtocol].
+
+    @type n_classes: int | None
+    @param n_classes: Number of classes in the dataset. Provide only
+        in case `dataset_metadata` is not provided. Defaults to None.
+
+    @type in_sizes: Size | list[Size] | None
+    @param in_sizes: List of input sizes for the node.
+        Provide only in case the `input_shapes` were not provided.
     """
 
     attach_index: AttachIndexType = "all"
@@ -136,8 +145,8 @@ class BaseNode(
     def dataset_metadata(self) -> DatasetMetadata:
         """Getter for the dataset metadata.
 
-        Raises:
-            ValueError: If the `dataset_metadata` is None.
+        @type: L{DatasetMetadata}
+        @raises ValueError: If the C{dataset_metadata} is C{None}.
         """
         if self._dataset_metadata is None:
             raise ValueError(
@@ -156,23 +165,19 @@ class BaseNode(
         In case `in_sizes` were provided during initialization, they are returned
         directly.
 
-        Examples::
+        Example:
 
-            input_shapes = [{"features": [Size(1, 64, 128, 128), Size(1, 3, 224, 224)]}]
-            attach_index = -1
-            in_sizes = Size(1, 3, 224, 224)
+            >>> input_shapes = [{"features": [Size(1, 64, 128, 128), Size(1, 3, 224, 224)]}]
+            >>> attach_index = -1
+            >>> in_sizes = Size(1, 3, 224, 224)
 
-            input_shapes = [{"features": [Size(1, 64, 128, 128), Size(1, 3, 224, 224)]}]
-            attach_index = "all"
-            in_sizes = [Size(1, 64, 128, 128), Size(1, 3, 224, 224)]
+            >>> input_shapes = [{"features": [Size(1, 64, 128, 128), Size(1, 3, 224, 224)]}]
+            >>> attach_index = "all"
+            >>> in_sizes = [Size(1, 64, 128, 128), Size(1, 3, 224, 224)]
 
-        Returns:
-            Size | list[Size]: Input shape. If `attach_index` is set to
-              `"all"` or is a slice, returns a list of input shapes.
-
-        Raises:
-            IncompatibleException: If the `input_shapes` are too complicated for
-              the default implementation.
+        @type: Size | list[Size]
+        @raises IncompatibleException: If the C{input_shapes} are too complicated for
+            the default implementation.
         """
         if self._in_sizes is not None:
             return self._in_sizes
@@ -192,16 +197,14 @@ class BaseNode(
     def in_channels(self) -> int | list[int]:
         """Simplified getter for the number of input channels.
 
-        Should work out of the box for most cases where the `input_shapes` are
-        sufficiently simple. Otherwise the `input_shapes` should be used directly.
+        Should work out of the box for most cases where the C{input_shapes} are
+        sufficiently simple. Otherwise the C{input_shapes} should be used directly. If
+        C{attach_index} is set to "all" or is a slice, returns a list of input channels,
+        otherwise returns a single value.
 
-        Returns:
-            int | list[int]: Input channels. If `attach_index` is set to
-              "all" or is a slice, returns a list of input channels.
-
-        Raises:
-            IncompatibleException: If the `input_shapes` are too complicated for
-              the default implementation.
+        @type: int | list[int]
+        @raises IncompatibleException: If the C{input_shapes} are too complicated for
+            the default implementation.
         """
         return self._get_nth_size(1)
 
@@ -212,13 +215,9 @@ class BaseNode(
         Should work out of the box for most cases where the `input_shapes` are
         sufficiently simple. Otherwise the `input_shapes` should be used directly.
 
-        Returns:
-            int | list[int]: Input height. If `attach_index` is set to
-              "all" or is a slice, returns a list of heights.
-
-        Raises:
-            IncompatibleException: If the `input_shapes` are too complicated for
-              the default implementation.
+        @type: int | list[int]
+        @raises IncompatibleException: If the C{input_shapes} are too complicated for
+            the default implementation.
         """
         return self._get_nth_size(2)
 
@@ -229,13 +228,9 @@ class BaseNode(
         Should work out of the box for most cases where the `input_shapes` are
         sufficiently simple. Otherwise the `input_shapes` should be used directly.
 
-        Returns:
-            int | list[int]: Input width. If `attach_index` is set to
-              "all" or is a slice, returns a list of widths.
-
-        Raises:
-            IncompatibleException: If the `input_shapes` are too complicated for
-              the default implementation.
+        @type: int | list[int]
+        @raises IncompatibleException: If the C{input_shapes} are too complicated for
+            the default implementation.
         """
         return self._get_nth_size(3)
 
@@ -247,28 +242,27 @@ class BaseNode(
     def set_export_mode(self, mode: bool = True) -> None:
         """Sets the module to export mode.
 
-        Args:
-            export (bool, optional): Value to set the export mode to.
-              Defaults to True.
+        @type mode: bool
+        @param mode: Value to set the export mode to. Defaults to True.
         """
         self._export = mode
 
     def unwrap(self, inputs: list[Packet[Tensor]]) -> ForwardInputT:
         """Prepares inputs for the forward pass.
 
-        Unwraps the inputs from the `list[Packet[Tensor]]` input so they can be passed
+        Unwraps the inputs from the C{list[Packet[Tensor]]} input so they can be passed
         to the forward call. The default implementation expects a single input with
-        `features` key and returns the tensor or tensors at the `attach_index` position.
+        C{features} key and returns the tensor or tensors at the C{attach_index}
+        position.
 
-        For most cases the default implementation should be sufficient. Exceptions
-        are modules with multiple inputs or producing more complex outputs. This is
+        For most cases the default implementation should be sufficient. Exceptions are
+        modules with multiple inputs or producing more complex outputs. This is
         typically the case for output nodes.
 
-        Args:
-            inputs (list[Packet[Tensor]]): Inputs to the node.
-
-        Returns:
-            ForwardInputT: Prepared inputs, ready to be passed to the `forward` method.
+        @type inputs: list[Packet[Tensor]]
+        @param inputs: Inputs to the node.
+        @rtype: ForwardInputT
+        @return: Prepared inputs, ready to be passed to the L{forward} method.
         """
         return self.get_attached(inputs[0]["features"])  # type: ignore
 
@@ -276,11 +270,10 @@ class BaseNode(
     def forward(self, inputs: ForwardInputT) -> ForwardOutputT:
         """Forward pass of the module.
 
-        Args:
-            inputs (ForwardInput): Inputs to the module.
-
-        Returns:
-            ForwardOutput: Result of the forward pass.
+        @type inputs: ForwardInputT
+        @param inputs: Inputs to the module.
+        @rtype: ForwardOutputT
+        @return: Result of the forward pass.
         """
         ...
 
@@ -290,11 +283,11 @@ class BaseNode(
         The default implementation expects a single tensor or a list of tensors
         and wraps them into a Packet with `features` key.
 
-        Args:
-            output (ForwardOutput): Output of the forward pass.
+        @type output: ForwardOutputT
+        @param output: Output of the forward pass.
 
-        Returns:
-            Packet[Tensor]: Wrapped output.
+        @rtype: L{Packet}[Tensor]
+        @return: Wrapped output.
         """
 
         match output:
@@ -313,15 +306,14 @@ class BaseNode(
 
         Additionally validates the inputs against `in_protocols`.
 
-        Args:
-            inputs (list[Packet[Tensor]]): Inputs to the module.
+        @type inputs: list[Packet[Tensor]]
+        @param inputs: Inputs to the module.
 
-        Returns:
-            Packet[Tensor]: Outputs of the module as a dictionary of list of tensors:
-                `{"features": [Tensor, ...], "segmentation": [Tensor]}`
+        @rtype: L{Packet}[Tensor]
+        @return: Outputs of the module as a dictionary of list of tensors:
+            `{"features": [Tensor, ...], "segmentation": [Tensor]}`
 
-        Raises:
-            IncompatibleException: If the inputs are not compatible with the node.
+        @raises IncompatibleException: If the inputs are not compatible with the node.
         """
         unwrapped = self.unwrap(self.validate(inputs))
         outputs = self(unwrapped)
@@ -352,14 +344,15 @@ class BaseNode(
         This method is used to get the attached elements from a list based on
         the `attach_index` attribute.
 
+        @type lst: list[T]
+        @param lst: List to get the attached elements from. Can be either
+            a list of tensors or a list of sizes.
 
-        Args:
-            lst (list[T]): List to get the attached elements from. Can be either
-                a list of tensors or a list of sizes.
+        @rtype: list[T] | T
+        @return: Attached elements. If `attach_index` is set to `"all"` or is a slice,
+            returns a list of attached elements.
 
-        Returns:
-            list[T] | T: Attached elements. If `attach_index` is set to
-              `"all"` or is a slice, returns a list of attached elements.
+        @raises ValueError: If the `attach_index` is invalid.
         """
 
         def _normalize_index(index: int) -> int:

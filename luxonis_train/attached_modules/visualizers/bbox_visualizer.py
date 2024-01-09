@@ -15,11 +15,6 @@ from .utils import (
 
 
 class BBoxVisualizer(BaseVisualizer[list[Tensor], Tensor]):
-    """Visualizer for bounding box predictions.
-
-    Creates a visualization of the bounding box predictions and labels.
-    """
-
     def __init__(
         self,
         labels: dict[int, str] | list[str] | None = None,
@@ -31,23 +26,28 @@ class BBoxVisualizer(BaseVisualizer[list[Tensor], Tensor]):
         font_size: int | None = None,
         **kwargs,
     ):
-        """Constructor for the BBoxVisualizer module.
+        """Visualizer for bounding box predictions.
 
-        Args:
-            labels (dict[int, str] | list[str], optional): Either a dictionary mapping
-              class indices to names, or a list of names. If list is provided, the
-              label mapping is done by index. By default, no labels are drawn.
-            colors (dict[int, Color] | list[Color], optional):
-              Either a dictionary mapping class indices to colors, or a list of colors.
-              If list is provided, the color mapping is done by index.
-              By default, random colors are used.
-            fill (bool, optional): Whether or not to fill the bounding boxes.
-              Defaults to False.
-            width (int, optional): The width of the bounding box lines. Defaults to 1.
-            font (str, optional): A filename containing a TrueType font.
-              Defaults to None.
-            font_size (int, optional): The font size to use for the labels.
-              Defaults to None.
+        Creates a visualization of the bounding box predictions and labels.
+
+        @type labels: dict[int, str] | list[str] | None
+        @param labels: Either a dictionary mapping class indices to names, or a list of
+            names. If list is provided, the label mapping is done by index. By default,
+            no labels are drawn.
+        @type draw_labels: bool
+        @param draw_labels: Whether or not to draw labels. Defaults to C{True}.
+        @type colors: dict[int, Color] | list[Color] | None
+        @param colors: Either a dictionary mapping class indices to colors, or a list of
+            colors. If list is provided, the color mapping is done by index. By default,
+            random colors are used.
+        @type fill: bool
+        @param fill: Whether or not to fill the bounding boxes. Defaults to C{False}.
+        @type width: int | None
+        @param width: The width of the bounding box lines. Defaults to C{1}.
+        @type font: str | None
+        @param font: A filename containing a TrueType font. Defaults to C{None}.
+        @type font_size: int | None
+        @param font_size: The font size to use for the labels. Defaults to C{None}.
         """
         super().__init__(
             required_labels=[LabelType.BOUNDINGBOX], protocol=BBoxProtocol, **kwargs
@@ -165,16 +165,16 @@ class BBoxVisualizer(BaseVisualizer[list[Tensor], Tensor]):
     ) -> tuple[Tensor, Tensor]:
         """Creates a visualization of the bounding box predictions and labels.
 
-        Args:
-            label_canvas (Tensor): The canvas containing the labels.
-            prediction_canvas (Tensor): The canvas containing the predictions.
-            prediction (Tensor): The predicted bounding boxes. The shape should be
-              [N, 6], where N is the number of bounding boxes and the last dimension
-              is [x1, y1, x2, y2, class, conf].
-            targets (Tensor): The target bounding boxes.
-
-        Returns:
-            tuple[Tensor, Tensor]: A tuple of the label and prediction visualizations.
+        @type label_canvas: Tensor
+        @param label_canvas: The canvas containing the labels.
+        @type prediction_canvas: Tensor
+        @param prediction_canvas: The canvas containing the predictions.
+        @type prediction: Tensor
+        @param prediction: The predicted bounding boxes. The shape should be [N, 6],
+            where N is the number of bounding boxes and the last dimension is [x1, y1,
+            x2, y2, class, conf].
+        @type targets: Tensor
+        @param targets: The target bounding boxes.
         """
         targets_viz = self.draw_targets(
             label_canvas,

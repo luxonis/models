@@ -1,6 +1,6 @@
 """Implementation of Context Spatial backbone.
 
-Source: `https://github.com/taveraantonio/BiseNetv1`
+Source: U{BiseNetV1<https://github.com/taveraantonio/BiseNetv1>}
 """
 
 
@@ -18,17 +18,15 @@ from .base_node import BaseNode
 
 
 class ContextSpatial(BaseNode[Tensor, list[Tensor]]):
-    """
-    TODO: DOCS
-    """
-
     attach_index: int = -1
 
     def __init__(self, context_backbone: str = "MobileNetV2", **kwargs):
         """Context spatial backbone.
+        TODO: Add more documentation.
 
-        Args:
-            context_backbone (str, optional): Backbone used. Defaults to 'MobileNetV2'.
+
+        @type context_backbone: str
+        @param context_backbone: Backbone used. Defaults to C{MobileNetV2}.
         """
         super().__init__(**kwargs)
 

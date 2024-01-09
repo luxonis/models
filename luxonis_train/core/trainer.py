@@ -23,9 +23,12 @@ class Trainer(Core):
     ):
         """Constructs a new Trainer instance.
 
-        Args:
-            cfg (str | dict): path to config file or config dict used to setup training
-            args (dict | None): argument dict provided through command line, used for config overriding
+        @type cfg: str | dict[str, Any] | Config
+        @param cfg: Path to config file or config dict used to setup training.
+
+        @type opts: list[str] | tuple[str, ...] | dict[str, Any] | None
+        @param opts: Argument dict provided through command line,
+            used for config overriding.
         """
         super().__init__(cfg, opts)
 
@@ -39,8 +42,8 @@ class Trainer(Core):
     def train(self, new_thread: bool = False) -> None:
         """Runs training.
 
-        Args:
-            new_thread (bool, optional): Runs training in new thread if set to True. Defaults to False.
+        @type new_thread: bool
+        @param new_thread: Runs training in new thread if set to True.
         """
         if not new_thread:
             logger.info(f"Checkpoints will be saved in: {self.get_save_dir()}")
@@ -73,10 +76,10 @@ class Trainer(Core):
     def test(
         self, new_thread: bool = False, view: Literal["train", "val", "test"] = "test"
     ) -> None:
-        """Runs testing
-        Args:
-            new_thread (bool, optional): Runs training in new thread if set to True.
-                Defaults to False.
+        """Runs testing.
+
+        @type new_thread: bool
+        @param new_thread: Runs testing in new thread if set to True.
         """
 
         if view == "test":
@@ -100,9 +103,9 @@ class Trainer(Core):
     def get_status(self) -> tuple[int, int]:
         """Get current status of training.
 
-        Returns:
-            tuple[int, int]: First element is current epoch, second element is total
-              number of epochs.
+        @rtype: tuple[int, int]
+        @return: First element is current epoch, second element is total number of
+            epochs.
         """
         return self.lightning_module.get_status()
 
@@ -110,7 +113,7 @@ class Trainer(Core):
     def get_status_percentage(self) -> float:
         """Return percentage of current training, takes into account early stopping.
 
-        Returns:
-            float: Percentage of current training in range 0-100.
+        @rtype: float
+        @return: Percentage of current training in range 0-100.
         """
         return self.lightning_module.get_status_percentage()

@@ -20,8 +20,8 @@ class MicroNet(BaseNode[Tensor, list[Tensor]]):
     def __init__(self, variant: Literal["M1", "M2", "M3"] = "M1", **kwargs):
         """MicroNet backbone.
 
-        Args:
-            variant (Literal["M1", "M2", "M3"], optional): Defaults to "M1".
+        @type variant: Literal["M1", "M2", "M3"]
+        @param variant: Model variant to use. Defaults to "M1".
         """
         super().__init__(**kwargs)
 

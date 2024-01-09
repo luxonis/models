@@ -46,23 +46,31 @@ def match_to_anchor(
 ) -> tuple[Tensor, Tensor]:
     """Matches targets to anchors.
 
-    1. Scales the targets to the size of the feature map
-    2. Matches the targets to the anchor, filtering out targets whose aspect
-        ratio is too far from the anchor's aspect ratio.
+        1. Scales the targets to the size of the feature map
+        2. Matches the targets to the anchor, filtering out targets whose aspect
+            ratio is too far from the anchor's aspect ratio.
 
-    Args:
-        targets (Tensor): Targets in xyxy format
-        anchor (Tensor): Anchor boxes
-        xy_shifts (Tensor): Shifts in x and y direction
-        scale_width (int): Width of the feature map
-        scale_height (int): Height of the feature map
-        n_keypoints (int): Number of keypoints
-        anchor_threshold (float): Threshold for anchor filtering
-        bias (float): Bias for anchor filtering
-        box_offset (int, optional): Offset for box. Defaults to 5.
+    @type targets: Tensor
+    @param targets: Targets in xyxy format
+    @type anchor: Tensor
+    @param anchor: Anchor boxes
+    @type xy_shifts: Tensor
+    @param xy_shifts: Shifts in x and y direction
+    @type scale_width: int
+    @param scale_width: Width of the feature map
+    @type scale_height: int
+    @param scale_height: Height of the feature map
+    @type n_keypoints: int
+    @param n_keypoints: Number of keypoints
+    @type anchor_threshold: float
+    @param anchor_threshold: Threshold for anchor filtering
+    @type bias: float
+    @param bias: Bias for anchor filtering
+    @type box_offset: int
+    @param box_offset: Offset for box. Defaults to 5.
 
-    Returns:
-        tuple[Tensor, Tensor]: Scaled targets and shifts.
+    @rtype: tuple[Tensor, Tensor]
+    @return: Scaled targets and shifts.
     """
 
     # The boxes and keypoints need to be scaled to the size of the features
@@ -107,13 +115,14 @@ def dist2bbox(
 ) -> Tensor:
     """Transform distance (ltrb) to box ("xyxy", "xywh" or "cxcywh").
 
-    Args:
-        distance (Tensor): Distance predictions
-        anchor_points (Tensor): Head's anchor points
-        out_format (Literal["xyxy", "xywh", "cxcywh"], optional): BBox output format. Defaults to "xyxy".
-
-    Returns:
-        Tensor: BBoxes in correct format
+    @type distance: Tensor
+    @param distance: Distance predictions
+    @type anchor_points: Tensor
+    @param anchor_points: Head's anchor points
+    @type out_format: BBoxFormatType
+    @param out_format: BBox output format. Defaults to "xyxy".
+    @rtype: Tensor
+    @return: BBoxes in correct format
     """
     lt, rb = torch.split(distance, 2, -1)
     x1y1 = anchor_points - lt
@@ -129,13 +138,14 @@ def dist2bbox(
 def bbox2dist(bbox: Tensor, anchor_points: Tensor, reg_max: float) -> Tensor:
     """Transform bbox(xyxy) to distance(ltrb).
 
-    Args:
-        bbox (Tensor): Bboxes in "xyxy" format
-        anchor_points (Tensor): Head's anchor points
-        reg_max (float): Maximum regression distances
-
-    Returns:
-        Tensor: BBoxes in distance(ltrb) format
+    @type bbox: Tensor
+    @param bbox: Bboxes in "xyxy" format
+    @type anchor_points: Tensor
+    @param anchor_points: Head's anchor points
+    @type reg_max: float
+    @param reg_max: Maximum regression distances
+    @rtype: Tensor
+    @return: BBoxes in distance(ltrb) format
     """
     x1y1, x2y2 = torch.split(bbox, 2, -1)
     lt = anchor_points - x1y1
@@ -153,18 +163,19 @@ def bbox_iou(
 ) -> Tensor:
     """Computes IoU between two sets of bounding boxes.
 
-    Args:
-        bbox1 (Tensor): First set of bboxes [N, 4]
-        bbox2 (Tensor): Second set of bboxes [M, 4]
-        box_format (Literal["xyxy", "xywh", "cxcywh"], optional): Input bbox format.
-          Defaults to "xyxy".
-        iou_type (Literal["none", "giou", "diou", "ciou", "siou"], optional): IoU type.
-          Defaults to "none".
-        element_wise (bool, optional): If True returns element wise IoUs.
-          Defaults to False.
-
-    Returns:
-        Tensor: [N,M] or [N] tensor
+    @type bbox1: Tensor
+    @param bbox1: First set of bboxes [N, 4].
+    @type bbox2: Tensor
+    @param bbox2: Second set of bboxes [M, 4].
+    @type bbox_format: BBoxFormatType
+    @param bbox_format: Input bbox format. Defaults to "xyxy".
+    @type iou_type: IoUType
+    @param iou_type: IoU type. Defaults to "none".
+    @type element_wise: bool
+    @param element_wise: If True returns element wise IoUs. Defaults to False.
+    @rtype: Tensor
+    @return: IoU between bbox1 and bbox2. If element_wise is True returns [N, M] tensor,
+        otherwise returns [N] tensor.
     """
     if bbox_format != "xyxy":
         bbox1 = box_convert(bbox1, in_fmt=bbox_format, out_fmt="xyxy")
@@ -269,23 +280,35 @@ def non_max_suppression(
 ) -> list[Tensor]:
     """Non-maximum suppression on model's predictions to keep only best instances.
 
-    Args:
-        preds (Tensor): Model's prediction tensor of shape [bs, N, M]
-        n_classes (int): Number of model's classes
-        conf_thres (float, optional): Boxes with confidence higher than this will be kept. Defaults to 0.25.
-        iou_thres (float, optional): Boxes with IoU higher than this will be discarded. Defaults to 0.45.
-        keep_classes (list[int] | None, optional): Subset of classes to keep,
-            if None then keep all of them. Defaults to None.
-        agnostic (bool, optional): Whether perform NMS per class or treat all classes
-            the same. Defaults to False.
-        multi_label (bool, optional): Whether one prediction can have multiple labels. Defaults to False.
-        box_format (Literal["xyxy", "xywh", "cxcywh"], optional): Input bbox format. Defaults to "xyxy".
-        max_det (int, optional): Number of maximum output detections. Defaults to 300.
-        max_wh (int, optional): Maximum width and height of the bbox. Defaults to 4096.
-        predicts_objectess (bool, optional): Whether head predicts objectness confidence. Defaults to True.
-
-    Returns:
-        list[Tensor]: list of kept detections for each image, boxes in "xyxy" format. Tensors with shape [n_kept, M]
+    @type preds: Tensor
+    @param preds: Model's prediction tensor of shape [bs, N, M].
+    @type n_classes: int
+    @param n_classes: Number of model's classes.
+    @type conf_thres: float
+    @param conf_thres: Boxes with confidence higher than this will be kept. Defaults to
+        0.25.
+    @type iou_thres: float
+    @param iou_thres: Boxes with IoU higher than this will be discarded. Defaults to
+        0.45.
+    @type keep_classes: list[int] | None
+    @param keep_classes: Subset of classes to keep, if None then keep all of them.
+        Defaults to None.
+    @type agnostic: bool
+    @param agnostic: Whether perform NMS per class or treat all classes the same.
+        Defaults to False.
+    @type multi_label: bool
+    @param multi_label: Whether one prediction can have multiple labels. Defaults to
+        False.
+    @type bbox_format: BBoxFormatType
+    @param bbox_format: Input bbox format. Defaults to "xyxy".
+    @type max_det: int
+    @param max_det: Number of maximum output detections. Defaults to 300.
+    @type predicts_objectness: bool
+    @param predicts_objectness: Whether head predicts objectness confidence. Defaults to
+        True.
+    @rtype: list[Tensor]
+    @return: list of kept detections for each image, boxes in "xyxy" format. Tensors
+        with shape [n_kept, M]
     """
     if not (0 <= conf_thres <= 1):
         raise ValueError(
@@ -386,14 +409,18 @@ def anchors_from_dataset(
     loader. It uses K-Means for initial proposals which are then refined with genetic
     algorithm.
 
-    Args:
-        loader (torch.utils.data.DataLoader): Data loader
-        n_anchors (int, optional): Number of anchors, this is normally num_heads * 3 which generates 3 anchors per layer. Defaults to 9.
-        n_generations (int, optional): Number of iterations for anchor improvement with genetic algorithm. Defaults to 1000.
-        ratio_threshold (float, optional): Minimum threshold for ratio. Defaults to 4.0.
-
-    Returns:
-        tuple[Tensor, float]: Proposed anchors and the best possible recall.
+    @type loader: L{torch.utils.data.DataLoader}
+    @param loader: Data loader.
+    @type n_anchors: int
+    @param n_anchors: Number of anchors, this is normally num_heads * 3 which generates
+        3 anchors per layer. Defaults to 9.
+    @type n_generations: int
+    @param n_generations: Number of iterations for anchor improvement with genetic
+        algorithm. Defaults to 1000.
+    @type ratio_threshold: float
+    @param ratio_threshold: Minimum threshold for ratio. Defaults to 4.0.
+    @rtype: tuple[Tensor, float]
+    @return: Proposed anchors and the best possible recall.
     """
 
     widths = []
@@ -493,15 +520,19 @@ def anchors_for_fpn_features(
     """Generates anchor boxes, points and strides based on FPN feature shapes and
     strides.
 
-    Args:
-        features (list[Tensor]): list of FPN features
-        strides (Tensor): Strides of FPN features
-        grid_cell_size (float, optional): Cell size in respect to input image size. Defaults to 5.0.
-        grid_cell_offset (float, optional): Percent grid cell center's offset. Defaults to 0.5.
-        multiply_with_stride (bool, optional): Whether to multiply per FPN values with its stride. Defaults to False.
-
-    Returns:
-        tuple[Tensor, Tensor, list[int], Tensor]: BBox anchors, center anchors, number of anchors, strides
+    @type features: list[Tensor]
+    @param features: List of FPN features.
+    @type strides: Tensor
+    @param strides: Strides of FPN features.
+    @type grid_cell_size: float
+    @param grid_cell_size: Cell size in respect to input image size. Defaults to 5.0.
+    @type grid_cell_offset: float
+    @param grid_cell_offset: Percent grid cell center's offset. Defaults to 0.5.
+    @type multiply_with_stride: bool
+    @param multiply_with_stride: Whether to multiply per FPN values with its stride.
+        Defaults to False.
+    @rtype: tuple[Tensor, Tensor, list[int], Tensor]
+    @return: BBox anchors, center anchors, number of anchors, strides
     """
     anchors: list[Tensor] = []
     anchor_points: list[Tensor] = []
@@ -555,12 +586,12 @@ def anchors_for_fpn_features(
 def process_keypoints_predictions(keypoints: Tensor) -> tuple[Tensor, Tensor, Tensor]:
     """Extracts x, y and visibility from keypoints predictions.
 
-    Args:
-        keypoints (Tensor[N, M]): Keypoints predictions. The last dimension must be
-          divisible by 3 and is expected to be in format [x1, y1, v1, x2, y2, v2, ...].
+    @type keypoints: Tensor
+    @param keypoints: Keypoints predictions. The last dimension must be divisible by 3
+        and is expected to be in format [x1, y1, v1, x2, y2, v2, ...].
 
-    Returns:
-        tuple[Tensor, Tensor, Tensor]: x, y and visibility tensors.
+    @rtype: tuple[Tensor, Tensor, Tensor]
+    @return: x, y and visibility tensors.
     """
     x = keypoints[..., ::3] * 2.0 - 0.5
     y = keypoints[..., 1::3] * 2.0 - 0.5
@@ -577,13 +608,12 @@ def process_bbox_predictions(
 ) -> tuple[Tensor, Tensor, Tensor]:
     """Transforms bbox predictions to correct format.
 
-    Args:
-        bbox (Tensor[N, 4 + ...]): Bbox predictions
-        anchor (Tensor): Anchor boxes
-
-    Returns:
-        tuple[Tensor, Tensor, Tensor]: xy and wh predictions and tail. The tail is
-          anything after xywh.
+    @type bbox: Tensor
+    @param bbox: Bbox predictions
+    @type anchor: Tensor
+    @param anchor: Anchor boxes
+    @rtype: tuple[Tensor, Tensor, Tensor]
+    @return: xy and wh predictions and tail. The tail is anything after xywh.
     """
     out_bbox = bbox.sigmoid()
     out_bbox_xy = out_bbox[..., 0:2] * 2.0 - 0.5
@@ -602,6 +632,25 @@ def compute_iou_loss(
     bbox_format: BBoxFormatType = "xyxy",
     reduction: Literal["sum", "mean"] = "mean",
 ) -> tuple[Tensor, Tensor]:
+    """Computes an IoU loss between 2 sets of bounding boxes.
+
+    @type pred_bboxes: Tensor
+    @param pred_bboxes: Predicted bounding boxes.
+    @type target_bboxes: Tensor
+    @param target_bboxes: Target bounding boxes.
+    @type target_scores: Tensor | None
+    @param target_scores: Target scores. Defaults to None.
+    @type mask_positive: Tensor | None
+    @param mask_positive: Mask for positive samples. Defaults to None.
+    @type iou_type: L{IoUType}
+    @param iou_type: IoU type. Defaults to "giou".
+    @type bbox_format: L{BBoxFormatType}
+    @param bbox_format: BBox format. Defaults to "xyxy".
+    @type reduction: Literal["sum", "mean"]
+    @param reduction: Reduction type. Defaults to "mean".
+    @rtype: tuple[Tensor, Tensor]
+    @return: IoU loss and IoU values.
+    """
     device = pred_bboxes.device
     target_bboxes = target_bboxes.to(device)
     if mask_positive is None or mask_positive.sum() > 0:

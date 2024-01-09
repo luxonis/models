@@ -46,14 +46,13 @@ class KeypointLoss(BaseLoss[Tensor, Tensor]):
         """Computes the keypoint loss and visibility loss for a given prediction and
         target.
 
-        Args:
-            prediction (Tensor): The predicted tensor of shape
-                (n_detections, n_keypoints * 3).
-            target (Tensor): The target tensor of shape (n_detections, n_keypoints * 2).
-
-        Returns:
-            tuple[Tensor, Tensor]: A tuple containing the keypoint loss
-            tensor of shape (1,) and the visibility loss tensor of shape (1,).
+        @type prediction: Tensor
+        @param prediction: Predicted tensor of shape C{[n_detections, n_keypoints * 3]}.
+        @type target: Tensor
+        @param target: Target tensor of shape C{[n_detections, n_keypoints * 2]}.
+        @rtype: tuple[Tensor, Tensor]
+        @return: A tuple containing the keypoint loss tensor of shape C{[1,]} and the
+            visibility loss tensor of shape C{[1,]}.
         """
         x, y, visibility_score = process_keypoints_predictions(prediction)
         gt_x = target[:, 0::2]

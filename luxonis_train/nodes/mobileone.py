@@ -1,7 +1,38 @@
 """MobileOne backbone.
 
-Soure: https://github.com/apple/ml-mobileone
-License (Apple): https://github.com/apple/ml-mobileone/blob/main/LICENSE
+Soure: U{https://github.com/apple/ml-mobileone} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>} @license: U{Apple
+<https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
+@license: U{Apple <https://github.com/apple/ml-mobileone/blob/main/LICENSE>}
 """
 
 
@@ -35,10 +66,9 @@ class MobileOne(BaseNode[Tensor, list[Tensor]]):
     def __init__(self, variant: Literal["s0", "s1", "s2", "s3", "s4"] = "s0", **kwargs):
         """Constructor for the MobileOne module.
 
-        Args:
-            variant (Literal["s0", "s1", "s2", "s3", "s4"], optional): Specifies
-              which variant of the MobileOne network to use.
-              For details, see <TODO: LINK>. Defaults to "s0".
+        @type variant: Literal["s0", "s1", "s2", "s3", "s4"]
+        @param variant: Specifies which variant of the MobileOne network to use. For
+            details, see TODO. Defaults to "s0".
         """
         super().__init__(**kwargs)
 
@@ -104,11 +134,10 @@ class MobileOne(BaseNode[Tensor, list[Tensor]]):
         Reparameterizes the model to obtain a plain CNN-like structure for inference.
         TODO: add more details
 
-        Note: The reparametrization is destructive and cannot be reversed!
+        @warning: The reparametrization is destructive and cannot be reversed!
 
-        Args:
-            export (bool, optional): Value to set the export mode to.
-              Defaults to True.
+        @type export: bool
+        @param export: Whether to set the export mode to True or False. Defaults to True.
         """
         if export:
             for module in self.modules():
@@ -118,13 +147,14 @@ class MobileOne(BaseNode[Tensor, list[Tensor]]):
     def _make_stage(self, planes: int, num_blocks: int, num_se_blocks: int):
         """Build a stage of MobileOne model.
 
-        Args:
-            planes (int): Number of output channels.
-            num_blocks (int): Number of blocks in this stage.
-            num_se_blocks (int): Number of SE blocks in this stage.
-
-        Returns:
-            nn.Sequential: A stage of MobileOne model.
+        @type planes: int
+        @param planes: Number of output channels.
+        @type num_blocks: int
+        @param num_blocks: Number of blocks in this stage.
+        @type num_se_blocks: int
+        @param num_se_blocks: Number of SE blocks in this stage.
+        @rtype: nn.Sequential
+        @return: A stage of MobileOne model.
         """
         # Get strides for all layers
         strides = [2] + [1] * (num_blocks - 1)
@@ -174,9 +204,8 @@ class MobileOneBlock(nn.Module):
 
     This block has a multi-branched architecture at train-time and
     plain-CNN style architecture at inference time For more details,
-    please refer to our paper: `An Improved One millisecond Mobile
-    Backbone` -
-    https://arxiv.org/pdf/2206.04040.pdf
+    please refer to our paper: U{An Improved One millisecond Mobile
+    Backbone<https://arxiv.org/pdf/2206.04040.pdf>}
     """
 
     def __init__(
@@ -192,16 +221,24 @@ class MobileOneBlock(nn.Module):
     ):
         """Construct a MobileOneBlock module.
 
-        Args:
-            in_channels (int): Number of channels in the input.
-            out_channels (int): Number of channels produced by the block.
-            kernel_size (int): Size of the convolution kernel.
-            stride (int, optional): Stride size. Defaults to 1.
-            padding (int, optional): Zero-padding size. Defaults to 0.
-            dilation (int, optional): Kernel dilation factor. Defaults to 1.
-            groups (int, optional): Group number. Defaults to 1.
-            use_se (bool, optional): Whether to use SE-ReLU activations. Defaults to False.
-            num_conv_branches (int, optional): Number of linear conv branches. Defaults to 1.
+        @type in_channels: int
+        @param in_channels: Number of channels in the input.
+        @type out_channels: int
+        @param out_channels: Number of channels produced by the block.
+        @type kernel_size: int
+        @param kernel_size: Size of the convolution kernel.
+        @type stride: int
+        @param stride: Stride size. Defaults to 1.
+        @type padding: int
+        @param padding: Zero-padding size. Defaults to 0.
+        @type dilation: int
+        @param dilation: Kernel dilation factor. Defaults to 1.
+        @type groups: int
+        @param groups: Group number. Defaults to 1.
+        @type use_se: bool
+        @param use_se: Whether to use SE-ReLU activations. Defaults to False.
+        @type num_conv_branches: int
+        @param num_conv_branches: Number of linear conv branches. Defaults to 1.
         """
         super().__init__()
 
@@ -284,8 +321,8 @@ class MobileOneBlock(nn.Module):
         return self.activation(self.se(out))
 
     def reparameterize(self):
-        """Following works like `RepVGG: Making VGG-style ConvNets Great Again` -
-        https://arxiv.org/pdf/2101.03697.pdf. We re-parameterize multi-branched
+        """Following works like U{RepVGG: Making VGG-style ConvNets Great Again
+        <https://arxiv.org/pdf/2101.03697.pdf. We re-parameterize multi-branched>}
         architecture used at training time to obtain a plain CNN-like structure
         for inference.
         """
@@ -318,10 +355,10 @@ class MobileOneBlock(nn.Module):
 
     def _get_kernel_bias(self) -> tuple[Tensor, Tensor]:
         """Method to obtain re-parameterized kernel and bias.
-        Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L83.
+        Reference: U{https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L83}
 
-        Returns:
-            Tuple of (kernel, bias) after fusing branches.
+        @rtype: tuple[Tensor, Tensor]
+        @return: Tuple of (kernel, bias) after re-parameterization.
         """
         # get weights and bias of scale branch
         kernel_scale = torch.zeros(())
@@ -352,10 +389,10 @@ class MobileOneBlock(nn.Module):
 
     def _fuse_bn_tensor(self, branch) -> tuple[Tensor, Tensor]:
         """Method to fuse batchnorm layer with preceeding conv layer.
-        Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L95.
+        Reference: U{https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L95}
 
-        Returns:
-            Tuple of (kernel, bias) after fusing batchnorm.
+        @rtype: tuple[Tensor, Tensor]
+        @return: Tuple of (kernel, bias) after fusing batchnorm.
         """
         if isinstance(branch, nn.Sequential):
             kernel = branch[0].weight

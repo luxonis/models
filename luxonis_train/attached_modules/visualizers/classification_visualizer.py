@@ -21,11 +21,11 @@ class ClassificationVisualizer(BaseVisualizer[Tensor, Tensor]):
         thickness: int = 1,
         **kwargs,
     ):
-        """
+        """Visualizer for classification tasks.
 
-        Args:
-            include_plot (bool): Whether to include a plot of the class
-                probabilities in the visualization. Defaults to False.
+        @type include_plot: bool
+        @param include_plot: Whether to include a plot of the class probabilities in the
+            visualization. Defaults to C{True}.
         """
         super().__init__(**kwargs)
         self.include_plot = include_plot

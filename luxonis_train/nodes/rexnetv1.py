@@ -1,7 +1,7 @@
 """Implementation of the ReXNetV1 backbone.
 
-Source: `https://github.com/clovaai/rexnet`
-License (MIT): `https://github.com/clovaai/rexnet/blob/master/LICENSE`
+Source: U{https://github.com/clovaai/rexnet}
+@license: U{MIT<https://github.com/clovaai/rexnet/blob/master/LICENSE>}
 """
 
 
@@ -26,18 +26,23 @@ class ReXNetV1_lite(BaseNode[Tensor, list[Tensor]]):
         input_ch: int = 16,
         final_ch: int = 164,
         multiplier: float = 1.0,
-        kernel_conf: str = "333333",
+        kernel_sizes: int | list[int] = 3,
         **kwargs,
     ):
         """ReXNetV1_lite backbone.
 
-        Args:
-            fix_head_stem (bool, optional): Whether to multiply head stem. Defaults to False.
-            divisible_value (int, optional): Divisor used. Defaults to 8.
-            input_ch (int, optional): Starting channel dimension. Defaults to 16.
-            final_ch (int, optional): Final channel dimension. Defaults to 164.
-            multiplier (float, optional): Channel dimension multiplier. Defaults to 1.0.
-            kernel_conf (str, optional): Kernel sizes encoded as string. Defaults to '333333'.
+        @type fix_head_stem: bool
+        @param fix_head_stem: Whether to multiply head stem. Defaults to False.
+        @type divisible_value: int
+        @param divisible_value: Divisor used. Defaults to 8.
+        @type input_ch: int
+        @param input_ch: Starting channel dimension. Defaults to 16.
+        @type final_ch: int
+        @param final_ch: Final channel dimension. Defaults to 164.
+        @type multiplier: float
+        @param multiplier: Channel dimension multiplier. Defaults to 1.0.
+        @type kernel_sizes: int | list[int]
+        @param kernel_sizes: Kernel size for each block. Defaults to 3.
         """
         super().__init__(**kwargs)
 
@@ -45,7 +50,10 @@ class ReXNetV1_lite(BaseNode[Tensor, list[Tensor]]):
         self.channels = [16, 48, 112, 184]
         layers = [1, 2, 2, 3, 3, 5]
         strides = [1, 2, 2, 2, 1, 2]
-        kernel_sizes = [int(element) for element in kernel_conf]
+
+        kernel_sizes = (
+            [kernel_sizes] * 6 if isinstance(kernel_sizes, int) else kernel_sizes
+        )
 
         strides = sum(
             [

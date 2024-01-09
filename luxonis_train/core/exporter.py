@@ -28,9 +28,12 @@ class Exporter(Core):
     ):
         """Constructs a new Exporter instance.
 
-        Args:
-            cfg (str | dict): path to config file or config dict used to setup training
-            args (dict | None): argument dict provided through command line, used for config overriding
+        @type cfg: str | dict[str, Any] | Config
+        @param cfg: Path to config file or config dict used to setup training.
+
+        @type opts: list[str] | tuple[str, ...] | dict[str, Any] | None
+        @param opts: Argument dict provided through command line,
+            used for config overriding.
         """
 
         super().__init__(cfg, opts)
@@ -78,8 +81,10 @@ class Exporter(Core):
         """Generates export config from input config that is compatible with Luxonis
         modelconverter tool.
 
-        Args:
-            onnx_path (str): Path to .onnx model
+        @type onnx_path: str
+        @param onnx_path: Path to .onnx model
+        @rtype: dict[str, Any]
+        @return: Export config.
         """
         return {
             "input_model": onnx_path,
@@ -94,7 +99,14 @@ class Exporter(Core):
         }
 
     def export(self, onnx_path: str | None = None):
-        """Runs export."""
+        """Runs export.
+
+        @type onnx_path: str | None
+        @param onnx_path: Path to .onnx model. If not specified, model will be saved
+            to export directory with name specified in config file.
+
+        @raises RuntimeError: If `onnxsim` fails to simplify the model.
+        """
         onnx_path = onnx_path or self.export_path + ".onnx"
         self.output_names = self.lightning_module.export_onnx(
             onnx_path, **self.cfg.exporter.onnx.model_dump()
@@ -155,9 +167,18 @@ class Exporter(Core):
             self._upload(files_to_upload)
 
     def _upload(self, files_to_upload: list[str]):
-        """Uploads .pt, .onnx and current config.yaml to specified s3 bucket."""
+        """Uploads .pt, .onnx and current config.yaml to specified s3 bucket.
+
+        @type files_to_upload: list[str]
+        @param files_to_upload: List of files to upload.
+        @raises ValueError: If upload url was not specified in config file.
+        """
+
+        if self.cfg.exporter.upload_url is None:
+            raise ValueError("Upload url must be specified in config file.")
+
         fs = LuxonisFileSystem(self.cfg.exporter.upload_url, allow_local=False)
-        logger.info(f"Started upload to {fs.full_path()}...")
+        logger.info(f"Started upload to {fs.full_path}...")
 
         for file in files_to_upload:
             suffix = Path(file).suffix
@@ -170,9 +191,8 @@ class Exporter(Core):
             self.cfg.save_data(f.name)
             fs.put_file(local_path=f.name, remote_path="config.yaml")
 
-        full_remote_path = fs.full_path()
         onnx_path = os.path.join(
-            full_remote_path, f"{self.cfg.exporter.export_model_name}.onnx"
+            fs.full_path, f"{self.cfg.exporter.export_model_name}.onnx"
         )
         modelconverter_config = self._get_modelconverter_config(onnx_path)
 

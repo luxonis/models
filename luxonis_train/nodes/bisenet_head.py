@@ -1,6 +1,6 @@
 """BiSeNet segmentation head.
 
-Adapted from `https://github.com/taveraantonio/BiseNetv1`.
+Adapted from U{https://github.com/taveraantonio/BiseNetv1}.
 License: NOT SPECIFIED.
 """
 
@@ -15,11 +15,6 @@ from .base_node import BaseNode
 
 
 class BiSeNetHead(BaseNode[Tensor, Tensor]):
-    """Implementation of the BiSeNet segmentation head.
-
-    TODO: Add more documentation.
-    """
-
     attach_index: int = -1
     in_height: int
     in_channels: int
@@ -29,11 +24,12 @@ class BiSeNetHead(BaseNode[Tensor, Tensor]):
         intermediate_channels: int = 64,
         **kwargs,
     ):
-        """Constructor for the BiSeNet segmentation head.
+        """BiSeNet segmentation head.
+        TODO: Add more documentation.
 
-        Args:
-            intermediate_channels (int, optional): How many intermediate channels to
-              use. Defaults to 64.
+        @type intermediate_channels: int
+        @param intermediate_channels: How many intermediate channels to use.
+            Defaults to C{64}.
         """
         super().__init__(task_type=LabelType.SEGMENTATION, **kwargs)
 

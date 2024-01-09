@@ -15,15 +15,22 @@ class ExportOnTrainEnd(pl.Callback):
         """Callback that performs export on train end with best weights according to the
         validation loss.
 
-        Args:
-            upload_to_mlflow (bool, optional): If se to True, overrides the
-              upload url in Exporter with currently
-              active MLFlow run (if present).
+        @type upload_to_mlflow: bool
+        @param upload_to_mlflow: If set to True, overrides the upload url in Exporter
+            with currently active MLFlow run (if present).
         """
         super().__init__()
         self.upload_to_mlflow = upload_to_mlflow
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        """Exports the model on train end.
+
+        @type trainer: L{pl.Trainer}
+        @param trainer: Pytorch Lightning trainer.
+        @type pl_module: L{pl.LightningModule}
+        @param pl_module: Pytorch Lightning module.
+        @raises RuntimeError: If no best model path is found.
+        """
         from luxonis_train.core.exporter import Exporter
 
         model_checkpoint_callbacks = [

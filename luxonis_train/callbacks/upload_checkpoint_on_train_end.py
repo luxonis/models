@@ -13,8 +13,8 @@ class UploadCheckpointOnTrainEnd(pl.Callback):
     def __init__(self, upload_directory: str):
         """Constructs `UploadCheckpointOnTrainEnd`.
 
-        Args:
-            upload_directory (str): Path used as upload directory
+        @type upload_directory: str
+        @param upload_directory: Path used as upload directory
         """
         super().__init__()
         self.fs = LuxonisFileSystem(

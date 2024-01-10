@@ -10,7 +10,7 @@ maintainers = [{ name = "Luxonis", email = "support@luxonis.com" }]
 keywords = ["ml", "training", "luxonis", "oak"]
 dynamic = ["dependencies", "optional-dependencies"]
 classifiers = [
-  "License :: Apache License 2.0",
+  "License :: OSI Approved :: Apache Software License",
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3.10",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",

@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 
+
 def dist_calculator(gt_bboxes, anchor_bboxes):
     """compute center distance between all bbox and gt
 
@@ -21,6 +22,7 @@ def dist_calculator(gt_bboxes, anchor_bboxes):
     distances = (gt_points[:, None, :] - ac_points[None, :, :]).pow(2).sum(-1).sqrt()
 
     return distances, ac_points
+
 
 def select_candidates_in_gts(xy_centers, gt_bboxes, eps=1e-9):
     """select the positive anchors's center in gt
@@ -43,6 +45,7 @@ def select_candidates_in_gts(xy_centers, gt_bboxes, eps=1e-9):
     bbox_deltas = bbox_deltas.reshape([bs, n_max_boxes, n_anchors, -1])
     return (bbox_deltas.min(axis=-1)[0] > eps).to(gt_bboxes.dtype)
 
+
 def select_highest_overlaps(mask_pos, overlaps, n_max_boxes):
     """if an anchor box is assigned to multiple gts,
         the one with the highest iou will be selected.
@@ -64,7 +67,8 @@ def select_highest_overlaps(mask_pos, overlaps, n_max_boxes):
         mask_pos = torch.where(mask_multi_gts, is_max_overlaps, mask_pos)
         fg_mask = mask_pos.sum(axis=-2)
     target_gt_idx = mask_pos.argmax(axis=-2)
-    return target_gt_idx, fg_mask , mask_pos
+    return target_gt_idx, fg_mask, mask_pos
+
 
 def iou_calculator(box1, box2, eps=1e-9):
     """Calculate iou for batch

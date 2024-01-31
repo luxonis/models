@@ -230,6 +230,9 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "dataset_name": {
+                    "type": "string"
+                },
                 "team_id": {
                     "type": "string"
                 },
@@ -239,14 +242,20 @@
                 "bucket_type": {
                     "type": "string",
                     "enum": [
-                        "local",
-                        "aws"
+                        "BucketType.INTERNAL",
+                        "BucketType.EXTERNAL"
                     ],
-                    "default": "local"
+                    "default": "BucketType.INTERNAL"
                 },
-                "override_bucket_type": {
-                    "type": "boolean",
-                    "default": false
+                "bucket_storage": {
+                    "type": "string",
+                    "enum": [
+                        "BucketStorage.LOCAL",
+                        "BucketStorage.S3",
+                        "BucketStorage.GCS",
+                        "BucketStorage.AZURE"
+                    ],
+                    "default": "BucketStorage.LOCAL"
                 },
                 "train_view": {
                     "type": "string",
@@ -259,6 +268,9 @@
                 "test_view": {
                     "type": "string",
                     "default": "test"
+                },
+                "json_mode": {
+                    "type": "boolean"
                 }
             },
             "required": [
@@ -380,13 +392,23 @@
                             "type": "boolean",
                             "default": false
                         },
-                        "export_on_finish": {
-                            "type": "boolean",
-                            "default": false
-                        },
                         "use_device_stats_monitor": {
                             "type": "boolean",
                             "default": false
+                        },
+                        "export_on_finish": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "active": {
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "override_upload_directory": {
+                                    "type": "boolean",
+                                    "default": true
+                                }
+                            }
                         },
                         "model_checkpoint": {
                             "type": "object",
@@ -397,6 +419,23 @@
                                     "minimum": 1,
                                     "maximum": 3,
                                     "default": 3
+                                }
+                            }
+                        },
+                        "upload_checkpoint_on_finish": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "active": {
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "upload_directory": {
+                                    "type": [
+                                        "null",
+                                        "string"
+                                    ],
+                                    "default": null
                                 }
                             }
                         },
@@ -430,6 +469,13 @@
                                     "default": true
                                 }
                             }
+                        },
+                        "custom_callbacks": {
+                            "type": [
+                                "null",
+                                "array"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -639,7 +685,7 @@
                         }
                     }
                 },
-                "s3_upload": {
+                "upload": {
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
@@ -647,17 +693,12 @@
                             "type": "boolean",
                             "default": false
                         },
-                        "bucket": {
-                            "type": [
-                                "null",
-                                "string"
-                            ]
-                        },
                         "upload_directory": {
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "default": null
                         }
                     }
                 }

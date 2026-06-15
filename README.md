@@ -1,7 +1,7 @@
 > [!WARNING]
 > **This repository is archived and is no longer actively maintained.**
-> If you are looking for `luxonis-train`, use the official, actively developed repository instead:
-> https://github.com/luxonis/luxonis-train/tree/main
+> If you are looking for `luxonis-train`, use the official, actively developed repository instead: **[LuxonisTrain](https://github.com/luxonis/luxonis-train)**
+> 
 > New development, fixes, and updates are happening there.
 
 # Luxonis training library

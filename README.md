@@ -1,3 +1,9 @@
+> [!WARNING]
+> **This repository is archived and is no longer actively maintained.**
+> If you are looking for `luxonis-train`, use the official, actively developed repository instead:
+> https://github.com/luxonis/luxonis-train/tree/main
+> New development, fixes, and updates are happening there.
+
 # Luxonis training library
 Luxonis training library (luxonis-train) is intended for training deep learning models that can run fast on OAK products. We currently support image classification (multi-class and multi-label), semantic segmentation, object detection and keypoint detection tasks. The library also depends on `Luxonis Dataset Format`, which you can see [here](https://github.com/luxonis/luxonis-ml). The main idea is that the user can quickly build a model, that can run on edge devices, by defining model components through config or choose from predefined models, and train it.
 
